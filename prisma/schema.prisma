@@ -1,0 +1,144 @@
+// Riskly — leisure-centre risk assessment schema
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// A leisure centre / site. Top-level scoping dimension (one org, many centres).
+model Center {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  address      String?
+  contactName  String?
+  contactEmail String?
+  phone        String?
+  notes        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  areas       Area[]
+  assessments RiskAssessment[]
+}
+
+// Physical / functional area within a centre (poolside, gym floor, plant room...). Per-centre.
+model Area {
+  id          String   @id @default(cuid())
+  centerId    String
+  center      Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assessments RiskAssessment[]
+
+  @@index([centerId])
+}
+
+// Staff role (lifeguard, fitness instructor...). Org-level shared library, reusable across centres.
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assessments RiskAssessment[]
+}
+
+// Activity (pool supervision, chemical handling...). Org-level shared library.
+model Activity {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assessments RiskAssessment[]
+}
+
+// The core document. Classified by centre + area + role + activity.
+model RiskAssessment {
+  id                    String    @id @default(cuid())
+  reference             String    @unique
+  title                 String
+  description           String?
+  centerId              String
+  center                Center    @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  areaId                String
+  area                  Area      @relation(fields: [areaId], references: [id])
+  roleId                String?
+  role                  Role?     @relation(fields: [roleId], references: [id])
+  activityId            String?
+  activity              Activity? @relation(fields: [activityId], references: [id])
+  status                String    @default("Draft") // Draft | Active | UnderReview | Archived
+  assessorName          String?
+  approvedByName        String?
+  assessmentDate        DateTime  @default(now())
+  reviewFrequencyMonths Int       @default(12)
+  lastReviewedDate      DateTime?
+  nextReviewDate        DateTime
+  version               Int       @default(1)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  hazards    Hazard[]
+  reviewLogs ReviewLog[]
+
+  @@index([centerId])
+  @@index([areaId])
+  @@index([roleId])
+  @@index([activityId])
+  @@index([status])
+  @@index([nextReviewDate])
+}
+
+// Hazard line item — the heart of the 5x5 matrix (initial + residual L x S).
+model Hazard {
+  id                 String         @id @default(cuid())
+  assessmentId       String
+  assessment         RiskAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  sortOrder          Int            @default(0)
+  hazardDescription  String
+  whoAtRisk          String?
+  existingControls   String?
+  initialLikelihood  Int            @default(1) // 1-5
+  initialSeverity    Int            @default(1) // 1-5
+  additionalControls String?
+  residualLikelihood Int            @default(1) // 1-5
+  residualSeverity   Int            @default(1) // 1-5
+  actionOwnerName    String?
+  actionDueDate      DateTime?
+  actionStatus       String         @default("NA") // NA | Open | InProgress | Done
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([assessmentId])
+  @@index([actionStatus])
+}
+
+// Audit trail of reviews — supports the monitoring story.
+model ReviewLog {
+  id             String         @id @default(cuid())
+  assessmentId   String
+  assessment     RiskAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  reviewedDate   DateTime       @default(now())
+  reviewerName   String?
+  outcome        String         @default("NoChanges") // NoChanges | Updated | Escalated
+  notes          String?
+  nextReviewDate DateTime
+  createdAt      DateTime       @default(now())
+
+  @@index([assessmentId])
+}

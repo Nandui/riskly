@@ -1,26 +1,155 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ------------------------------------------------------------------ *
+ * Riskly design tokens — "a calm control room for safety"
+ * Colour is semantic: the risk palette (green→amber→orange→red) is
+ * reserved strictly for risk bands, never decoration.
+ * ------------------------------------------------------------------ */
+@theme {
+  /* neutrals — cool slate */
+  --color-bg: #f3f6f8;
+  --color-surface: #ffffff;
+  --color-surface-2: #f8fafc;
+  --color-ink: #0f1c2e;
+  --color-ink-soft: #334155;
+  --color-muted: #64748b;
+  --color-faint: #94a3b8;
+  --color-line: #e3e8ee;
+  --color-line-strong: #cbd5e1;
+
+  /* brand — deep teal (water / leisure / trust) */
+  --color-brand: #0e7c86;
+  --color-brand-strong: #0a5b63;
+  --color-brand-soft: #e4f2f3;
+  --color-brand-ink: #06363b;
+
+  /* risk palette — SEMANTIC ONLY */
+  --color-low: #15803d;
+  --color-low-bg: #dcfce7;
+  --color-low-line: #86efac;
+  --color-medium: #a16207;
+  --color-medium-bg: #fef3c7;
+  --color-medium-line: #fcd34d;
+  --color-high: #c2410c;
+  --color-high-bg: #ffe8d6;
+  --color-high-line: #fdba74;
+  --color-critical: #b91c1c;
+  --color-critical-bg: #fee2e2;
+  --color-critical-line: #fca5a5;
+
+  /* status accents */
+  --color-draft: #6b7280;
+  --color-active: #0e7c86;
+  --color-review: #a16207;
+  --color-archived: #94a3b8;
+
+  /* sidebar — deep teal-slate */
+  --color-sidebar: #0a1e24;
+  --color-sidebar-2: #0e2a31;
+  --color-sidebar-line: #1c3a42;
+  --color-sidebar-ink: #d6e7e9;
+  --color-sidebar-muted: #7ba0a6;
+
+  /* typefaces (wired by next/font in layout.tsx) */
+  --font-display: var(--ff-display), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--ff-body), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--ff-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  --radius-card: 0.75rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: light;
+  }
+
+  * {
+    border-color: var(--color-line);
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4, h5 {
+    font-family: var(--font-display);
+    letter-spacing: -0.012em;
+  }
+
+  ::selection {
+    background-color: var(--color-brand);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* tabular figures for data tables / scores */
+  .tnum {
+    font-variant-numeric: tabular-nums;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Eyebrow / inspection-tag label motif */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* Thin custom scrollbar in the light content area */
+@media (pointer: fine) {
+  .scroll-slim {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Print — clean, paper-friendly assessment output
+ * ------------------------------------------------------------------ */
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-full {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  .print-break-avoid {
+    break-inside: avoid;
+  }
+
+  a[href]::after {
+    content: "";
+  }
 }
