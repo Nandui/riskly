@@ -14,7 +14,8 @@ data is fully persistent.
   `prisma migrate deploy` (applies any new migrations to the database) and then
   `next build`. So the database schema stays in sync automatically.
 - The app reads `DATABASE_URL` (a **pooled** connection, safe for serverless),
-  and Prisma uses `DIRECT_URL` (a **direct** connection) for migrations.
+  and Prisma uses `DATABASE_URL_UNPOOLED` (a **direct** connection) for
+  migrations. Neon's Vercel integration sets **both** of these automatically.
 
 ## One-time setup
 
@@ -29,14 +30,10 @@ data is fully persistent.
    **Neon** (Postgres) → connect it to this project.
 2. Vercel/Neon automatically injects a pooled `DATABASE_URL` into the project.
 
-### 3. Add the `DIRECT_URL` variable
-Neon gives you **two** connection strings: a **pooled** one and a **direct /
-unpooled** one.
-1. Project → **Settings** → **Environment Variables**.
-2. Confirm `DATABASE_URL` is the **pooled** string (it usually contains
-   `-pooler`).
-3. Add a new variable **`DIRECT_URL`** and paste Neon's **direct / unpooled**
-   connection string. Apply it to all environments.
+### 3. Confirm the environment variables
+The Neon integration sets both `DATABASE_URL` (pooled) and
+`DATABASE_URL_UNPOOLED` (direct) for you — no manual entry needed. You can
+verify them under Project → **Settings** → **Environment Variables**.
 
 ### 4. Redeploy
 Project → **Deployments** → redeploy the latest. The build now runs

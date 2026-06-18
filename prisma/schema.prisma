@@ -7,8 +7,10 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
+  // Pooled connection for the app at runtime; direct/unpooled for migrations.
+  // Neon's Vercel integration provides both names automatically.
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 // A leisure centre / site. Top-level scoping dimension (one org, many centres).
