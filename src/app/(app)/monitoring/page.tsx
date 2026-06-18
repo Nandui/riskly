@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   CalendarClock,
   TriangleAlert,
@@ -9,10 +8,9 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { RiskBadge } from "@/components/ui/risk-badge";
-import { CategoryBadge } from "@/components/ui/badge";
 import { ReviewQueue, type ReviewItem } from "@/components/monitoring/review-queue";
 import { OpenRequests } from "@/components/monitoring/open-requests";
+import { HighRiskTable } from "@/components/monitoring/high-risk-table";
 import { AssessmentTable } from "@/components/assessments/assessment-table";
 import { getCenterContext } from "@/lib/center-context";
 import {
@@ -86,6 +84,19 @@ export default async function MonitoringPage() {
     reference: r.assessment.reference,
     title: assessmentTitle(r.assessment),
     centerName: r.assessment.center.name,
+  }));
+
+  const highRiskRows = highRisk.map((h) => ({
+    id: h.id,
+    hazard: h.hazard,
+    category: h.riskCategory,
+    score: h.score,
+    band: h.band,
+    personAtRisk: h.personAtRisk,
+    assessmentId: h.assessment.id,
+    reference: h.assessment.reference,
+    centerName: h.assessment.center.name,
+    subjectTitle: assessmentTitle(h.assessment),
   }));
 
   const todayInput = toDateInputValue(new Date());
@@ -182,32 +193,7 @@ export default async function MonitoringPage() {
             description="Every hazard in scope is rated Low or Medium."
           />
         ) : (
-          <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-xs">
-            {highRisk.map((h) => (
-              <li key={h.id}>
-                <Link
-                  href={`/assessments/${h.assessment.id}`}
-                  className="flex flex-col gap-2 px-4 py-3.5 transition-colors hover:bg-surface-2 sm:flex-row sm:items-center sm:gap-4"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-ink">{h.hazard}</p>
-                    <p className="text-xs text-muted-foreground">
-                      <span className="font-mono text-faint">
-                        {h.assessment.reference}
-                      </span>{" "}
-                      · {h.assessment.center.name} ·{" "}
-                      {assessmentTitle(h.assessment)}
-                      {h.personAtRisk ? ` · ${h.personAtRisk}` : ""}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 sm:justify-end">
-                    <CategoryBadge category={h.riskCategory} />
-                    <RiskBadge score={h.score} band={h.band} size="sm" />
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <HighRiskTable rows={highRiskRows} showCenter={!selected} />
         )}
       </section>
     </div>
