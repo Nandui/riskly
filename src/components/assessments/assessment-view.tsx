@@ -111,7 +111,10 @@ export function AssessmentView({
       <div className="grid items-start gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
         {/* ── Control rail ────────────────────────────────────────── */}
         <aside className="flex flex-col gap-4 lg:sticky lg:top-[4.5rem]">
-          {/* Risk summary */}
+          <h2 className="flex h-8 items-center text-base font-semibold text-ink">
+            Risk summary
+          </h2>
+          {/* Overall residual risk */}
           <div className="rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-xs">
             <p className="eyebrow mb-3">Overall residual risk</p>
             <div className="flex items-center gap-3">
@@ -260,7 +263,7 @@ export function AssessmentView({
 
         {/* ── Records ─────────────────────────────────────────────── */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2.5">
+          <div className="flex h-8 items-center gap-2.5">
             <h2 className="text-base font-semibold text-ink">
               Hazards &amp; controls
             </h2>
