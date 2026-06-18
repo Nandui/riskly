@@ -10,12 +10,12 @@ import {
 } from "lucide-react";
 import { CategoryBadge } from "@/components/ui/badge";
 import { ReviewChip } from "@/components/ui/review-chip";
-import { ActivityTimeline } from "@/components/ui/activity-timeline";
 import {
   ApproveButton,
   WithdrawApprovalButton,
 } from "@/components/assessments/approval-button";
 import { AddHazardButton } from "@/components/assessments/add-hazard-modal";
+import { ActivityLogButton } from "@/components/assessments/activity-log-modal";
 import type { AssessmentDetail } from "@/lib/data/assessments";
 import {
   formatDate,
@@ -108,6 +108,14 @@ export function AssessmentView({
     if (sort === "riskAsc") return [...list].sort((x, y) => x.score - y.score);
     return [...list].sort((x, y) => x.sortOrder - y.sortOrder);
   }, [hazards, riskFilter, catFilter, personFilter, sort]);
+
+  const auditItems = a.auditLogs.map((e) => ({
+    id: e.id,
+    action: e.action,
+    detail: e.detail,
+    userName: e.userName,
+    timestamp: formatDateTime(e.createdAt),
+  }));
 
   return (
     <div className="space-y-6">
@@ -275,11 +283,10 @@ export function AssessmentView({
                 ? hazardCount
                 : `${visible.length} / ${hazardCount}`}
             </span>
-            {canEdit && (
-              <div className="no-print ml-auto">
-                <AddHazardButton assessmentId={a.id} />
-              </div>
-            )}
+            <div className="no-print ml-auto flex items-center gap-2">
+              <ActivityLogButton items={auditItems} />
+              {canEdit && <AddHazardButton assessmentId={a.id} />}
+            </div>
           </div>
 
           {hazardCount === 0 ? (
@@ -333,24 +340,6 @@ export function AssessmentView({
         </section>
       )}
 
-      {a.auditLogs.length > 0 && (
-        <section className="space-y-3 print-break-avoid">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <History className="size-4 text-muted-foreground" /> Activity
-          </h2>
-          <div className="rounded-[var(--radius-card)] border border-line bg-surface p-4">
-            <ActivityTimeline
-              items={a.auditLogs.map((e) => ({
-                id: e.id,
-                action: e.action,
-                detail: e.detail,
-                userName: e.userName,
-                timestamp: formatDateTime(e.createdAt),
-              }))}
-            />
-          </div>
-        </section>
-      )}
     </div>
   );
 }

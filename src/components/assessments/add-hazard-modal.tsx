@@ -35,7 +35,7 @@ export function AddHazardButton({ assessmentId }: { assessmentId: string }) {
         onClick={() => setOpen(true)}
         className={buttonClasses({ variant: "secondary", size: "sm" })}
       >
-        <Plus className="size-4" /> Add hazard
+        <Plus className="size-4" /> Add New Hazard
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[88vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
@@ -73,7 +73,7 @@ function AddHazardForm({
   return (
     <>
       <DialogHeader className="border-b border-line p-5 pr-12 text-left">
-        <DialogTitle>Add hazard</DialogTitle>
+        <DialogTitle>Add new hazard</DialogTitle>
         <DialogDescription>
           This sends the assessment back to Under review and clears any
           approval.
