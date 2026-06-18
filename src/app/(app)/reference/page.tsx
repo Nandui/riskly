@@ -57,7 +57,7 @@ export default async function ReferencePage({
     .filter((a) => a.subjectType === subjectType)
     .sort(
       (x, y) =>
-        y.summary.maxRiskScore - x.summary.maxRiskScore ||
+        y.summary.overallScore - x.summary.overallScore ||
         x.title.localeCompare(y.title),
     );
   const groups = groupByCentre(rows, !selected);
@@ -109,7 +109,7 @@ export default async function ReferencePage({
                       <div className="flex min-w-0 flex-1 items-center gap-2.5">
                         {a.summary.headlineBand && (
                           <RiskBadge
-                            score={a.summary.maxRiskScore}
+                            score={a.summary.overallScore}
                             band={a.summary.headlineBand}
                             size="sm"
                             showLabel={false}

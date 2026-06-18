@@ -73,7 +73,7 @@ export default async function MonitoringPage() {
     reviewKey: a.summary.review.key === "overdue" ? "overdue" : "due",
     reviewLabel: a.summary.review.label,
     nextReviewDate: formatDate(a.nextReviewDate),
-    residualScore: a.summary.headlineBand ? a.summary.maxRiskScore : null,
+    residualScore: a.summary.headlineBand ? a.summary.overallScore : null,
     residualBand: a.summary.headlineBand,
   }));
 

@@ -21,7 +21,7 @@ interface HazardRatings {
 
 export interface AssessmentSummary {
   hazardCount: number;
-  maxRiskScore: number;
+  overallScore: number;
   headlineBand: RiskBand | null;
   highRiskCount: number;
   review: ReviewStatus;
@@ -31,19 +31,26 @@ export function summarizeAssessment(a: {
   hazards: HazardRatings[];
   nextReviewDate: Date | string;
 }): AssessmentSummary {
-  let maxRiskScore = 0;
+  let scoreSum = 0;
   let highRiskCount = 0;
 
   for (const h of a.hazards) {
     const score = riskScore(h.likelihood, h.severity);
-    maxRiskScore = Math.max(maxRiskScore, score);
+    scoreSum += score;
     if (isHighRisk(score)) highRiskCount++;
   }
 
+  // Overall risk = the average of every hazard's score (rounded), so the
+  // headline reflects the assessment as a whole, not just its worst hazard.
+  // The "high risk" count still flags individual High/Very High hazards.
+  const overallScore = a.hazards.length
+    ? Math.round(scoreSum / a.hazards.length)
+    : 0;
+
   return {
     hazardCount: a.hazards.length,
-    maxRiskScore,
-    headlineBand: a.hazards.length ? riskBand(maxRiskScore) : null,
+    overallScore,
+    headlineBand: a.hazards.length ? riskBand(overallScore) : null,
     highRiskCount,
     review: getReviewStatus(a.nextReviewDate),
   };

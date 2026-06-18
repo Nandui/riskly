@@ -50,7 +50,7 @@ export function AssessmentTable({
                   </span>
                   {s.headlineBand && (
                     <RiskBadge
-                      score={s.maxRiskScore}
+                      score={s.overallScore}
                       band={s.headlineBand}
                       size="sm"
                     />

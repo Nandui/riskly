@@ -93,7 +93,7 @@ export function AssessmentView({
           <div>
             <p className="eyebrow mb-1.5">Overall risk</p>
             {summary.headlineBand ? (
-              <RiskBadge score={summary.maxRiskScore} band={summary.headlineBand} />
+              <RiskBadge score={summary.overallScore} band={summary.headlineBand} />
             ) : (
               <span className="text-sm text-faint">No hazards rated</span>
             )}
