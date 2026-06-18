@@ -60,9 +60,21 @@ export default async function AssessmentDetailPage({
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between print-break-avoid">
         <div className="min-w-0">
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <span className="font-mono text-sm text-muted-foreground">{a.reference}</span>
             <StatusBadge status={a.status} />
+            {a.owner && (
+              <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                <UserRound className="size-3.5 text-faint" />
+                {a.owner.name ?? a.owner.email}
+              </span>
+            )}
+            {a.department && (
+              <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Building2 className="size-3.5 text-faint" />
+                {a.department.name}
+              </span>
+            )}
           </div>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">
             {title}
@@ -74,22 +86,6 @@ export default async function AssessmentDetailPage({
             </span>{" "}
             · {formatDate(a.assessmentDate)}
           </p>
-          {(a.owner || a.department) && (
-            <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              {a.owner && (
-                <span className="inline-flex items-center gap-1.5">
-                  <UserRound className="size-3.5 text-faint" />
-                  {a.owner.name ?? a.owner.email}
-                </span>
-              )}
-              {a.department && (
-                <span className="inline-flex items-center gap-1.5">
-                  <Building2 className="size-3.5 text-faint" />
-                  {a.department.name}
-                </span>
-              )}
-            </p>
-          )}
           {a.description && (
             <p className="mt-2 max-w-prose text-sm text-ink-soft">
               {a.description}
