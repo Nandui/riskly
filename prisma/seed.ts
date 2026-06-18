@@ -66,9 +66,11 @@ async function makeAssessment(opts: {
       reviewFrequencyMonths: opts.reviewFrequencyMonths,
       lastReviewedDate: reviewedDate,
       nextReviewDate,
+      hazardSeq: opts.hazards.length,
       hazards: {
         create: opts.hazards.map((h, i) => ({
           sortOrder: i,
+          seq: i + 1,
           hazard: h.hazard,
           riskFactor: h.riskFactor,
           personAtRisk: h.personAtRisk,

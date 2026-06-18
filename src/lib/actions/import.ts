@@ -34,6 +34,7 @@ export type ImportResult = {
 function hazardCreateData(hazards: z.infer<typeof payloadSchema>["hazards"]) {
   return hazards.map((h, i) => ({
     sortOrder: i,
+    seq: i + 1,
     hazard: h.hazard,
     riskFactor: emptyToNull(h.riskFactor),
     personAtRisk: emptyToNull(h.personAtRisk),
@@ -141,6 +142,7 @@ export async function importAssessment(
           assessmentDate,
           reviewFrequencyMonths: d.reviewFrequencyMonths,
           nextReviewDate,
+          hazardSeq: d.hazards.length,
           hazards: { create: hazards },
         },
       }),
@@ -160,6 +162,7 @@ export async function importAssessment(
         reviewFrequencyMonths: d.reviewFrequencyMonths,
         lastReviewedDate: d.status === "Draft" ? null : assessmentDate,
         nextReviewDate,
+        hazardSeq: d.hazards.length,
         hazards: { create: hazards },
       },
     });

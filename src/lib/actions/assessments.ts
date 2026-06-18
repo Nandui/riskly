@@ -83,9 +83,13 @@ async function resolveSubject(d: AssessmentInput): Promise<SubjectLink> {
   return { ok: true, areaId: null, roleId: null, activityId: d.subjectId };
 }
 
-function hazardCreateData(hazards: AssessmentInput["hazards"]) {
+function hazardCreateData(
+  hazards: AssessmentInput["hazards"],
+  seqFor: (h: AssessmentInput["hazards"][number], i: number) => number,
+) {
   return hazards.map((h, i) => ({
     sortOrder: i,
+    seq: seqFor(h, i),
     hazard: h.hazard,
     riskFactor: emptyToNull(h.riskFactor),
     personAtRisk: emptyToNull(h.personAtRisk),
@@ -244,7 +248,8 @@ export async function createAssessment(
       reviewFrequencyMonths: d.reviewFrequencyMonths,
       lastReviewedDate: d.status === "Draft" ? null : assessmentDate,
       nextReviewDate,
-      hazards: { create: hazardCreateData(d.hazards) },
+      hazardSeq: d.hazards.length,
+      hazards: { create: hazardCreateData(d.hazards, (_h, i) => i + 1) },
       ownerId: emptyToNull(d.ownerId),
       departmentId: emptyToNull(d.departmentId),
     },
@@ -305,9 +310,11 @@ export async function updateAssessment(
       ownerId: true,
       departmentId: true,
       description: true,
+      hazardSeq: true,
       hazards: {
         select: {
           id: true,
+          seq: true,
           hazard: true,
           likelihood: true,
           severity: true,
@@ -327,6 +334,17 @@ export async function updateAssessment(
   const wasApproved = Boolean(existing?.approvedByName);
   const changeSummary = existing ? summariseEdit(existing, d, subject) : null;
 
+  // Preserve each existing hazard's permanent seq (matched by id) and allocate
+  // brand-new ones above the high-water mark, so hazard numbers are never reused
+  // even though the rows are deleted and recreated below.
+  const seqById = new Map((existing?.hazards ?? []).map((h) => [h.id, h.seq]));
+  let hazardSeq = existing?.hazardSeq ?? 0;
+  for (const h of existing?.hazards ?? []) hazardSeq = Math.max(hazardSeq, h.seq);
+  const hazardsCreate = hazardCreateData(d.hazards, (h) => {
+    const kept = h.id ? seqById.get(h.id) : undefined;
+    return kept ?? ++hazardSeq;
+  });
+
   await db.$transaction([
     db.hazard.deleteMany({ where: { assessmentId: id } }),
     db.riskAssessment.update({
@@ -343,10 +361,11 @@ export async function updateAssessment(
         assessmentDate,
         reviewFrequencyMonths: d.reviewFrequencyMonths,
         nextReviewDate,
+        hazardSeq,
         ...(wasApproved
           ? { approvedByName: null, approvedById: null, approvedAt: null }
           : {}),
-        hazards: { create: hazardCreateData(d.hazards) },
+        hazards: { create: hazardsCreate },
         ownerId: emptyToNull(d.ownerId),
         departmentId: emptyToNull(d.departmentId),
       },
@@ -421,14 +440,16 @@ export async function addHazard(
 
   const existing = await db.riskAssessment.findUnique({
     where: { id: assessmentId },
-    select: { status: true, approvedByName: true },
+    select: { status: true, approvedByName: true, hazardSeq: true },
   });
   if (!existing) return { ok: false, error: "Assessment not found." };
 
   const max = await db.hazard.aggregate({
     where: { assessmentId },
-    _max: { sortOrder: true },
+    _max: { sortOrder: true, seq: true },
   });
+  // Never reuse a hazard number: allocate above the assessment's high-water mark.
+  const nextSeq = Math.max(existing.hazardSeq, max._max.seq ?? 0) + 1;
   const wasApproved = Boolean(existing.approvedByName);
   // Archived assessments keep their status; everything else goes Under review.
   const toReview = existing.status !== "Archived";
@@ -437,6 +458,7 @@ export async function addHazard(
     data: {
       assessmentId,
       sortOrder: (max._max.sortOrder ?? 0) + 1,
+      seq: nextSeq,
       hazard: d.hazard,
       riskFactor: emptyToNull(d.riskFactor),
       personAtRisk: emptyToNull(d.personAtRisk),
@@ -451,6 +473,7 @@ export async function addHazard(
   await db.riskAssessment.update({
     where: { id: assessmentId },
     data: {
+      hazardSeq: nextSeq,
       ...(toReview ? { status: "UnderReview" } : {}),
       ...(wasApproved
         ? { approvedByName: null, approvedById: null, approvedAt: null }

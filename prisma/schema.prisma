@@ -115,6 +115,7 @@ model RiskAssessment {
   lastReviewedDate      DateTime?
   nextReviewDate        DateTime
   version               Int       @default(1)
+  hazardSeq             Int       @default(0) // high-water mark for hazard seq allocation (never reused)
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -140,6 +141,7 @@ model Hazard {
   assessmentId    String
   assessment      RiskAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   sortOrder       Int            @default(0)
+  seq             Int            // permanent per-assessment number for the hazard reference (RA-…-HZ-NNN); never reused
   hazard          String
   riskFactor      String?
   personAtRisk    String?
@@ -151,6 +153,7 @@ model Hazard {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  @@unique([assessmentId, seq])
   @@index([assessmentId])
   @@index([riskCategory])
 }

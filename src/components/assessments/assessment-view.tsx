@@ -55,7 +55,6 @@ function splitLines(value: string | null): string[] {
 type HazardComputed = AssessmentDetail["hazards"][number] & {
   score: number;
   band: RiskBand;
-  number: number; // stable 1-based position in the assessment (drives the ref)
 };
 
 export function AssessmentView({
@@ -71,9 +70,9 @@ export function AssessmentView({
 }) {
   const hazards = useMemo<HazardComputed[]>(
     () =>
-      a.hazards.map((h, i) => {
+      a.hazards.map((h) => {
         const score = riskScore(h.likelihood, h.severity);
-        return { ...h, score, band: riskBand(score), number: i + 1 };
+        return { ...h, score, band: riskBand(score) };
       }),
     [a.hazards],
   );
@@ -315,7 +314,7 @@ export function AssessmentView({
                 <HazardRecord
                   key={h.id}
                   h={h}
-                  n={h.number}
+                  n={h.seq}
                   assessmentRef={a.reference}
                   assessmentId={a.id}
                   canRequest={canRequest}
