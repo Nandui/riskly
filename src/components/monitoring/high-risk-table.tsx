@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/data-table";
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { CategoryBadge } from "@/components/ui/badge";
-import { AssessmentDrawer } from "@/components/assessments/assessment-drawer";
+import { AssessmentModal } from "@/components/assessments/assessment-modal";
 import type { RiskBand } from "@/lib/risk";
 
 export interface HighRiskRow {
@@ -143,7 +143,7 @@ export function HighRiskTable({
         pageSize={15}
         emptyState="No hazards match your filters."
       />
-      <AssessmentDrawer
+      <AssessmentModal
         id={openId}
         onOpenChange={(open) => {
           if (!open) setOpenId(null);

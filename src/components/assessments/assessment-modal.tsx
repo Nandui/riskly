@@ -10,13 +10,13 @@ import {
   History,
 } from "lucide-react";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { StatusBadge, CategoryBadge } from "@/components/ui/badge";
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { ReviewChip } from "@/components/ui/review-chip";
@@ -27,7 +27,6 @@ import {
   getAssessmentDrawerData,
   type AssessmentDrawerData,
 } from "@/lib/actions/assessment-detail";
-import { cn } from "@/lib/utils";
 
 function Fact({
   label,
@@ -44,7 +43,7 @@ function Fact({
   );
 }
 
-export function AssessmentDrawer({
+export function AssessmentModal({
   id,
   onOpenChange,
 }: {
@@ -71,34 +70,32 @@ export function AssessmentDrawer({
   }, [id]);
 
   return (
-    <Sheet open={!!id} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full p-0 sm:max-w-lg">
+    <Dialog open={!!id} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         {loading || !data ? (
-          <DrawerSkeleton />
+          <ModalSkeleton />
         ) : (
           <>
-            <SheetHeader>
-              <div className="flex items-center gap-2.5 pr-8">
+            <DialogHeader className="border-b border-line p-5 pr-12 text-left">
+              <div className="flex items-center gap-2.5">
                 <span className="font-mono text-xs text-faint">
                   {data.reference}
                 </span>
                 <StatusBadge status={data.status} />
               </div>
-              <SheetTitle>{data.title}</SheetTitle>
-              <SheetDescription>
+              <DialogTitle>{data.title}</DialogTitle>
+              <DialogDescription>
                 {data.centerName} · {data.subjectType} assessment
-              </SheetDescription>
-            </SheetHeader>
+              </DialogDescription>
+            </DialogHeader>
 
             <div className="flex-1 space-y-5 overflow-y-auto p-5">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <Fact label="Owner">
                   {data.assignees.length ? (
                     <span className="inline-flex items-center gap-1.5">
                       <UsersRound className="size-3.5 text-faint" />
-                      {data.assignees
-                        .map((u) => u.name ?? u.email)
-                        .join(", ")}
+                      {data.assignees.map((u) => u.name ?? u.email).join(", ")}
                     </span>
                   ) : (
                     <span className="text-muted-foreground">Unassigned</span>
@@ -118,7 +115,7 @@ export function AssessmentDrawer({
                 <Fact label="Next review">
                   <ReviewChip review={data.review} />
                   <span className="mt-1 block text-xs font-normal text-muted-foreground">
-                    {data.nextReviewDate} · {data.reviewFrequencyLabel}
+                    {data.nextReviewDate}
                   </span>
                 </Fact>
                 <Fact label="Assessed by">
@@ -146,9 +143,7 @@ export function AssessmentDrawer({
                     </span>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Not yet approved
-                  </p>
+                  <p className="text-sm text-muted-foreground">Not yet approved</p>
                 )}
               </div>
 
@@ -204,7 +199,7 @@ export function AssessmentDrawer({
               )}
             </div>
 
-            <SheetFooter className="flex-row justify-end">
+            <DialogFooter className="border-t border-line p-4">
               {data.canEdit && (
                 <Link
                   href={`/assessments/${data.id}/edit`}
@@ -219,24 +214,24 @@ export function AssessmentDrawer({
               >
                 <ExternalLink className="size-3.5" /> Open full page
               </Link>
-            </SheetFooter>
+            </DialogFooter>
           </>
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
-function DrawerSkeleton() {
+function ModalSkeleton() {
   return (
     <>
-      <SheetHeader>
+      <DialogHeader className="border-b border-line p-5 text-left">
         <Skeleton className="h-3 w-24" />
         <Skeleton className="h-6 w-48" />
         <Skeleton className="h-3 w-40" />
-      </SheetHeader>
-      <div className="flex-1 space-y-5 p-5">
-        <div className="grid grid-cols-2 gap-4">
+      </DialogHeader>
+      <div className="space-y-5 p-5">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="space-y-2">
               <Skeleton className="h-2.5 w-16" />
@@ -247,7 +242,7 @@ function DrawerSkeleton() {
         <Skeleton className="h-16 w-full" />
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className={cn("h-9 w-full")} />
+            <Skeleton key={i} className="h-9 w-full" />
           ))}
         </div>
       </div>

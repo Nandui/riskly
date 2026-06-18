@@ -12,7 +12,7 @@ import {
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { StatusBadge } from "@/components/ui/badge";
 import { ReviewChip } from "@/components/ui/review-chip";
-import { AssessmentDrawer } from "@/components/assessments/assessment-drawer";
+import { AssessmentModal } from "@/components/assessments/assessment-modal";
 import type { AssessmentRow } from "@/lib/data/assessments";
 import { ASSESSMENT_STATUSES } from "@/lib/constants";
 import { RISK_BANDS, BAND_META } from "@/lib/risk";
@@ -198,7 +198,7 @@ export function AssessmentsTableView({
         pageSize={compact ? 6 : 15}
         emptyState="No assessments match your filters."
       />
-      <AssessmentDrawer
+      <AssessmentModal
         id={openId}
         onOpenChange={(open) => {
           if (!open) setOpenId(null);
