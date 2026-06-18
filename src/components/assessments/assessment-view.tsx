@@ -16,6 +16,7 @@ import {
 } from "@/components/assessments/approval-button";
 import { AddHazardButton } from "@/components/assessments/add-hazard-modal";
 import { ActivityLogButton } from "@/components/assessments/activity-log-modal";
+import { RequestHazardReviewButton } from "@/components/assessments/request-hazard-review-modal";
 import type { AssessmentDetail } from "@/lib/data/assessments";
 import {
   formatDate,
@@ -60,10 +61,12 @@ export function AssessmentView({
   assessment: a,
   canApprove,
   canEdit,
+  canRequest,
 }: {
   assessment: AssessmentDetail;
   canApprove: boolean;
   canEdit: boolean;
+  canRequest: boolean;
 }) {
   const hazards = useMemo<HazardComputed[]>(
     () =>
@@ -300,7 +303,13 @@ export function AssessmentView({
           ) : (
             <div className="space-y-3">
               {visible.map((h, i) => (
-                <HazardRecord key={h.id} h={h} n={i + 1} />
+                <HazardRecord
+                  key={h.id}
+                  h={h}
+                  n={i + 1}
+                  assessmentId={a.id}
+                  canRequest={canRequest}
+                />
               ))}
             </div>
           )}
@@ -432,7 +441,17 @@ function RecordField({
   );
 }
 
-function HazardRecord({ h, n }: { h: HazardComputed; n: number }) {
+function HazardRecord({
+  h,
+  n,
+  assessmentId,
+  canRequest,
+}: {
+  h: HazardComputed;
+  n: number;
+  assessmentId: string;
+  canRequest: boolean;
+}) {
   const meta = BAND_META[h.band];
   const consequences = splitLines(h.consequence);
   const controls = splitLines(h.currentControls);
@@ -473,6 +492,13 @@ function HazardRecord({ h, n }: { h: HazardComputed; n: number }) {
             {h.hazard}
           </h3>
           <CategoryBadge category={h.riskCategory} />
+          {canRequest && (
+            <RequestHazardReviewButton
+              assessmentId={assessmentId}
+              hazardName={h.hazard || `Hazard ${n}`}
+              controls={controls}
+            />
+          )}
         </div>
 
         <div className="grid gap-x-8 gap-y-4 p-4 sm:grid-cols-2">

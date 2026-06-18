@@ -101,6 +101,7 @@ export default async function AssessmentDetailPage({
         assessment={a}
         canApprove={can(user, "review")}
         canEdit={canEdit}
+        canRequest={can(user, "requestReview")}
       />
 
       <ReviewRequestPanel
