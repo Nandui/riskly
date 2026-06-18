@@ -1,7 +1,9 @@
 import NextAuth from "next-auth";
 import authConfig from "@/auth.config";
 
-// Edge-safe middleware: redirects unauthenticated users to /signin.
+// Proxy (formerly "middleware", renamed in Next.js 16): redirects
+// unauthenticated users to /signin. Uses the edge-safe auth config (no
+// Prisma) so it stays lightweight wherever it runs.
 export default NextAuth(authConfig).auth;
 
 export const config = {
