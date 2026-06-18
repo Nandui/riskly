@@ -13,12 +13,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { AssessmentTable } from "@/components/assessments/assessment-table";
+import { AssessmentsTableView } from "@/components/assessments/assessments-table-view";
 import { RiskMatrixHeat } from "@/components/risk-matrix";
+import { RiskBandChart, CategoryChart } from "@/components/dashboard/dashboard-charts";
 import { getCenterContext } from "@/lib/center-context";
 import { getDashboard } from "@/lib/data/monitoring";
 import { getCurrentUser, can } from "@/lib/auth";
-import { RISK_BANDS, BAND_META, type RiskBand } from "@/lib/risk";
+import { RISK_BANDS, BAND_META } from "@/lib/risk";
 import { cn, pluralize } from "@/lib/utils";
 
 export const metadata = { title: "Dashboard" };
@@ -56,37 +57,6 @@ function Kpi({
       <p className={cn("mt-2 text-3xl font-semibold tnum", toneCls)}>{value}</p>
       <p className="mt-0.5 text-xs text-muted-foreground">{sub ?? " "}</p>
     </Link>
-  );
-}
-
-function BandBar({ counts }: { counts: Record<RiskBand, number> }) {
-  const total = RISK_BANDS.reduce((n, b) => n + counts[b], 0);
-  return (
-    <div>
-      <div className="flex h-2.5 overflow-hidden rounded-full bg-surface-2">
-        {total > 0 &&
-          RISK_BANDS.map((b) =>
-            counts[b] > 0 ? (
-              <div
-                key={b}
-                className={BAND_META[b].dot}
-                style={{ width: `${(counts[b] / total) * 100}%` }}
-              />
-            ) : null,
-          )}
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-4">
-        {RISK_BANDS.map((b) => (
-          <div key={b} className="flex items-center gap-2">
-            <span className={cn("size-2.5 rounded-full", BAND_META[b].dot)} />
-            <span className="text-sm text-ink-soft">{BAND_META[b].label}</span>
-            <span className="ml-auto text-sm font-semibold tnum text-ink">
-              {counts[b]}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -174,15 +144,33 @@ export default async function DashboardPage() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
+            <Card>
               <CardHeader>
-                <CardTitle>Overall risk profile</CardTitle>
+                <CardTitle>Risk band distribution</CardTitle>
                 <span className="text-xs text-muted-foreground">
                   {d.activeCount} {pluralize(d.activeCount, "assessment")}
                 </span>
               </CardHeader>
-              <div className="p-5">
-                <BandBar counts={d.bandCounts} />
+              <div className="p-4">
+                <RiskBandChart
+                  data={RISK_BANDS.map((b) => ({
+                    band: b,
+                    label: BAND_META[b].label,
+                    count: d.bandCounts[b],
+                  }))}
+                />
+              </div>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Hazards by category</CardTitle>
+                <span className="text-xs text-muted-foreground">
+                  {d.hazardCount} {pluralize(d.hazardCount, "hazard")}
+                </span>
+              </CardHeader>
+              <div className="p-4">
+                <CategoryChart data={d.categoryCounts} />
               </div>
             </Card>
 
@@ -216,7 +204,7 @@ export default async function DashboardPage() {
                 No reviews are overdue or due soon. Nicely on top of it.
               </div>
             ) : (
-              <AssessmentTable rows={d.attention} showCenter={!selected} />
+              <AssessmentsTableView rows={d.attention} showCenter={!selected} compact />
             )}
           </section>
 
@@ -232,7 +220,7 @@ export default async function DashboardPage() {
                 All assessments <ArrowRight className="size-3.5" />
               </Link>
             </div>
-            <AssessmentTable rows={d.recent} showCenter={!selected} />
+            <AssessmentsTableView rows={d.recent} showCenter={!selected} compact />
           </section>
         </>
       )}

@@ -48,6 +48,20 @@ export async function getDashboard(centerId: string | null) {
     },
   });
 
+  const categoryGroups = await db.hazard.groupBy({
+    by: ["riskCategory"],
+    where: {
+      assessment: {
+        status: { not: "Archived" },
+        ...(centerId ? { centerId } : {}),
+      },
+    },
+    _count: { _all: true },
+  });
+  const categoryCounts = categoryGroups
+    .map((g) => ({ category: g.riskCategory, count: g._count._all }))
+    .sort((a, b) => b.count - a.count);
+
   return {
     total: rows.length,
     activeCount: active.length,
@@ -59,6 +73,7 @@ export async function getDashboard(centerId: string | null) {
     reviewsOverdue,
     reviewsDue,
     openRequests,
+    categoryCounts,
     attention,
     recent,
   };

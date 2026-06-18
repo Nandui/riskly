@@ -27,9 +27,11 @@ const SUBJECT_ICON: Record<string, typeof MapPin> = {
 export function AssessmentsTableView({
   rows,
   showCenter,
+  compact = false,
 }: {
   rows: AssessmentRow[];
   showCenter: boolean;
+  compact?: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -188,12 +190,12 @@ export function AssessmentsTableView({
       <DataTable
         columns={columns}
         data={rows}
-        searchable
+        searchable={!compact}
         searchPlaceholder="Search reference or subject…"
-        facets={facets}
+        facets={compact ? [] : facets}
         initialColumnVisibility={{ band: false, subjectType: false }}
         onRowClick={(r) => setOpenId(r.id)}
-        pageSize={15}
+        pageSize={compact ? 6 : 15}
         emptyState="No assessments match your filters."
       />
       <AssessmentDrawer
