@@ -3,6 +3,7 @@ import { Space_Grotesk, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Toaster } from "@/components/ui/sonner";
 
 const display = Space_Grotesk({
   subsets: ["latin"],
@@ -46,6 +47,7 @@ export default function RootLayout({
     >
       <body className="antialiased">
         {children}
+        <Toaster />
         <Analytics />
         <SpeedInsights />
       </body>
