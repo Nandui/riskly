@@ -13,7 +13,6 @@ import {
   Users,
   Menu,
   X,
-  ShieldAlert,
   LogOut,
   Settings,
   type LucideIcon,
@@ -60,8 +59,9 @@ function initials(user: ShellUser) {
 function Wordmark() {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="flex size-9 items-center justify-center rounded-lg bg-brand text-white shadow-xs">
-        <ShieldAlert className="size-5" />
+      <span className="flex size-9 items-center justify-center rounded-lg bg-white shadow-xs">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="Riskly" className="size-7" />
       </span>
       <div className="leading-none">
         <span className="block font-display text-lg font-semibold tracking-tight text-white">
@@ -107,9 +107,8 @@ export function AppShell({
           <Menu className="size-5" />
         </button>
         <span className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-md bg-brand text-white">
-            <ShieldAlert className="size-4" />
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="" className="size-7" />
           <span className="font-display text-base font-semibold tracking-tight text-ink">
             Riskly
           </span>

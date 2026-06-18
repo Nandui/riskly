@@ -1,4 +1,3 @@
-import { ShieldAlert, UserPlus } from "lucide-react";
 import { db } from "@/lib/db";
 import { SignInForm } from "@/components/auth/signin-form";
 import { FirstRunSetup } from "@/components/auth/first-run-setup";
@@ -12,13 +11,8 @@ export default async function SignInPage() {
 
   return (
     <div className="w-full max-w-sm rounded-[var(--radius-card)] border border-line bg-surface p-8 text-center shadow-xs">
-      <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl bg-brand text-white">
-        {hasUsers ? (
-          <ShieldAlert className="size-6" />
-        ) : (
-          <UserPlus className="size-6" />
-        )}
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo.svg" alt="Riskly" className="mx-auto mb-4 size-16" />
       <h1 className="font-display text-xl font-semibold tracking-tight text-ink">
         {hasUsers ? "Sign in to Riskly" : "Welcome to Riskly"}
       </h1>
