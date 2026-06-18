@@ -15,7 +15,7 @@ export interface ReviewItem {
   reference: string;
   title: string;
   centerName: string;
-  areaName: string;
+  subjectType: string;
   status: string;
   reviewKey: "overdue" | "due";
   reviewLabel: string;
@@ -72,7 +72,7 @@ function ReviewRow({
             {item.title}
           </Link>
           <p className="text-xs text-muted">
-            {item.centerName} · {item.areaName} · due {item.nextReviewDate}
+            {item.centerName} · {item.subjectType} · due {item.nextReviewDate}
           </p>
         </div>
         <div className="flex items-center gap-2 sm:justify-end">

@@ -4,7 +4,12 @@ import { RiskBadge } from "@/components/ui/risk-badge";
 import { StatusBadge } from "@/components/ui/badge";
 import { ReviewChip } from "@/components/ui/review-chip";
 import type { AssessmentRow } from "@/lib/data/assessments";
-import { cn } from "@/lib/utils";
+
+const SUBJECT_ICON: Record<string, typeof MapPin> = {
+  Area: MapPin,
+  Role: UserRound,
+  Activity,
+};
 
 function Tag({
   icon: Icon,
@@ -45,7 +50,7 @@ export function AssessmentTable({
                   </span>
                   {s.headlineBand && (
                     <RiskBadge
-                      score={s.maxResidualScore}
+                      score={s.maxRiskScore}
                       band={s.headlineBand}
                       size="sm"
                     />
@@ -56,22 +61,16 @@ export function AssessmentTable({
                   {showCenter && (
                     <Tag icon={Building2}>{a.center.name}</Tag>
                   )}
-                  <Tag icon={MapPin}>{a.area.name}</Tag>
-                  {a.role && <Tag icon={UserRound}>{a.role.name}</Tag>}
-                  {a.activity && <Tag icon={Activity}>{a.activity.name}</Tag>}
+                  <Tag icon={SUBJECT_ICON[a.subjectType] ?? MapPin}>
+                    {a.subjectType}
+                  </Tag>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                {s.openActions > 0 && (
-                  <span
-                    className={cn(
-                      "whitespace-nowrap text-xs font-medium",
-                      s.overdueActions > 0 ? "text-critical" : "text-muted",
-                    )}
-                  >
-                    {s.openActions} open
-                    {s.overdueActions > 0 ? ` · ${s.overdueActions} overdue` : ""}
+                {s.highRiskCount > 0 && (
+                  <span className="whitespace-nowrap text-xs font-medium text-critical">
+                    {s.highRiskCount} high risk
                   </span>
                 )}
                 <ReviewChip review={s.review} />

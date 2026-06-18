@@ -1,62 +1,50 @@
 import { db } from "@/lib/db";
-import { riskBand, riskScore, type RiskBand } from "@/lib/risk";
-import { OPEN_ACTION_STATES } from "@/lib/constants";
+import { riskBand, riskScore, isHighRisk, type RiskBand } from "@/lib/risk";
 import { getReviewStatus, type ReviewStatus } from "@/lib/utils";
 
+// An assessment is named after its subject (the area/role/activity it covers).
+export function assessmentTitle(a: {
+  subjectType: string;
+  area?: { name: string } | null;
+  role?: { name: string } | null;
+  activity?: { name: string } | null;
+}): string {
+  if (a.subjectType === "Role") return a.role?.name ?? "Untitled";
+  if (a.subjectType === "Activity") return a.activity?.name ?? "Untitled";
+  return a.area?.name ?? "Untitled";
+}
+
 interface HazardRatings {
-  initialLikelihood: number;
-  initialSeverity: number;
-  residualLikelihood: number;
-  residualSeverity: number;
-  actionStatus: string;
-  actionDueDate: Date | null;
+  likelihood: number;
+  severity: number;
 }
 
 export interface AssessmentSummary {
   hazardCount: number;
-  maxInitialScore: number;
-  maxResidualScore: number;
+  maxRiskScore: number;
   headlineBand: RiskBand | null;
-  openActions: number;
-  overdueActions: number;
+  highRiskCount: number;
   review: ReviewStatus;
 }
-
-const isOpenAction = (status: string) =>
-  (OPEN_ACTION_STATES as readonly string[]).includes(status);
 
 export function summarizeAssessment(a: {
   hazards: HazardRatings[];
   nextReviewDate: Date | string;
 }): AssessmentSummary {
-  let maxInitialScore = 0;
-  let maxResidualScore = 0;
-  let openActions = 0;
-  let overdueActions = 0;
-  const today = new Date();
+  let maxRiskScore = 0;
+  let highRiskCount = 0;
 
   for (const h of a.hazards) {
-    maxInitialScore = Math.max(
-      maxInitialScore,
-      riskScore(h.initialLikelihood, h.initialSeverity),
-    );
-    maxResidualScore = Math.max(
-      maxResidualScore,
-      riskScore(h.residualLikelihood, h.residualSeverity),
-    );
-    if (isOpenAction(h.actionStatus)) {
-      openActions++;
-      if (h.actionDueDate && new Date(h.actionDueDate) < today) overdueActions++;
-    }
+    const score = riskScore(h.likelihood, h.severity);
+    maxRiskScore = Math.max(maxRiskScore, score);
+    if (isHighRisk(score)) highRiskCount++;
   }
 
   return {
     hazardCount: a.hazards.length,
-    maxInitialScore,
-    maxResidualScore,
-    headlineBand: a.hazards.length ? riskBand(maxResidualScore) : null,
-    openActions,
-    overdueActions,
+    maxRiskScore,
+    headlineBand: a.hazards.length ? riskBand(maxRiskScore) : null,
+    highRiskCount,
     review: getReviewStatus(a.nextReviewDate),
   };
 }
@@ -78,12 +66,8 @@ const listSelect = {
   activity: { select: { name: true } },
   hazards: {
     select: {
-      initialLikelihood: true,
-      initialSeverity: true,
-      residualLikelihood: true,
-      residualSeverity: true,
-      actionStatus: true,
-      actionDueDate: true,
+      likelihood: true,
+      severity: true,
     },
   },
 } as const;
@@ -98,10 +82,12 @@ export async function listAssessments(filters: AssessmentFilters = {}) {
   if (filters.search) {
     const q = filters.search.trim();
     where.OR = [
-      { title: { contains: q } },
       { reference: { contains: q } },
       { description: { contains: q } },
-      { hazards: { some: { hazardDescription: { contains: q } } } },
+      { area: { name: { contains: q } } },
+      { role: { name: { contains: q } } },
+      { activity: { name: { contains: q } } },
+      { hazards: { some: { hazard: { contains: q } } } },
     ];
   }
 
@@ -111,7 +97,11 @@ export async function listAssessments(filters: AssessmentFilters = {}) {
     include: listSelect,
   });
 
-  const enriched = rows.map((r) => ({ ...r, summary: summarizeAssessment(r) }));
+  const enriched = rows.map((r) => ({
+    ...r,
+    title: assessmentTitle(r),
+    summary: summarizeAssessment(r),
+  }));
 
   if (filters.band) {
     return enriched.filter((r) => r.summary.headlineBand === filters.band);

@@ -3,7 +3,7 @@ import {
   ClipboardList,
   CalendarX,
   CalendarClock,
-  ListChecks,
+  TriangleAlert,
   ArrowRight,
   LayoutDashboard,
   Plus,
@@ -148,15 +148,11 @@ export default async function DashboardPage() {
               href="/monitoring"
             />
             <Kpi
-              icon={ListChecks}
-              label="Open actions"
-              value={d.openActions}
-              tone={d.overdueActions > 0 ? "critical" : "default"}
-              sub={
-                d.overdueActions > 0
-                  ? `${d.overdueActions} overdue`
-                  : "On track"
-              }
+              icon={TriangleAlert}
+              label="High-risk hazards"
+              value={d.highRiskHazards}
+              tone={d.highRiskHazards > 0 ? "critical" : "default"}
+              sub={d.highRiskHazards > 0 ? "High / very high" : "None in scope"}
               href="/monitoring"
             />
           </div>
@@ -164,7 +160,7 @@ export default async function DashboardPage() {
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle>Residual risk profile</CardTitle>
+                <CardTitle>Overall risk profile</CardTitle>
                 <span className="text-xs text-muted">
                   {d.activeCount} {pluralize(d.activeCount, "assessment")}
                 </span>
@@ -176,7 +172,7 @@ export default async function DashboardPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Residual risk map</CardTitle>
+                <CardTitle>Overall risk map</CardTitle>
                 <span className="text-xs text-muted">
                   {d.hazardCount} {pluralize(d.hazardCount, "hazard")}
                 </span>

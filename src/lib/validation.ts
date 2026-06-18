@@ -30,27 +30,31 @@ export type TaxonomyInput = z.infer<typeof taxonomySchema>;
 
 export const hazardSchema = z.object({
   id: z.string().optional(),
-  hazardDescription: z.string().trim().min(2, "Describe the hazard").max(500),
-  whoAtRisk: optionalText(500),
-  existingControls: optionalText(2000),
-  initialLikelihood: z.coerce.number().int().min(1).max(5),
-  initialSeverity: z.coerce.number().int().min(1).max(5),
-  additionalControls: optionalText(2000),
-  residualLikelihood: z.coerce.number().int().min(1).max(5),
-  residualSeverity: z.coerce.number().int().min(1).max(5),
-  actionOwnerName: optionalText(120),
-  actionDueDate: z.union([z.string(), z.literal("")]).optional(),
-  actionStatus: z.enum(["NA", "Open", "InProgress", "Done"]).default("NA"),
+  hazard: z.string().trim().min(2, "Describe the hazard").max(300),
+  riskFactor: optionalText(500),
+  personAtRisk: optionalText(300),
+  consequence: optionalText(500),
+  currentControls: optionalText(2000),
+  likelihood: z.coerce.number().int().min(1).max(5),
+  severity: z.coerce.number().int().min(1).max(5),
+  riskCategory: z
+    .enum([
+      "Physical",
+      "Chemical",
+      "Biological",
+      "Ergonomic",
+      "Psychosocial",
+      "Environmental",
+    ])
+    .default("Physical"),
 });
 export type HazardInput = z.infer<typeof hazardSchema>;
 
 export const assessmentSchema = z.object({
-  title: z.string().trim().min(2, "Title is required").max(200),
   description: optionalText(2000),
   centerId: z.string().min(1, "Select a centre"),
-  areaId: z.string().min(1, "Select an area"),
-  roleId: z.union([z.string(), z.literal("")]).optional(),
-  activityId: z.union([z.string(), z.literal("")]).optional(),
+  subjectType: z.enum(["Area", "Role", "Activity"]).default("Area"),
+  subjectId: z.string().min(1, "Select the subject"),
   status: z
     .enum(["Draft", "Active", "UnderReview", "Archived"])
     .default("Draft"),

@@ -1,31 +1,36 @@
 import { PrismaClient } from "@prisma/client";
-import { addDays, addMonths, subDays, subMonths } from "date-fns";
+import { addMonths, subDays, subMonths } from "date-fns";
 
 const db = new PrismaClient();
 const now = new Date();
 
+type Category =
+  | "Physical"
+  | "Chemical"
+  | "Biological"
+  | "Ergonomic"
+  | "Psychosocial"
+  | "Environmental";
+
 interface HazardSeed {
-  hazardDescription: string;
-  whoAtRisk: string;
-  existingControls: string;
-  initialLikelihood: number;
-  initialSeverity: number;
-  additionalControls?: string;
-  residualLikelihood: number;
-  residualSeverity: number;
-  actionOwnerName?: string;
-  actionDueDate?: Date;
-  actionStatus?: "NA" | "Open" | "InProgress" | "Done";
+  hazard: string;
+  riskFactor: string;
+  personAtRisk: string;
+  consequence: string;
+  currentControls: string;
+  likelihood: number;
+  severity: number;
+  riskCategory: Category;
 }
 
 let refCounter = 1;
 const nextRef = () => `RA-${String(refCounter++).padStart(4, "0")}`;
 
 async function makeAssessment(opts: {
-  title: string;
   description?: string;
   centerId: string;
-  areaId: string;
+  subjectType: "Area" | "Role" | "Activity";
+  areaId?: string;
   roleId?: string;
   activityId?: string;
   status: "Draft" | "Active" | "UnderReview" | "Archived";
@@ -48,9 +53,9 @@ async function makeAssessment(opts: {
   await db.riskAssessment.create({
     data: {
       reference: nextRef(),
-      title: opts.title,
       description: opts.description,
       centerId: opts.centerId,
+      subjectType: opts.subjectType,
       areaId: opts.areaId,
       roleId: opts.roleId,
       activityId: opts.activityId,
@@ -64,17 +69,14 @@ async function makeAssessment(opts: {
       hazards: {
         create: opts.hazards.map((h, i) => ({
           sortOrder: i,
-          hazardDescription: h.hazardDescription,
-          whoAtRisk: h.whoAtRisk,
-          existingControls: h.existingControls,
-          initialLikelihood: h.initialLikelihood,
-          initialSeverity: h.initialSeverity,
-          additionalControls: h.additionalControls,
-          residualLikelihood: h.residualLikelihood,
-          residualSeverity: h.residualSeverity,
-          actionOwnerName: h.actionOwnerName,
-          actionDueDate: h.actionDueDate,
-          actionStatus: h.actionStatus ?? "NA",
+          hazard: h.hazard,
+          riskFactor: h.riskFactor,
+          personAtRisk: h.personAtRisk,
+          consequence: h.consequence,
+          currentControls: h.currentControls,
+          likelihood: h.likelihood,
+          severity: h.severity,
+          riskCategory: h.riskCategory,
         })),
       },
       reviewLogs: opts.reviewed
@@ -93,7 +95,6 @@ async function makeAssessment(opts: {
 }
 
 async function main() {
-  // Reset (dependency order)
   await db.reviewLog.deleteMany();
   await db.hazard.deleteMany();
   await db.riskAssessment.deleteMany();
@@ -103,15 +104,15 @@ async function main() {
   await db.center.deleteMany();
 
   // ---- Centres ----------------------------------------------------------
-  const riverside = await db.center.create({
+  const bishopstown = await db.center.create({
     data: {
-      name: "Riverside Leisure Centre",
-      slug: "riverside-leisure-centre",
-      address: "12 Mill Lane, Riverside, RS1 4QP",
-      contactName: "Sarah Whitcombe",
-      contactEmail: "duty.manager@riverside-leisure.example",
-      phone: "01632 960123",
-      notes: "Flagship site — 25m pool, learner pool, gym, studio, soft play and café.",
+      name: "Bishopstown",
+      slug: "bishopstown",
+      address: "Bishopstown Sports Complex, Cork",
+      contactName: "Fernando Serina",
+      contactEmail: "bishopstown@example.com",
+      phone: "021 000 0000",
+      notes: "Outdoor pitches, pool, gym and sports hall.",
     },
   });
 
@@ -119,289 +120,344 @@ async function main() {
     data: {
       name: "Hilltop Sports & Pool",
       slug: "hilltop-sports-pool",
-      address: "Beacon Road, Hilltop, HT7 2BD",
+      address: "Beacon Road, Hilltop",
       contactName: "Marcus Yeo",
       contactEmail: "operations@hilltop-sports.example",
-      phone: "01632 960456",
+      phone: "021 000 0001",
       notes: "Sports hall, swimming pool and fitness suite.",
     },
   });
 
-  // ---- Areas (per centre) ----------------------------------------------
+  // ---- Areas ------------------------------------------------------------
   const area = async (centerId: string, name: string, description: string, sortOrder: number) =>
     db.area.create({ data: { centerId, name, description, sortOrder } });
 
-  const rPoolside = await area(riverside.id, "Poolside", "25m main pool and learner pool surrounds", 1);
-  const rGym = await area(riverside.id, "Gym floor", "Cardio and resistance training area", 2);
-  const rStudio = await area(riverside.id, "Studio", "Group exercise studio", 3);
-  const rChanging = await area(riverside.id, "Changing rooms", "Wet-side changing village", 4);
-  const rPlant = await area(riverside.id, "Plant room", "Pool plant and chemical store", 5);
-  const rReception = await area(riverside.id, "Reception", "Front of house and entrance", 6);
-  const rSoftPlay = await area(riverside.id, "Soft play", "Children's soft play frame", 7);
-  const rCafe = await area(riverside.id, "Café", "Servery and seating", 8);
+  const bPitches = await area(bishopstown.id, "Pitches", "Outdoor playing pitches", 1);
+  const bPool = await area(bishopstown.id, "Pool", "Swimming pool and surrounds", 2);
+  const bChanging = await area(bishopstown.id, "Changing rooms", "Changing village", 3);
+  const bGym = await area(bishopstown.id, "Gym", "Fitness suite", 4);
+  await area(bishopstown.id, "Reception", "Front of house", 5);
 
   const hSportsHall = await area(hilltop.id, "Sports hall", "Multi-use sports hall", 1);
-  const hPoolside = await area(hilltop.id, "Poolside", "Swimming pool surrounds", 2);
-  const hFitness = await area(hilltop.id, "Fitness suite", "Gym and free weights", 3);
-  const hChanging = await area(hilltop.id, "Changing rooms", "Changing and shower facilities", 4);
-  const hReception = await area(hilltop.id, "Reception", "Front desk and foyer", 5);
+  const hPool = await area(hilltop.id, "Pool", "Swimming pool", 2);
+  const hReception = await area(hilltop.id, "Reception", "Front desk and foyer", 3);
 
-  // ---- Roles (org-level) ------------------------------------------------
+  // ---- Roles ------------------------------------------------------------
   const role = async (name: string, description: string, sortOrder: number) =>
     db.role.create({ data: { name, description, sortOrder } });
 
   const rlLifeguard = await role("Lifeguard", "Pool supervision and rescue", 1);
-  const rlInstructor = await role("Fitness instructor", "Gym and class instruction", 2);
-  const rlTeacher = await role("Swimming teacher", "Swimming lessons", 3);
+  const rlGrounds = await role("Grounds & maintenance", "Pitch and building upkeep", 2);
+  const rlInstructor = await role("Fitness instructor", "Gym and class instruction", 3);
   const rlReceptionist = await role("Receptionist", "Front of house", 4);
   const rlCleaner = await role("Cleaner", "Cleaning and housekeeping", 5);
   const rlDutyManager = await role("Duty manager", "Site duty management", 6);
-  const rlTech = await role("Maintenance technician", "Plant and building maintenance", 7);
-  const rlCafe = await role("Café assistant", "Food and beverage service", 8);
+  await role("Coach / sports official", "Match and training supervision", 7);
 
-  // ---- Activities (org-level) ------------------------------------------
+  // ---- Activities -------------------------------------------------------
   const activity = async (name: string, description: string, sortOrder: number) =>
     db.activity.create({ data: { name, description, sortOrder } });
 
-  const acPoolSup = await activity("Pool supervision", "Lifeguarding and bather supervision", 1);
-  const acChemical = await activity("Chemical handling", "Pool plant dosing and storage", 2);
-  const acClass = await activity("Group exercise class", "Instructor-led classes", 3);
-  const acGymUse = await activity("Gym & equipment use", "Member use of fitness equipment", 4);
-  const acCleaning = await activity("Cleaning & housekeeping", "Routine cleaning tasks", 5);
-  const acCash = await activity("Cash & front of house", "Reception and cash handling", 6);
-  const acSoftPlay = await activity("Soft play supervision", "Supervising children's play", 7);
-  const acCatering = await activity("Food & beverage service", "Café and catering", 8);
-  const acMaintenance = await activity("Equipment maintenance", "Inspection and repair", 9);
+  const acPitchUse = await activity("Pitch sports & hire", "Outdoor pitch activities and bookings", 1);
+  const acPoolSup = await activity("Pool supervision", "Lifeguarding and bather supervision", 2);
+  const acChemical = await activity("Chemical handling", "Pool plant dosing and storage", 3);
+  const acCleaning = await activity("Cleaning & housekeeping", "Routine cleaning tasks", 4);
+  const acCash = await activity("Cash & front of house", "Reception and cash handling", 5);
+  const acClass = await activity("Group exercise class", "Instructor-led classes", 6);
 
-  // ---- Assessments ------------------------------------------------------
-  // 1. Riverside poolside — overdue, critical residual, mixed actions
+  const ALL = "Staff / Customers / Visitors / Contractors";
+
+  // 1. Bishopstown — Pitches (mirrors the client's real assessment) — due soon
   await makeAssessment({
-    title: "Pool supervision & drowning prevention",
-    description:
-      "Supervision of bathers in the main and learner pools, including rescue response.",
-    centerId: riverside.id,
-    areaId: rPoolside.id,
-    roleId: rlLifeguard.id,
+    description: "Risk assessment for the outdoor playing pitches at Bishopstown.",
+    centerId: bishopstown.id,
+    subjectType: "Area",
+    areaId: bPitches.id,
+    status: "Active",
+    assessorName: "Fernando Serina",
+    approvedByName: "Site Manager",
+    monthsAgo: 11,
+    extraDaysAgo: 9,
+    reviewFrequencyMonths: 12,
+    reviewed: { outcome: "NoChanges", reviewerName: "Fernando Serina" },
+    hazards: [
+      {
+        hazard: "Pests",
+        riskFactor: "Contamination / Bites / Stings",
+        personAtRisk: "Customers & Staff",
+        consequence: "Infections",
+        currentControls: "Pest Control Checks\nPest Sighting Log",
+        likelihood: 2,
+        severity: 5,
+        riskCategory: "Biological",
+      },
+      {
+        hazard: "Lack of immediate first aid / AED access",
+        riskFactor: "Delayed treatment following injury or cardiac event on pitch",
+        personAtRisk: ALL,
+        consequence: "Worsened injury outcome, serious harm or fatality",
+        currentControls:
+          "Staff first aid training; AED available on site; Emergency response procedure; First aid kit checks; Clear access for emergency services",
+        likelihood: 2,
+        severity: 5,
+        riskCategory: "Physical",
+      },
+      {
+        hazard: "Uneven pitch surface / holes",
+        riskFactor: "Trip or fall during play, warm-up or pitch walk-through",
+        personAtRisk: ALL,
+        consequence: "Sprains, fractures, head injury or cuts",
+        currentControls:
+          "Routine pitch inspections; Defect reporting process; Prompt repair or cordon off; Pre-session pitch walk-through; Adequate lighting; Staff supervision",
+        likelihood: 2,
+        severity: 4,
+        riskCategory: "Physical",
+      },
+      {
+        hazard: "Inadequate supervision / uncontrolled play",
+        riskFactor: "Unsafe behaviour, reckless tackles or overcrowding leading to impact injuries",
+        personAtRisk: "Customers / Visitors",
+        consequence: "Fractures, concussion or other serious injury",
+        currentControls:
+          "Booking presence/supervision; Rules briefing and signage; Booking controls / limit numbers",
+        likelihood: 2,
+        severity: 4,
+        riskCategory: "Physical",
+      },
+      {
+        hazard: "Waterlogged pitch surface / poor drainage",
+        riskFactor: "Slip, loss of footing or collision due to reduced traction and unstable ground",
+        personAtRisk: "Staff / Customers / Contractors",
+        consequence: "Sprains, fractures, head injury or other impact injuries",
+        currentControls:
+          "Routine pitch inspections; Close / cordon off unplayable areas; Drainage maintenance; Weather monitoring; Suitable footwear guidance; Staff supervision",
+        likelihood: 2,
+        severity: 4,
+        riskCategory: "Physical",
+      },
+      {
+        hazard: "Damaged perimeter fencing / unsecured gates",
+        riskFactor: "Unauthorised access to pitch or ball escaping into walkways / roadway",
+        personAtRisk: "Customers / Visitors / Contractors",
+        consequence: "Impact injury, fractures or serious injury to players, bystanders or road users",
+        currentControls:
+          "Routine boundary/fence inspections; Prompt repair of defects; Gates kept closed/locked when not in use; Ball stop netting where required; Staff supervision",
+        likelihood: 2,
+        severity: 3,
+        riskCategory: "Physical",
+      },
+      {
+        hazard: "Inappropriate footwear / unsafe studs",
+        riskFactor: "Laceration or puncture injury from contact during play",
+        personAtRisk: "Customers / Visitors",
+        consequence: "Cuts, bruising or eye injury requiring first aid / medical attention",
+        currentControls:
+          "Footwear rules communicated; Pre-play checks by staff; Refuse play if non-compliant; Signage at entrances; First aid provision; Incident reporting",
+        likelihood: 2,
+        severity: 3,
+        riskCategory: "Physical",
+      },
+      {
+        hazard: "Structural failure",
+        riskFactor: "Falling debris / collapse",
+        personAtRisk: "Customers / Staff",
+        consequence: "Serious injury / death",
+        currentControls: "Maintenance Policy",
+        likelihood: 1,
+        severity: 5,
+        riskCategory: "Physical",
+      },
+      {
+        hazard: "Radon gas",
+        riskFactor: "Inhalation",
+        personAtRisk: ALL,
+        consequence: "Serious health effects, potentially fatal",
+        currentControls: "Measurement",
+        likelihood: 1,
+        severity: 5,
+        riskCategory: "Chemical",
+      },
+      {
+        hazard: "Inadequate pitch lighting",
+        riskFactor: "Reduced visibility leading to collision, trip or struck-by incidents",
+        personAtRisk: ALL,
+        consequence: "Sprains, fractures, cuts or head injury",
+        currentControls:
+          "Lighting inspections; Timely lamp/fixture replacement; Adequate illumination maintained; Report faults promptly; Restrict use of poorly lit areas; Staff supervision",
+        likelihood: 1,
+        severity: 4,
+        riskCategory: "Physical",
+      },
+      {
+        hazard: "Broken glass / sharp objects on pitch",
+        riskFactor: "Cuts or puncture wounds during play or walk-through",
+        personAtRisk: ALL,
+        consequence: "Lacerations, infection or need for medical treatment",
+        currentControls:
+          "Pre-use pitch inspection; Litter bins and signage; Prompt clean-up and safe disposal; Staff patrols / supervision",
+        likelihood: 2,
+        severity: 2,
+        riskCategory: "Physical",
+      },
+      {
+        hazard: "Severe weather (lightning / high winds)",
+        riskFactor: "Lightning strike or wind-blown debris impacting players / spectators",
+        personAtRisk: "Customers / Members; Staff; Contractors; Children; Vulnerable persons",
+        consequence: "Serious injury or fatality; property damage",
+        currentControls:
+          "Weather monitoring; Lightning policy and pitch closure; Clear evacuation routes to indoor shelter; Staff communication / radio; Signage and announcements; Event cancellation procedure",
+        likelihood: 1,
+        severity: 3,
+        riskCategory: "Environmental",
+      },
+      {
+        hazard: "Sun exposure / heat stress",
+        riskFactor: "Heat exhaustion, dehydration or sunburn during outdoor activity",
+        personAtRisk: "Staff / Customers / Contractors",
+        consequence: "Heat-related illness requiring first aid; possible collapse",
+        currentControls:
+          "Scheduling / heat policy; Access to drinking water; shade / rest breaks; Staff monitoring and first aid provision; Sunscreen / hat advice; Weather warnings and activity modification",
+        likelihood: 1,
+        severity: 3,
+        riskCategory: "Environmental",
+      },
+      {
+        hazard: "Animal fouling / biological contamination on pitch",
+        riskFactor: "Contact with animal faeces or contaminated surfaces",
+        personAtRisk: ALL,
+        consequence: "Gastrointestinal illness, skin infection or other communicable disease",
+        currentControls:
+          "Routine pitch inspections; Prompt cleaning and safe disposal; Pest control / grounds maintenance checks; Hand hygiene facilities; Staff supervision",
+        likelihood: 1,
+        severity: 2,
+        riskCategory: "Biological",
+      },
+    ],
+  });
+
+  // 2. Bishopstown — Pool supervision — overdue
+  await makeAssessment({
+    description: "Supervision of bathers in the main pool, including rescue response.",
+    centerId: bishopstown.id,
+    subjectType: "Activity",
     activityId: acPoolSup.id,
     status: "Active",
     assessorName: "Sarah Whitcombe",
-    approvedByName: "Operations Manager",
+    approvedByName: "Site Manager",
     monthsAgo: 13,
     reviewFrequencyMonths: 12,
     reviewed: { outcome: "Updated", reviewerName: "Sarah Whitcombe" },
     hazards: [
       {
-        hazardDescription: "Swimmer in difficulty / drowning",
-        whoAtRisk: "Members of the public, weak and non-swimmers, children",
-        existingControls:
-          "NPLQ-qualified lifeguards on poolside; zoned supervision; rescue equipment; PoolSafe operating procedures (NOP/EAP).",
-        initialLikelihood: 4,
-        initialSeverity: 5,
-        additionalControls:
-          "Maintain ongoing lifeguard training; introduce quarterly scenario-based rescue drills.",
-        residualLikelihood: 2,
-        residualSeverity: 5,
-        actionOwnerName: "Duty manager",
-        actionDueDate: addDays(now, 21),
-        actionStatus: "Open",
+        hazard: "Swimmer in difficulty / drowning",
+        riskFactor: "Weak or non-swimmer, lapse in supervision",
+        personAtRisk: "Members of the public, weak and non-swimmers, children",
+        consequence: "Drowning or serious harm",
+        currentControls:
+          "NPLQ-qualified lifeguards on poolside; zoned supervision; rescue equipment; NOP / EAP in place",
+        likelihood: 2,
+        severity: 5,
+        riskCategory: "Physical",
       },
       {
-        hazardDescription: "Slips, trips and falls on wet poolside",
-        whoAtRisk: "Staff and members of the public",
-        existingControls:
-          "Non-slip surfacing; wet-floor signage; no-running policy; prompt clean-up of spillages.",
-        initialLikelihood: 3,
-        initialSeverity: 3,
-        additionalControls: "Replace worn anti-slip matting at learner pool steps.",
-        residualLikelihood: 2,
-        residualSeverity: 3,
-        actionOwnerName: "Maintenance technician",
-        actionDueDate: subDays(now, 9),
-        actionStatus: "Open",
+        hazard: "Slips, trips and falls on wet poolside",
+        riskFactor: "Wet surfaces and running",
+        personAtRisk: "Staff and members of the public",
+        consequence: "Sprains, fractures, head injury",
+        currentControls:
+          "Non-slip surfacing; wet-floor signage; no-running policy; prompt clean-up of spillages",
+        likelihood: 3,
+        severity: 3,
+        riskCategory: "Physical",
       },
       {
-        hazardDescription: "Eye / skin irritation from pool water chemistry",
-        whoAtRisk: "Members of the public, staff",
-        existingControls:
-          "Automatic dosing with continuous monitoring; manual water tests every 2 hours.",
-        initialLikelihood: 2,
-        initialSeverity: 3,
-        residualLikelihood: 1,
-        residualSeverity: 3,
-        actionStatus: "NA",
+        hazard: "Eye / skin irritation from pool water chemistry",
+        riskFactor: "Dosing imbalance",
+        personAtRisk: "Members of the public, staff",
+        consequence: "Irritation requiring first aid",
+        currentControls: "Automatic dosing with continuous monitoring; manual water tests every 2 hours",
+        likelihood: 2,
+        severity: 3,
+        riskCategory: "Chemical",
       },
     ],
   });
 
-  // 2. Riverside plant room — chemical handling, OK
+  // 3. Bishopstown — Changing room cleaning — due soon
   await makeAssessment({
-    title: "Pool plant chemical handling & storage",
-    description: "Handling, dosing and storage of pool treatment chemicals.",
-    centerId: riverside.id,
-    areaId: rPlant.id,
-    roleId: rlTech.id,
-    activityId: acChemical.id,
+    description: "Routine cleaning of wet-side changing facilities.",
+    centerId: bishopstown.id,
+    subjectType: "Activity",
+    activityId: acCleaning.id,
     status: "Active",
-    assessorName: "James Okafor",
-    approvedByName: "Sarah Whitcombe",
-    monthsAgo: 4,
-    reviewFrequencyMonths: 12,
-    hazards: [
-      {
-        hazardDescription: "Chlorine gas release from incompatible chemicals mixing",
-        whoAtRisk: "Maintenance staff",
-        existingControls:
-          "COSHH assessments held; acids and chlorine stored separately; PPE; mechanical ventilation; spill kit.",
-        initialLikelihood: 2,
-        initialSeverity: 5,
-        additionalControls: "Install gas detection alarm in the chemical store.",
-        residualLikelihood: 1,
-        residualSeverity: 5,
-        actionOwnerName: "Facilities manager",
-        actionDueDate: addMonths(now, 2),
-        actionStatus: "InProgress",
-      },
-      {
-        hazardDescription: "Acid splash to eyes/skin during dosing",
-        whoAtRisk: "Maintenance staff",
-        existingControls: "Face shield, gloves and apron; eyewash station; trained operatives only.",
-        initialLikelihood: 2,
-        initialSeverity: 4,
-        residualLikelihood: 1,
-        residualSeverity: 4,
-        actionOwnerName: "James Okafor",
-        actionDueDate: subMonths(now, 1),
-        actionStatus: "Done",
-      },
-    ],
-  });
-
-  // 3. Riverside gym — due soon
-  await makeAssessment({
-    title: "Gym floor & fitness equipment use",
-    description: "Member and staff use of cardiovascular and resistance equipment.",
-    centerId: riverside.id,
-    areaId: rGym.id,
-    roleId: rlInstructor.id,
-    activityId: acGymUse.id,
-    status: "Active",
-    assessorName: "Priya Nair",
+    assessorName: "Elaine Foster",
     monthsAgo: 11,
     extraDaysAgo: 16,
     reviewFrequencyMonths: 12,
     hazards: [
       {
-        hazardDescription: "Injury from improper use of equipment / weights",
-        whoAtRisk: "Members, staff",
-        existingControls:
-          "Compulsory gym induction; instructors on the floor; clear instructions on machines.",
-        initialLikelihood: 3,
-        initialSeverity: 3,
-        residualLikelihood: 2,
-        residualSeverity: 3,
-        actionStatus: "NA",
+        hazard: "Slips on wet floors during cleaning",
+        riskFactor: "Standing water and cleaning in occupied periods",
+        personAtRisk: "Cleaning staff, members of the public",
+        consequence: "Sprains, fractures, head injury",
+        currentControls: "Wet-floor signage; cleaning during quiet periods; suitable footwear",
+        likelihood: 3,
+        severity: 3,
+        riskCategory: "Physical",
       },
       {
-        hazardDescription: "Manual handling of weight plates and dumbbells",
-        whoAtRisk: "Members, staff",
-        existingControls: "Manual handling guidance displayed; storage racks at sensible heights.",
-        initialLikelihood: 3,
-        initialSeverity: 2,
-        residualLikelihood: 2,
-        residualSeverity: 2,
-        actionStatus: "NA",
+        hazard: "Exposure to cleaning chemicals",
+        riskFactor: "Skin / eye contact, incorrect dilution",
+        personAtRisk: "Cleaning staff",
+        consequence: "Dermatitis or irritation",
+        currentControls: "COSHH data sheets; correct dilution; gloves and ventilation",
+        likelihood: 2,
+        severity: 2,
+        riskCategory: "Chemical",
       },
     ],
   });
 
-  // 4. Hilltop sports hall — overdue, under review
+  // 4. Hilltop — Sports hall — overdue, under review
   await makeAssessment({
-    title: "Sports hall activities & events",
     description: "Court sports, equipment setup and hall hire activities.",
     centerId: hilltop.id,
+    subjectType: "Area",
     areaId: hSportsHall.id,
-    roleId: rlDutyManager.id,
-    activityId: acClass.id,
     status: "UnderReview",
     assessorName: "Marcus Yeo",
     monthsAgo: 14,
     reviewFrequencyMonths: 12,
     hazards: [
       {
-        hazardDescription: "Collisions during court sports",
-        whoAtRisk: "Participants, members of the public",
-        existingControls: "Activity briefings; appropriate court markings; supervised sessions.",
-        initialLikelihood: 3,
-        initialSeverity: 2,
-        residualLikelihood: 2,
-        residualSeverity: 2,
-        actionStatus: "NA",
+        hazard: "Collisions during court sports",
+        riskFactor: "Fast play in shared space",
+        personAtRisk: "Participants, members of the public",
+        consequence: "Bruising, sprains or concussion",
+        currentControls: "Activity briefings; appropriate court markings; supervised sessions",
+        likelihood: 3,
+        severity: 2,
+        riskCategory: "Physical",
       },
       {
-        hazardDescription: "Injury from setting up / moving heavy equipment (goals, nets)",
-        whoAtRisk: "Staff",
-        existingControls: "Two-person lifts; equipment trolleys; manual handling training.",
-        initialLikelihood: 2,
-        initialSeverity: 3,
-        additionalControls: "Refresh manual handling training for sports staff.",
-        residualLikelihood: 1,
-        residualSeverity: 3,
-        actionOwnerName: "Marcus Yeo",
-        actionDueDate: addDays(now, 30),
-        actionStatus: "Open",
+        hazard: "Manual handling of heavy equipment (goals, nets)",
+        riskFactor: "Setting up / moving equipment",
+        personAtRisk: "Staff",
+        consequence: "Musculoskeletal injury",
+        currentControls: "Two-person lifts; equipment trolleys; manual handling training",
+        likelihood: 2,
+        severity: 3,
+        riskCategory: "Ergonomic",
       },
     ],
   });
 
-  // 5. Hilltop changing rooms — due soon, cleaning
+  // 5. Hilltop — Reception — due soon
   await makeAssessment({
-    title: "Changing room cleaning & housekeeping",
-    description: "Routine cleaning of wet-side changing and shower facilities.",
-    centerId: hilltop.id,
-    areaId: hChanging.id,
-    roleId: rlCleaner.id,
-    activityId: acCleaning.id,
-    status: "Active",
-    assessorName: "Elaine Foster",
-    monthsAgo: 11,
-    extraDaysAgo: 10,
-    reviewFrequencyMonths: 12,
-    reviewed: { outcome: "NoChanges", reviewerName: "Elaine Foster" },
-    hazards: [
-      {
-        hazardDescription: "Slips on wet floors during cleaning",
-        whoAtRisk: "Cleaning staff, members of the public",
-        existingControls: "Wet-floor signage; cleaning during quiet periods; suitable footwear.",
-        initialLikelihood: 3,
-        initialSeverity: 3,
-        additionalControls: "Trial a two-stage mopping system to reduce standing water.",
-        residualLikelihood: 2,
-        residualSeverity: 3,
-        actionOwnerName: "Elaine Foster",
-        actionDueDate: addDays(now, 14),
-        actionStatus: "Open",
-      },
-      {
-        hazardDescription: "Exposure to cleaning chemicals",
-        whoAtRisk: "Cleaning staff",
-        existingControls: "COSHH data sheets; correct dilution; gloves and ventilation.",
-        initialLikelihood: 2,
-        initialSeverity: 2,
-        residualLikelihood: 1,
-        residualSeverity: 2,
-        actionStatus: "NA",
-      },
-    ],
-  });
-
-  // 6. Hilltop reception — due very soon, lone working
-  await makeAssessment({
-    title: "Reception, front of house & cash handling",
     description: "Front desk duties including lone working and handling cash.",
     centerId: hilltop.id,
-    areaId: hReception.id,
+    subjectType: "Role",
     roleId: rlReceptionist.id,
-    activityId: acCash.id,
     status: "Active",
     assessorName: "Marcus Yeo",
     monthsAgo: 5,
@@ -409,132 +465,59 @@ async function main() {
     reviewFrequencyMonths: 6,
     hazards: [
       {
-        hazardDescription: "Aggressive or abusive customer behaviour (incl. lone working)",
-        whoAtRisk: "Reception staff",
-        existingControls: "Panic alarm at desk; conflict-management training; CCTV; never lone after dark.",
-        initialLikelihood: 3,
-        initialSeverity: 3,
-        residualLikelihood: 2,
-        residualSeverity: 3,
-        actionOwnerName: "Duty manager",
-        actionDueDate: addDays(now, 12),
-        actionStatus: "Open",
+        hazard: "Aggressive or abusive customer behaviour",
+        riskFactor: "Lone working, conflict at the desk",
+        personAtRisk: "Reception staff",
+        consequence: "Stress, assault or injury",
+        currentControls: "Panic alarm at desk; conflict-management training; CCTV; never lone after dark",
+        likelihood: 3,
+        severity: 3,
+        riskCategory: "Psychosocial",
       },
       {
-        hazardDescription: "Robbery during cash handling / banking",
-        whoAtRisk: "Reception staff",
-        existingControls: "Cash counted away from public view; varied banking times; safe with drop slot.",
-        initialLikelihood: 2,
-        initialSeverity: 3,
-        residualLikelihood: 1,
-        residualSeverity: 3,
-        actionStatus: "NA",
+        hazard: "Robbery during cash handling",
+        riskFactor: "Cash counted in view, predictable banking",
+        personAtRisk: "Reception staff",
+        consequence: "Assault or theft",
+        currentControls: "Cash counted away from public view; varied banking times; safe with drop slot",
+        likelihood: 2,
+        severity: 3,
+        riskCategory: "Physical",
       },
     ],
   });
 
-  // 7. Riverside soft play — OK
+  // 6. Hilltop — Pool plant chemical handling — OK
   await makeAssessment({
-    title: "Soft play supervision",
-    description: "Supervision of children using the soft play frame.",
-    centerId: riverside.id,
-    areaId: rSoftPlay.id,
-    roleId: rlDutyManager.id,
-    activityId: acSoftPlay.id,
+    description: "Handling, dosing and storage of pool treatment chemicals.",
+    centerId: hilltop.id,
+    subjectType: "Activity",
+    activityId: acChemical.id,
     status: "Active",
-    assessorName: "Priya Nair",
-    monthsAgo: 2,
+    assessorName: "James Okafor",
+    monthsAgo: 4,
     reviewFrequencyMonths: 12,
     hazards: [
       {
-        hazardDescription: "Falls and impacts within the play structure",
-        whoAtRisk: "Children",
-        existingControls: "Impact-absorbing surfaces; padding inspected daily; age/height zoning.",
-        initialLikelihood: 3,
-        initialSeverity: 3,
-        residualLikelihood: 2,
-        residualSeverity: 3,
-        actionStatus: "NA",
+        hazard: "Chlorine gas release",
+        riskFactor: "Incompatible chemicals mixing",
+        personAtRisk: "Maintenance staff",
+        consequence: "Respiratory injury, potentially fatal",
+        currentControls:
+          "COSHH assessments; acids and chlorine stored separately; PPE; mechanical ventilation; spill kit",
+        likelihood: 2,
+        severity: 5,
+        riskCategory: "Chemical",
       },
       {
-        hazardDescription: "Overcrowding and lost / unaccompanied children",
-        whoAtRisk: "Children",
-        existingControls: "Session capacity limits; signing-in; carer-present policy.",
-        initialLikelihood: 2,
-        initialSeverity: 3,
-        additionalControls: "Add wristband matching for child and carer.",
-        residualLikelihood: 1,
-        residualSeverity: 3,
-        actionOwnerName: "Duty manager",
-        actionDueDate: addDays(now, 45),
-        actionStatus: "Open",
-      },
-    ],
-  });
-
-  // 8. Riverside café — draft
-  await makeAssessment({
-    title: "Café & food service",
-    description: "Preparation and service of hot drinks and light food.",
-    centerId: riverside.id,
-    areaId: rCafe.id,
-    roleId: rlCafe.id,
-    activityId: acCatering.id,
-    status: "Draft",
-    assessorName: "Priya Nair",
-    monthsAgo: 0,
-    extraDaysAgo: 6,
-    reviewFrequencyMonths: 12,
-    hazards: [
-      {
-        hazardDescription: "Burns and scalds from hot drinks and equipment",
-        whoAtRisk: "Café staff, customers",
-        existingControls: "Training on equipment; heat-resistant gloves; spill procedures.",
-        initialLikelihood: 3,
-        initialSeverity: 2,
-        residualLikelihood: 2,
-        residualSeverity: 2,
-        actionStatus: "NA",
-      },
-    ],
-  });
-
-  // 9. Riverside studio — due soon
-  await makeAssessment({
-    title: "Group exercise studio classes",
-    description: "Instructor-led classes including spin, circuits and aerobics.",
-    centerId: riverside.id,
-    areaId: rStudio.id,
-    roleId: rlInstructor.id,
-    activityId: acClass.id,
-    status: "Active",
-    assessorName: "Priya Nair",
-    monthsAgo: 11,
-    extraDaysAgo: 14,
-    reviewFrequencyMonths: 12,
-    hazards: [
-      {
-        hazardDescription: "Trips over equipment, mats and trailing leads",
-        whoAtRisk: "Participants, instructors",
-        existingControls: "Equipment set out and cleared safely; cable management; clear floor space.",
-        initialLikelihood: 3,
-        initialSeverity: 2,
-        residualLikelihood: 2,
-        residualSeverity: 2,
-        actionStatus: "NA",
-      },
-      {
-        hazardDescription: "Overexertion or cardiac event in a participant",
-        whoAtRisk: "Participants",
-        existingControls: "Pre-activity readiness questions; instructor monitoring; AED on site.",
-        initialLikelihood: 2,
-        initialSeverity: 4,
-        additionalControls: "Confirm monthly AED checks are logged.",
-        residualLikelihood: 2,
-        residualSeverity: 3,
-        actionOwnerName: "Fitness instructor",
-        actionDueDate: addDays(now, 20),
-        actionStatus: "Open",
+        hazard: "Acid splash to eyes / skin during dosing",
+        riskFactor: "Manual dosing without protection",
+        personAtRisk: "Maintenance staff",
+        consequence: "Burns or irritation",
+        currentControls: "Face shield, gloves and apron; eyewash station; trained operatives only",
+        likelihood: 2,
+        severity: 4,
+        riskCategory: "Chemical",
       },
     ],
   });

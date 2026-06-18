@@ -1,11 +1,5 @@
 import Link from "next/link";
-import {
-  BookOpen,
-  MapPin,
-  UserRound,
-  Activity,
-  ChevronRight,
-} from "lucide-react";
+import { BookOpen, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { RiskBadge } from "@/components/ui/risk-badge";
@@ -18,57 +12,27 @@ import { pluralize } from "@/lib/utils";
 
 export const metadata = { title: "Reference" };
 
-type GroupBy = "area" | "role" | "activity";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 interface Group {
   key: string;
   label: string;
-  sublabel?: string;
   items: AssessmentRow[];
 }
 
-function groupAssessments(
-  rows: AssessmentRow[],
-  groupBy: GroupBy,
-  showCenter: boolean,
-): Group[] {
+function groupByCentre(rows: AssessmentRow[], split: boolean): Group[] {
+  if (!split) {
+    return rows.length ? [{ key: "all", label: "", items: rows }] : [];
+  }
   const map = new Map<string, Group>();
-
   for (const a of rows) {
-    let key: string;
-    let label: string;
-    let sublabel: string | undefined;
-
-    if (groupBy === "area") {
-      key = a.areaId;
-      label = a.area.name;
-      sublabel = showCenter ? a.center.name : undefined;
-    } else if (groupBy === "role") {
-      key = a.roleId ?? "_none";
-      label = a.role?.name ?? "Unassigned role";
-    } else {
-      key = a.activityId ?? "_none";
-      label = a.activity?.name ?? "Unassigned activity";
-    }
-
-    if (!map.has(key)) map.set(key, { key, label, sublabel, items: [] });
+    const key = a.centerId;
+    if (!map.has(key))
+      map.set(key, { key, label: a.center.name, items: [] });
     map.get(key)!.items.push(a);
   }
-
-  const groups = [...map.values()];
-  for (const g of groups) {
-    g.items.sort(
-      (x, y) =>
-        y.summary.maxResidualScore - x.summary.maxResidualScore ||
-        x.title.localeCompare(y.title),
-    );
-  }
-  groups.sort((a, b) => a.label.localeCompare(b.label));
-  return groups;
+  return [...map.values()].sort((x, y) => x.label.localeCompare(y.label));
 }
-
-const GROUP_ICON = { area: MapPin, role: UserRound, activity: Activity };
 
 export default async function ReferencePage({
   searchParams,
@@ -77,32 +41,38 @@ export default async function ReferencePage({
 }) {
   const sp = await searchParams;
   const get = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
-  const groupBy = (["area", "role", "activity"].includes(get("group"))
+  const subjectType = (["Area", "Role", "Activity"].includes(get("group"))
     ? get("group")
-    : "area") as GroupBy;
+    : "Area") as string;
   const q = get("q");
   const status = get("status");
 
   const { selected, selectedId } = await getCenterContext();
-  const rows = await listAssessments({
+  const all = await listAssessments({
     centerId: selectedId,
     search: q || undefined,
     status: status || undefined,
   });
-  const groups = groupAssessments(rows, groupBy, !selected);
-  const GroupIcon = GROUP_ICON[groupBy];
+  const rows = all
+    .filter((a) => a.subjectType === subjectType)
+    .sort(
+      (x, y) =>
+        y.summary.maxRiskScore - x.summary.maxRiskScore ||
+        x.title.localeCompare(y.title),
+    );
+  const groups = groupByCentre(rows, !selected);
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Knowledge base"
         title="Reference"
-        description="Browse and search assessments as a reference for staff. Switch how they're grouped to find the right one fast."
+        description="Browse and search assessments for staff. Switch between area, role and activity assessments to find the right one."
       />
 
       <ReferenceControls
         basePath="/reference"
-        current={{ group: groupBy, q, status }}
+        current={{ group: subjectType, q, status }}
       />
 
       {rows.length === 0 ? (
@@ -112,29 +82,23 @@ export default async function ReferencePage({
           description={
             q || status
               ? "No assessments match your search."
-              : "Once you add assessments they'll appear here, grouped for easy reference."
+              : `No ${subjectType.toLowerCase()} assessments yet in this scope.`
           }
         />
       ) : (
         <div className="space-y-6">
           <p className="text-sm text-muted">
-            {rows.length} {pluralize(rows.length, "assessment")} ·{" "}
-            {groups.length} {pluralize(groups.length, "group")}
+            {rows.length} {subjectType.toLowerCase()}{" "}
+            {pluralize(rows.length, "assessment")}
           </p>
 
           {groups.map((g) => (
             <section key={g.key}>
-              <div className="mb-2 flex items-baseline gap-2">
-                <GroupIcon className="size-4 shrink-0 translate-y-0.5 text-brand" />
-                <h2 className="font-semibold text-ink">{g.label}</h2>
-                {g.sublabel && (
-                  <span className="text-xs text-muted">{g.sublabel}</span>
-                )}
-                <span className="text-xs tnum text-faint">
-                  {g.items.length}
-                </span>
-              </div>
-
+              {g.label && (
+                <h2 className="mb-2 text-sm font-semibold text-ink">
+                  {g.label}
+                </h2>
+              )}
               <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-xs">
                 {g.items.map((a) => (
                   <li key={a.id}>
@@ -145,7 +109,7 @@ export default async function ReferencePage({
                       <div className="flex min-w-0 flex-1 items-center gap-2.5">
                         {a.summary.headlineBand && (
                           <RiskBadge
-                            score={a.summary.maxResidualScore}
+                            score={a.summary.maxRiskScore}
                             band={a.summary.headlineBand}
                             size="sm"
                             showLabel={false}
@@ -156,13 +120,8 @@ export default async function ReferencePage({
                             {a.title}
                           </p>
                           <p className="font-mono text-xs text-faint">
-                            {a.reference}
-                            {groupBy !== "role" && a.role
-                              ? ` · ${a.role.name}`
-                              : ""}
-                            {groupBy !== "activity" && a.activity
-                              ? ` · ${a.activity.name}`
-                              : ""}
+                            {a.reference} · {a.summary.hazardCount}{" "}
+                            {pluralize(a.summary.hazardCount, "hazard")}
                           </p>
                         </div>
                       </div>

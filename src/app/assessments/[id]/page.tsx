@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { StatusBadge } from "@/components/ui/badge";
 import { AssessmentView } from "@/components/assessments/assessment-view";
 import { AssessmentActions } from "@/components/assessments/assessment-actions";
-import { getAssessmentDetail } from "@/lib/data/assessments";
+import { getAssessmentDetail, assessmentTitle } from "@/lib/data/assessments";
 
 export async function generateMetadata({
   params,
@@ -13,7 +13,9 @@ export async function generateMetadata({
 }) {
   const { id } = await params;
   const a = await getAssessmentDetail(id);
-  return { title: a ? `${a.reference} — ${a.title}` : "Assessment" };
+  return {
+    title: a ? `${a.reference} — ${assessmentTitle(a)}` : "Assessment",
+  };
 }
 
 export default async function AssessmentDetailPage({
@@ -25,14 +27,8 @@ export default async function AssessmentDetailPage({
   const a = await getAssessmentDetail(id);
   if (!a) notFound();
 
-  const classification = [
-    a.center.name,
-    a.area.name,
-    a.role?.name,
-    a.activity?.name,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const title = assessmentTitle(a);
+  const classification = `${a.center.name} · ${a.subjectType} assessment`;
 
   return (
     <div className="space-y-6 print-full">
@@ -52,7 +48,7 @@ export default async function AssessmentDetailPage({
             <StatusBadge status={a.status} />
           </div>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">
-            {a.title}
+            {title}
           </h1>
           <p className="mt-1 text-sm text-muted">{classification}</p>
         </div>

@@ -36,12 +36,10 @@ export default async function NewAssessmentPage() {
   }
 
   const defaults = {
-    title: "",
     description: "",
     centerId: selected?.id ?? form.centers[0].id,
-    areaId: "",
-    roleId: "",
-    activityId: "",
+    subjectType: "Area",
+    subjectId: "",
     status: "Draft",
     assessorName: "",
     approvedByName: "",

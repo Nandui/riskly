@@ -1,7 +1,13 @@
 "use client";
 
 import { Fragment } from "react";
-import { buildMatrix, bandMeta, riskScore } from "@/lib/risk";
+import {
+  buildMatrix,
+  bandMeta,
+  riskScore,
+  likelihoodLabel,
+  severityLabel,
+} from "@/lib/risk";
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { cn } from "@/lib/utils";
 
@@ -66,7 +72,7 @@ export function RiskMatrixPicker({
                     type="button"
                     onClick={() => onChange(cell.likelihood, cell.severity)}
                     aria-pressed={selected}
-                    aria-label={`Likelihood ${cell.likelihood}, severity ${cell.severity} — score ${cell.score}`}
+                    title={`Likelihood ${cell.likelihood} (${likelihoodLabel(cell.likelihood)}) × Severity ${cell.severity} (${severityLabel(cell.severity)}) = ${cell.score}`}
                     className={cn(
                       "flex aspect-square items-center justify-center rounded text-[0.7rem] font-semibold tnum transition-all",
                       m.cell,
@@ -84,7 +90,12 @@ export function RiskMatrixPicker({
         })}
       </div>
 
-      <p className="mt-2 text-center text-[0.625rem] uppercase tracking-wider text-faint">
+      <p className="mt-2 text-center text-[0.7rem] text-muted">
+        <span className="font-medium text-ink-soft">{likelihoodLabel(likelihood)}</span>
+        {" × "}
+        <span className="font-medium text-ink-soft">{severityLabel(severity)}</span>
+      </p>
+      <p className="text-center text-[0.6rem] uppercase tracking-wider text-faint">
         Likelihood ↕ · Severity ↔
       </p>
     </div>
@@ -131,7 +142,11 @@ export function RiskMatrixHeat({
                       m.cell,
                       n === 0 && "opacity-35",
                     )}
-                    style={n > 0 ? { outline: `${Math.round((n / max) * 2) + 0.5}px solid currentColor` } : undefined}
+                    style={
+                      n > 0
+                        ? { outline: `${Math.round((n / max) * 2) + 0.5}px solid currentColor` }
+                        : undefined
+                    }
                   >
                     {n > 0 ? n : ""}
                   </div>
@@ -142,7 +157,7 @@ export function RiskMatrixHeat({
         })}
       </div>
       <p className="mt-2 text-center text-[0.625rem] uppercase tracking-wider text-faint">
-        Residual risk · Likelihood ↕ · Severity ↔
+        Overall risk · Likelihood ↕ · Severity ↔
       </p>
     </div>
   );

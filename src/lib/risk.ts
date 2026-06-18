@@ -1,28 +1,38 @@
 // ------------------------------------------------------------------
-// The 5x5 risk engine — the single source of truth for scoring & bands.
-// Score = Likelihood (1-5) x Severity (1-5)  ->  1..25
-// Bands: Low 1-4 | Medium 5-9 | High 10-15 | Critical 16-25
+// The risk engine — single source of truth for scoring & bands.
+// Overall Risk = Likelihood (1-5) × Consequence Severity (1-5) → 1..25
+// Bands: Low 1-4 | Medium 5-9 | High 10-16 | Very High 17-25
+// (matches the client's risk-assessment reference)
 // ------------------------------------------------------------------
 
-export type RiskBand = "low" | "medium" | "high" | "critical";
+export type RiskBand = "low" | "medium" | "high" | "veryHigh";
 
-export const RISK_BANDS: RiskBand[] = ["low", "medium", "high", "critical"];
+export const RISK_BANDS: RiskBand[] = ["low", "medium", "high", "veryHigh"];
 
-// 1..5 scale descriptors (index 0 = rating 1)
+// Likelihood 1..5 (index 0 = rating 1)
 export const LIKELIHOOD_LABELS = [
-  "Rare",
-  "Unlikely",
+  "Improbable",
   "Possible",
-  "Likely",
-  "Almost certain",
+  "Very Possible",
+  "Probable",
+  "Almost Certain",
 ] as const;
 
+// Consequence / severity 1..5 — short label + full descriptor
 export const SEVERITY_LABELS = [
-  "Negligible",
+  "Insignificant",
   "Minor",
   "Moderate",
   "Major",
-  "Catastrophic",
+  "Fatal",
+] as const;
+
+export const SEVERITY_DESCRIPTIONS = [
+  "Insignificant / minor first aid, no time off, no loss",
+  "Lost time, recoverable (strain, sprain, laceration, dermatitis)",
+  "Temporary disability, recoverable (minor fracture, asthma, deafness, concussion)",
+  "Permanent disability, survivable (major fractures, amputation, head/eye injuries, poisoning)",
+  "Causing death to one or more people (fatal injuries, occupational cancer, fatal disease/fire)",
 ] as const;
 
 export function clampRating(n: number): number {
@@ -45,8 +55,8 @@ export function riskScore(likelihood: number, severity: number): number {
 export function riskBand(score: number): RiskBand {
   if (score <= 4) return "low";
   if (score <= 9) return "medium";
-  if (score <= 15) return "high";
-  return "critical";
+  if (score <= 16) return "high";
+  return "veryHigh";
 }
 
 export function bandFromRatings(likelihood: number, severity: number): RiskBand {
@@ -64,6 +74,7 @@ export interface BandMeta {
   dot: string;
 }
 
+// "Very High" reuses the red (critical) colour tokens.
 export const BAND_META: Record<RiskBand, BandMeta> = {
   low: {
     key: "low",
@@ -88,17 +99,17 @@ export const BAND_META: Record<RiskBand, BandMeta> = {
   high: {
     key: "high",
     label: "High",
-    range: "10–15",
+    range: "10–16",
     badge: "bg-high-bg text-high border border-high-line",
     solid: "bg-high text-white",
     cell: "bg-high-bg text-high",
     text: "text-high",
     dot: "bg-high",
   },
-  critical: {
-    key: "critical",
-    label: "Critical",
-    range: "16–25",
+  veryHigh: {
+    key: "veryHigh",
+    label: "Very High",
+    range: "17–25",
     badge: "bg-critical-bg text-critical border border-critical-line",
     solid: "bg-critical text-white",
     cell: "bg-critical-bg text-critical",
@@ -111,6 +122,12 @@ export function bandMeta(scoreOrBand: number | RiskBand): BandMeta {
   const band =
     typeof scoreOrBand === "number" ? riskBand(scoreOrBand) : scoreOrBand;
   return BAND_META[band];
+}
+
+// Hazards rated High or Very High warrant attention.
+export function isHighRisk(score: number): boolean {
+  const b = riskBand(score);
+  return b === "high" || b === "veryHigh";
 }
 
 export interface MatrixCell {

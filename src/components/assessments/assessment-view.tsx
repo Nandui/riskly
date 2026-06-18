@@ -1,5 +1,4 @@
 import {
-  ArrowRight,
   UserCheck,
   CalendarDays,
   RefreshCw,
@@ -7,7 +6,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { RiskBadge } from "@/components/ui/risk-badge";
-import { ActionBadge } from "@/components/ui/badge";
+import { CategoryBadge } from "@/components/ui/badge";
 import { ReviewChip } from "@/components/ui/review-chip";
 import { summarizeAssessment, type AssessmentDetail } from "@/lib/data/assessments";
 import { formatDate } from "@/lib/utils";
@@ -78,7 +77,7 @@ export function AssessmentView({
             <Fact icon={UserCheck} label="Assessed by">
               {a.assessorName || "—"}
             </Fact>
-            <Fact icon={ShieldCheck} label="Approved by">
+            <Fact icon={ShieldCheck} label="Verified / approved by">
               {a.approvedByName || "—"}
             </Fact>
             <Fact icon={CalendarDays} label="Assessment date">
@@ -92,12 +91,9 @@ export function AssessmentView({
 
         <div className="space-y-4 rounded-lg border border-line bg-surface-2/50 p-4">
           <div>
-            <p className="eyebrow mb-1.5">Residual risk</p>
+            <p className="eyebrow mb-1.5">Overall risk</p>
             {summary.headlineBand ? (
-              <RiskBadge
-                score={summary.maxResidualScore}
-                band={summary.headlineBand}
-              />
+              <RiskBadge score={summary.maxRiskScore} band={summary.headlineBand} />
             ) : (
               <span className="text-sm text-faint">No hazards rated</span>
             )}
@@ -118,11 +114,11 @@ export function AssessmentView({
             </div>
             <div>
               <p
-                className={`text-lg font-semibold tnum ${summary.overdueActions > 0 ? "text-critical" : "text-ink"}`}
+                className={`text-lg font-semibold tnum ${summary.highRiskCount > 0 ? "text-critical" : "text-ink"}`}
               >
-                {summary.openActions}
+                {summary.highRiskCount}
               </p>
-              <p className="text-xs text-muted">open actions</p>
+              <p className="text-xs text-muted">high risk</p>
             </div>
           </div>
         </div>
@@ -152,47 +148,19 @@ export function AssessmentView({
                     <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-soft text-xs font-bold tnum text-brand">
                       {i + 1}
                     </span>
-                    {h.hazardDescription}
+                    {h.hazard}
                   </h3>
                   <div className="flex shrink-0 items-center gap-2 pl-8 sm:pl-0">
-                    <RiskBadge
-                      score={riskScore(h.initialLikelihood, h.initialSeverity)}
-                      size="sm"
-                    />
-                    <ArrowRight className="size-4 text-faint" />
-                    <RiskBadge
-                      score={riskScore(
-                        h.residualLikelihood,
-                        h.residualSeverity,
-                      )}
-                      size="sm"
-                    />
+                    <CategoryBadge category={h.riskCategory} />
+                    <RiskBadge score={riskScore(h.likelihood, h.severity)} size="sm" />
                   </div>
                 </div>
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <Block label="Who might be harmed" value={h.whoAtRisk} />
-                  <Block label="Existing controls" value={h.existingControls} />
-                  <Block
-                    label="Additional controls"
-                    value={h.additionalControls}
-                  />
-                  <div>
-                    <p className="eyebrow mb-1">Action</p>
-                    {h.actionOwnerName || h.actionStatus !== "NA" ? (
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
-                        {h.actionOwnerName && <span>{h.actionOwnerName}</span>}
-                        {h.actionDueDate && (
-                          <span className="text-muted">
-                            due {formatDate(h.actionDueDate)}
-                          </span>
-                        )}
-                        <ActionBadge status={h.actionStatus} />
-                      </div>
-                    ) : (
-                      <span className="text-sm text-faint">—</span>
-                    )}
-                  </div>
+                  <Block label="Risk factor" value={h.riskFactor} />
+                  <Block label="Person at risk" value={h.personAtRisk} />
+                  <Block label="Consequence" value={h.consequence} />
+                  <Block label="Current controls" value={h.currentControls} />
                 </div>
               </div>
             ))}
@@ -219,9 +187,7 @@ export function AssessmentView({
                   {r.reviewerName && (
                     <span className="text-muted"> · {r.reviewerName}</span>
                   )}
-                  {r.notes && (
-                    <p className="text-muted">{r.notes}</p>
-                  )}
+                  {r.notes && <p className="text-muted">{r.notes}</p>}
                 </div>
                 <span className="text-xs text-muted">
                   next {formatDate(r.nextReviewDate)}

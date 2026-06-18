@@ -2,12 +2,12 @@
 
 A web app for **documenting, monitoring and referencing health & safety risk assessments** across the sites of a leisure operator (pools, gyms, sports halls, soft play, studios…).
 
-One organisation, many centres. Every assessment is classified by **area**, **role** and **activity**, and rated with the HSE-standard **5×5 risk matrix** (Likelihood × Severity), with both an initial and a residual rating.
+One organisation, many centres. Every assessment is built around one subject — an **area**, a **role**, or an **activity** — and is named after it, with all of that subject's hazards inside. Each hazard is rated with a **5×5 risk matrix** (Likelihood × Consequence Severity = Overall Risk) based on current controls.
 
 ## What it does
 
 - **Document** — create and edit assessments with hazard line-items, existing/additional controls, and per-hazard 5×5 scoring. Click a matrix cell to set likelihood × severity; scores and bands compute live.
-- **Monitor** — a dashboard and monitoring queue surface overdue / due-soon reviews and open / overdue actions. Log a review to roll the next review date forward and keep an audit trail.
+- **Monitor** — a dashboard and monitoring queue surface overdue / due-soon reviews and high-risk hazards (High / Very High). Log a review to roll the next review date forward and keep an audit trail.
 - **Reference** — a searchable knowledge base, groupable by area, role or activity, with a clean, print-friendly read-only view of every assessment.
 
 Data is scoped to a **current centre** (chosen in the sidebar switcher), with an "All centres" overview.
@@ -63,11 +63,11 @@ src/
 - **Center** — a site. Top-level scope.
 - **Area** — a physical/functional space within a centre (per-centre).
 - **Role** / **Activity** — org-level shared libraries used to classify assessments.
-- **RiskAssessment** — classified by centre + area + (role) + (activity); has a status, assessment date, review frequency and computed next-review date.
-- **Hazard** — a line item: hazard, who's at risk, existing controls, initial L×S, additional controls, residual L×S, and an optional action (owner / due / status).
+- **RiskAssessment** — covers one subject (an area, role *or* activity, chosen via `subjectType`) at a centre and is named after it; has a status, assessment date, review frequency and computed next-review date.
+- **Hazard** — a line item matching the client's columns: hazard, risk factor, person at risk, consequence, current controls, Likelihood × Consequence Severity = Overall Risk, and a Risk Category (Physical / Chemical / Biological / Ergonomic / Psychosocial / Environmental).
 - **ReviewLog** — an audit record written each time a review is logged.
 
-**Risk bands:** Low 1–4 · Medium 5–9 · High 10–15 · Critical 16–25. The risk colour palette (green → amber → orange → red) is reserved strictly for risk bands.
+**Risk bands:** Low 1–4 · Medium 5–9 · High 10–16 · Very High 17–25. The risk colour palette (green → amber → orange → red) is reserved strictly for risk bands.
 
 ## Notes & roadmap
 

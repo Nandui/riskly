@@ -1,6 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { STATUS_META, ACTION_STATUS_META } from "@/lib/constants";
+import { STATUS_META, RISK_CATEGORY_META } from "@/lib/constants";
 
 export function Badge({
   className,
@@ -31,7 +31,16 @@ export function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export function ActionBadge({ status }: { status: string }) {
-  const meta = ACTION_STATUS_META[status] ?? ACTION_STATUS_META.NA;
-  return <Badge className={meta.pill}>{meta.label}</Badge>;
+export function CategoryBadge({ category }: { category: string }) {
+  const meta = RISK_CATEGORY_META[category] ?? RISK_CATEGORY_META.Physical;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
+        meta.pill,
+      )}
+    >
+      {meta.label}
+    </span>
+  );
 }

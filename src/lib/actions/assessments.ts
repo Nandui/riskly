@@ -27,12 +27,10 @@ function parseAssessmentForm(formData: FormData) {
     }
   }
   return assessmentSchema.safeParse({
-    title: formData.get("title"),
     description: formData.get("description"),
     centerId: formData.get("centerId"),
-    areaId: formData.get("areaId"),
-    roleId: formData.get("roleId"),
-    activityId: formData.get("activityId"),
+    subjectType: formData.get("subjectType") || "Area",
+    subjectId: formData.get("subjectId"),
     status: formData.get("status") || "Draft",
     assessorName: formData.get("assessorName"),
     approvedByName: formData.get("approvedByName"),
@@ -42,20 +40,49 @@ function parseAssessmentForm(formData: FormData) {
   });
 }
 
+type SubjectLink =
+  | { ok: true; areaId: string | null; roleId: string | null; activityId: string | null }
+  | { ok: false; error: string };
+
+// Map the chosen subject (one of area/role/activity) onto the FK columns.
+async function resolveSubject(d: AssessmentInput): Promise<SubjectLink> {
+  if (d.subjectType === "Area") {
+    const area = await db.area.findUnique({
+      where: { id: d.subjectId },
+      select: { centerId: true },
+    });
+    if (!area) return { ok: false, error: "Selected area not found." };
+    if (area.centerId !== d.centerId)
+      return { ok: false, error: "That area belongs to a different centre." };
+    return { ok: true, areaId: d.subjectId, roleId: null, activityId: null };
+  }
+  if (d.subjectType === "Role") {
+    const role = await db.role.findUnique({
+      where: { id: d.subjectId },
+      select: { id: true },
+    });
+    if (!role) return { ok: false, error: "Selected role not found." };
+    return { ok: true, areaId: null, roleId: d.subjectId, activityId: null };
+  }
+  const activity = await db.activity.findUnique({
+    where: { id: d.subjectId },
+    select: { id: true },
+  });
+  if (!activity) return { ok: false, error: "Selected activity not found." };
+  return { ok: true, areaId: null, roleId: null, activityId: d.subjectId };
+}
+
 function hazardCreateData(hazards: AssessmentInput["hazards"]) {
   return hazards.map((h, i) => ({
     sortOrder: i,
-    hazardDescription: h.hazardDescription,
-    whoAtRisk: emptyToNull(h.whoAtRisk),
-    existingControls: emptyToNull(h.existingControls),
-    initialLikelihood: h.initialLikelihood,
-    initialSeverity: h.initialSeverity,
-    additionalControls: emptyToNull(h.additionalControls),
-    residualLikelihood: h.residualLikelihood,
-    residualSeverity: h.residualSeverity,
-    actionOwnerName: emptyToNull(h.actionOwnerName),
-    actionDueDate: h.actionDueDate ? new Date(h.actionDueDate) : null,
-    actionStatus: h.actionStatus ?? "NA",
+    hazard: h.hazard,
+    riskFactor: emptyToNull(h.riskFactor),
+    personAtRisk: emptyToNull(h.personAtRisk),
+    consequence: emptyToNull(h.consequence),
+    currentControls: emptyToNull(h.currentControls),
+    likelihood: h.likelihood,
+    severity: h.severity,
+    riskCategory: h.riskCategory ?? "Physical",
   }));
 }
 
@@ -72,6 +99,9 @@ export async function createAssessment(
     };
   }
   const d = parsed.data;
+  const subject = await resolveSubject(d);
+  if (!subject.ok) return { ok: false, error: subject.error };
+
   const assessmentDate = new Date(d.assessmentDate);
   const nextReviewDate = computeNextReviewDate(
     assessmentDate,
@@ -81,12 +111,12 @@ export async function createAssessment(
   const created = await db.riskAssessment.create({
     data: {
       reference: await nextReference(),
-      title: d.title,
       description: emptyToNull(d.description),
       centerId: d.centerId,
-      areaId: d.areaId,
-      roleId: emptyToNull(d.roleId),
-      activityId: emptyToNull(d.activityId),
+      subjectType: d.subjectType,
+      areaId: subject.areaId,
+      roleId: subject.roleId,
+      activityId: subject.activityId,
       status: d.status,
       assessorName: emptyToNull(d.assessorName),
       approvedByName: emptyToNull(d.approvedByName),
@@ -116,6 +146,9 @@ export async function updateAssessment(
     };
   }
   const d = parsed.data;
+  const subject = await resolveSubject(d);
+  if (!subject.ok) return { ok: false, error: subject.error };
+
   const existing = await db.riskAssessment.findUnique({
     where: { id },
     select: { lastReviewedDate: true },
@@ -129,12 +162,12 @@ export async function updateAssessment(
     db.riskAssessment.update({
       where: { id },
       data: {
-        title: d.title,
         description: emptyToNull(d.description),
         centerId: d.centerId,
-        areaId: d.areaId,
-        roleId: emptyToNull(d.roleId),
-        activityId: emptyToNull(d.activityId),
+        subjectType: d.subjectType,
+        areaId: subject.areaId,
+        roleId: subject.roleId,
+        activityId: subject.activityId,
         status: d.status,
         assessorName: emptyToNull(d.assessorName),
         approvedByName: emptyToNull(d.approvedByName),

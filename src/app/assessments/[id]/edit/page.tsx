@@ -6,6 +6,7 @@ import { AssessmentForm } from "@/components/assessments/assessment-form";
 import {
   getAssessmentDetail,
   getAssessmentFormData,
+  assessmentTitle,
 } from "@/lib/data/assessments";
 import { updateAssessment } from "@/lib/actions/assessments";
 import { toDateInputValue } from "@/lib/utils";
@@ -24,13 +25,18 @@ export default async function EditAssessmentPage({
   ]);
   if (!a) notFound();
 
+  const subjectId =
+    a.subjectType === "Role"
+      ? (a.roleId ?? "")
+      : a.subjectType === "Activity"
+        ? (a.activityId ?? "")
+        : (a.areaId ?? "");
+
   const defaults = {
-    title: a.title,
     description: a.description ?? "",
     centerId: a.centerId,
-    areaId: a.areaId,
-    roleId: a.roleId ?? "",
-    activityId: a.activityId ?? "",
+    subjectType: a.subjectType,
+    subjectId,
     status: a.status,
     assessorName: a.assessorName ?? "",
     approvedByName: a.approvedByName ?? "",
@@ -38,17 +44,14 @@ export default async function EditAssessmentPage({
     reviewFrequencyMonths: a.reviewFrequencyMonths,
     hazards: a.hazards.map((h) => ({
       key: h.id,
-      hazardDescription: h.hazardDescription,
-      whoAtRisk: h.whoAtRisk ?? "",
-      existingControls: h.existingControls ?? "",
-      initialLikelihood: h.initialLikelihood,
-      initialSeverity: h.initialSeverity,
-      additionalControls: h.additionalControls ?? "",
-      residualLikelihood: h.residualLikelihood,
-      residualSeverity: h.residualSeverity,
-      actionOwnerName: h.actionOwnerName ?? "",
-      actionDueDate: toDateInputValue(h.actionDueDate),
-      actionStatus: h.actionStatus,
+      hazard: h.hazard,
+      riskFactor: h.riskFactor ?? "",
+      personAtRisk: h.personAtRisk ?? "",
+      consequence: h.consequence ?? "",
+      currentControls: h.currentControls ?? "",
+      likelihood: h.likelihood,
+      severity: h.severity,
+      riskCategory: h.riskCategory,
     })),
   };
 
@@ -61,7 +64,10 @@ export default async function EditAssessmentPage({
         >
           <ArrowLeft className="size-4" /> Back to assessment
         </Link>
-        <PageHeader eyebrow={`Edit · ${a.reference}`} title={a.title} />
+        <PageHeader
+          eyebrow={`Edit · ${a.reference}`}
+          title={assessmentTitle(a)}
+        />
       </div>
 
       <AssessmentForm

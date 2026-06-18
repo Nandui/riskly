@@ -1,6 +1,6 @@
-// Domain enums + display metadata. Status/action colours stay in the cool
-// (slate/teal/blue) or Tailwind default families so the risk palette
-// (green→amber→orange→red) keeps its exclusive meaning.
+// Domain enums + display metadata. Status/category colours stay in the cool
+// (slate/blue/violet…) families so the risk palette (green→amber→orange→red)
+// keeps its exclusive meaning for risk bands.
 
 export const ASSESSMENT_STATUSES = [
   { value: "Draft", label: "Draft" },
@@ -10,6 +10,15 @@ export const ASSESSMENT_STATUSES = [
 ] as const;
 
 export type AssessmentStatus = (typeof ASSESSMENT_STATUSES)[number]["value"];
+
+// What a single assessment is built around.
+export const SUBJECT_TYPES = [
+  { value: "Area", label: "Area" },
+  { value: "Role", label: "Role" },
+  { value: "Activity", label: "Activity" },
+] as const;
+
+export type SubjectType = (typeof SUBJECT_TYPES)[number]["value"];
 
 export const STATUS_META: Record<
   string,
@@ -37,33 +46,45 @@ export const STATUS_META: Record<
   },
 };
 
-export const ACTION_STATUSES = [
-  { value: "NA", label: "N/A" },
-  { value: "Open", label: "Open" },
-  { value: "InProgress", label: "In progress" },
-  { value: "Done", label: "Done" },
+// Per-hazard hazard category (the "Risk Category" column).
+export const RISK_CATEGORIES = [
+  { value: "Physical", label: "Physical" },
+  { value: "Chemical", label: "Chemical" },
+  { value: "Biological", label: "Biological" },
+  { value: "Ergonomic", label: "Ergonomic" },
+  { value: "Psychosocial", label: "Psychosocial" },
+  { value: "Environmental", label: "Environmental" },
 ] as const;
 
-export type ActionStatus = (typeof ACTION_STATUSES)[number]["value"];
+export type RiskCategory = (typeof RISK_CATEGORIES)[number]["value"];
 
-export const ACTION_STATUS_META: Record<
-  string,
-  { label: string; pill: string }
-> = {
-  NA: { label: "N/A", pill: "bg-slate-100 text-slate-500 border border-slate-200" },
-  Open: { label: "Open", pill: "bg-amber-50 text-amber-700 border border-amber-200" },
-  InProgress: {
-    label: "In progress",
-    pill: "bg-blue-50 text-blue-700 border border-blue-200",
-  },
-  Done: {
-    label: "Done",
-    pill: "bg-emerald-50 text-emerald-700 border border-emerald-200",
-  },
-};
-
-// Action states that still need attention (count toward "open actions").
-export const OPEN_ACTION_STATES = ["Open", "InProgress"] as const;
+export const RISK_CATEGORY_META: Record<string, { label: string; pill: string }> =
+  {
+    Physical: {
+      label: "Physical",
+      pill: "bg-slate-100 text-slate-700 border border-slate-200",
+    },
+    Chemical: {
+      label: "Chemical",
+      pill: "bg-sky-50 text-sky-700 border border-sky-200",
+    },
+    Biological: {
+      label: "Biological",
+      pill: "bg-violet-50 text-violet-700 border border-violet-200",
+    },
+    Ergonomic: {
+      label: "Ergonomic",
+      pill: "bg-cyan-50 text-cyan-700 border border-cyan-200",
+    },
+    Psychosocial: {
+      label: "Psychosocial",
+      pill: "bg-indigo-50 text-indigo-700 border border-indigo-200",
+    },
+    Environmental: {
+      label: "Environmental",
+      pill: "bg-teal-50 text-teal-700 border border-teal-200",
+    },
+  };
 
 export const REVIEW_OUTCOMES = [
   { value: "NoChanges", label: "No changes needed" },

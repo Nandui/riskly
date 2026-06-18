@@ -8,9 +8,9 @@ import { ASSESSMENT_STATUSES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 const GROUPS = [
-  { key: "area", label: "Area", icon: MapPin },
-  { key: "role", label: "Role", icon: UserRound },
-  { key: "activity", label: "Activity", icon: Activity },
+  { key: "Area", label: "Areas", icon: MapPin },
+  { key: "Role", label: "Roles", icon: UserRound },
+  { key: "Activity", label: "Activities", icon: Activity },
 ] as const;
 
 export function ReferenceControls({
@@ -27,7 +27,7 @@ export function ReferenceControls({
   const push = (next: Partial<typeof current>) => {
     const merged = { ...current, ...next };
     const params = new URLSearchParams();
-    params.set("group", merged.group || "area");
+    params.set("group", merged.group || "Area");
     if (merged.q) params.set("q", merged.q);
     if (merged.status) params.set("status", merged.status);
     startTransition(() => router.push(`${basePath}?${params.toString()}`));

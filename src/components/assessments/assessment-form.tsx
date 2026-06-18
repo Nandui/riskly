@@ -5,7 +5,12 @@ import Link from "next/link";
 import { Field, Input, Textarea, Select } from "@/components/ui/form";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { HazardEditor, type HazardDraft } from "./hazard-editor";
-import { ASSESSMENT_STATUSES, REVIEW_FREQUENCY_OPTIONS } from "@/lib/constants";
+import {
+  ASSESSMENT_STATUSES,
+  REVIEW_FREQUENCY_OPTIONS,
+  SUBJECT_TYPES,
+} from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import type { FormState } from "@/lib/form";
 
 interface Option {
@@ -14,12 +19,10 @@ interface Option {
 }
 
 export interface AssessmentDefaults {
-  title: string;
   description: string;
   centerId: string;
-  areaId: string;
-  roleId: string;
-  activityId: string;
+  subjectType: string;
+  subjectId: string;
   status: string;
   assessorName: string;
   approvedByName: string;
@@ -54,15 +57,31 @@ export function AssessmentForm({
   const fe = state?.fieldErrors ?? {};
 
   const [centerId, setCenterId] = useState(defaults.centerId);
-  const [areaId, setAreaId] = useState(defaults.areaId);
+  const [subjectType, setSubjectType] = useState(defaults.subjectType || "Area");
+  const [subjectId, setSubjectId] = useState(defaults.subjectId);
   const [hazards, setHazards] = useState<HazardDraft[]>(defaults.hazards);
 
-  const areaOptions = areasByCenter[centerId] ?? [];
+  const subjectOptions: Option[] =
+    subjectType === "Area"
+      ? (areasByCenter[centerId] ?? [])
+      : subjectType === "Role"
+        ? roles
+        : activities;
+
+  const subjectLabel =
+    SUBJECT_TYPES.find((t) => t.value === subjectType)?.label ?? "Subject";
 
   const onCenterChange = (id: string) => {
     setCenterId(id);
-    const list = areasByCenter[id] ?? [];
-    if (!list.some((a) => a.id === areaId)) setAreaId("");
+    if (subjectType === "Area") {
+      const list = areasByCenter[id] ?? [];
+      if (!list.some((a) => a.id === subjectId)) setSubjectId("");
+    }
+  };
+
+  const onSubjectTypeChange = (t: string) => {
+    setSubjectType(t);
+    setSubjectId("");
   };
 
   const serialized = useMemo(
@@ -92,17 +111,76 @@ export function AssessmentForm({
 
       <input type="hidden" name="hazards" value={serialized} />
       <input type="hidden" name="centerId" value={centerId} />
-      <input type="hidden" name="areaId" value={areaId} />
+      <input type="hidden" name="subjectType" value={subjectType} />
+      <input type="hidden" name="subjectId" value={subjectId} />
 
       <section className={cardClass}>
-        <h2 className="text-sm font-semibold text-ink">Classification</h2>
+        <h2 className="text-sm font-semibold text-ink">
+          What is this assessment for?
+        </h2>
 
-        <Field label="Title" required error={fe.title}>
-          <Input
-            name="title"
-            defaultValue={defaults.title}
-            placeholder="e.g. Pool supervision & drowning prevention"
-          />
+        <Field label="Centre" required error={fe.centerId}>
+          <Select
+            value={centerId}
+            onChange={(e) => onCenterChange(e.target.value)}
+          >
+            <option value="">Select a centre…</option>
+            {centers.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-ink-soft">
+            This assessment covers a…
+          </label>
+          <div className="inline-flex rounded-lg border border-line bg-surface p-0.5">
+            {SUBJECT_TYPES.map((t) => {
+              const active = subjectType === t.value;
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => onSubjectTypeChange(t.value)}
+                  className={cn(
+                    "rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+                    active
+                      ? "bg-brand text-white shadow-xs"
+                      : "text-muted hover:text-ink",
+                  )}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <Field
+          label={subjectLabel}
+          required
+          error={fe.subjectId}
+          hint="The assessment is named after this — all its hazards live inside it."
+        >
+          <Select
+            value={subjectId}
+            onChange={(e) => setSubjectId(e.target.value)}
+            disabled={subjectType === "Area" && !centerId}
+          >
+            <option value="">
+              {subjectType === "Area" && !centerId
+                ? "Choose a centre first"
+                : `Select ${subjectLabel.toLowerCase()}…`}
+            </option>
+            {subjectOptions.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </Select>
         </Field>
 
         <Field label="Scope / description" error={fe.description}>
@@ -110,64 +188,9 @@ export function AssessmentForm({
             name="description"
             defaultValue={defaults.description}
             rows={2}
-            placeholder="What does this assessment cover?"
+            placeholder="Optional notes on what this assessment covers"
           />
         </Field>
-
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="Centre" required error={fe.centerId}>
-            <Select
-              value={centerId}
-              onChange={(e) => onCenterChange(e.target.value)}
-            >
-              <option value="">Select a centre…</option>
-              {centers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <Field label="Area" required error={fe.areaId}>
-            <Select
-              value={areaId}
-              onChange={(e) => setAreaId(e.target.value)}
-              disabled={!centerId}
-            >
-              <option value="">
-                {centerId ? "Select an area…" : "Choose a centre first"}
-              </option>
-              {areaOptions.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <Field label="Role" error={fe.roleId}>
-            <Select name="roleId" defaultValue={defaults.roleId}>
-              <option value="">— None —</option>
-              {roles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <Field label="Activity" error={fe.activityId}>
-            <Select name="activityId" defaultValue={defaults.activityId}>
-              <option value="">— None —</option>
-              {activities.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
       </section>
 
       <section className={cardClass}>
@@ -204,7 +227,7 @@ export function AssessmentForm({
           <Field label="Assessed by" error={fe.assessorName}>
             <Input name="assessorName" defaultValue={defaults.assessorName} />
           </Field>
-          <Field label="Approved by" error={fe.approvedByName}>
+          <Field label="Verified / approved by" error={fe.approvedByName}>
             <Input
               name="approvedByName"
               defaultValue={defaults.approvedByName}

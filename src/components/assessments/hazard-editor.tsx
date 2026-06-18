@@ -1,26 +1,22 @@
 "use client";
 
-import { Plus, Trash2, ChevronUp, ChevronDown, TriangleAlert } from "lucide-react";
+import { Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { RiskMatrixPicker } from "@/components/risk-matrix";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Field } from "@/components/ui/form";
-import { ACTION_STATUSES } from "@/lib/constants";
-import { riskScore } from "@/lib/risk";
+import { RISK_CATEGORIES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 export interface HazardDraft {
   key: string;
-  hazardDescription: string;
-  whoAtRisk: string;
-  existingControls: string;
-  initialLikelihood: number;
-  initialSeverity: number;
-  additionalControls: string;
-  residualLikelihood: number;
-  residualSeverity: number;
-  actionOwnerName: string;
-  actionDueDate: string;
-  actionStatus: string;
+  hazard: string;
+  riskFactor: string;
+  personAtRisk: string;
+  consequence: string;
+  currentControls: string;
+  likelihood: number;
+  severity: number;
+  riskCategory: string;
 }
 
 export function newHazard(): HazardDraft {
@@ -29,17 +25,14 @@ export function newHazard(): HazardDraft {
       typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
         : Math.random().toString(36).slice(2),
-    hazardDescription: "",
-    whoAtRisk: "",
-    existingControls: "",
-    initialLikelihood: 3,
-    initialSeverity: 3,
-    additionalControls: "",
-    residualLikelihood: 2,
-    residualSeverity: 2,
-    actionOwnerName: "",
-    actionDueDate: "",
-    actionStatus: "NA",
+    hazard: "",
+    riskFactor: "",
+    personAtRisk: "",
+    consequence: "",
+    currentControls: "",
+    likelihood: 2,
+    severity: 3,
+    riskCategory: "Physical",
   };
 }
 
@@ -114,13 +107,6 @@ function HazardCard({
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
 }) {
-  const initialScore = riskScore(hazard.initialLikelihood, hazard.initialSeverity);
-  const residualScore = riskScore(
-    hazard.residualLikelihood,
-    hazard.residualSeverity,
-  );
-  const residualHigher = residualScore > initialScore;
-
   const iconBtn =
     "flex size-7 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent";
 
@@ -171,94 +157,71 @@ function HazardCard({
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-3">
           <Field label="Hazard" required>
-            <Textarea
-              value={hazard.hazardDescription}
-              onChange={(e) => onUpdate({ hazardDescription: e.target.value })}
-              rows={2}
-              placeholder="What could cause harm?"
+            <Input
+              value={hazard.hazard}
+              onChange={(e) => onUpdate({ hazard: e.target.value })}
+              placeholder="e.g. Uneven pitch surface / holes"
             />
           </Field>
-          <Field label="Who might be harmed & how">
+          <Field label="Risk factor">
             <Textarea
-              value={hazard.whoAtRisk}
-              onChange={(e) => onUpdate({ whoAtRisk: e.target.value })}
+              value={hazard.riskFactor}
+              onChange={(e) => onUpdate({ riskFactor: e.target.value })}
               rows={2}
-              placeholder="Staff, public, contractors…"
+              placeholder="What causes the harm?"
             />
           </Field>
-          <Field label="Existing controls">
+          <Field label="Person at risk">
+            <Input
+              value={hazard.personAtRisk}
+              onChange={(e) => onUpdate({ personAtRisk: e.target.value })}
+              placeholder="Staff / Customers / Visitors / Contractors"
+            />
+          </Field>
+          <Field label="Consequence">
             <Textarea
-              value={hazard.existingControls}
-              onChange={(e) => onUpdate({ existingControls: e.target.value })}
-              rows={3}
-              placeholder="Measures already in place"
+              value={hazard.consequence}
+              onChange={(e) => onUpdate({ consequence: e.target.value })}
+              rows={2}
+              placeholder="What is the outcome / injury?"
             />
           </Field>
         </div>
 
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-4 rounded-lg border border-line bg-surface-2/50 p-3">
-            <RiskMatrixPicker
-              label="Initial"
-              likelihood={hazard.initialLikelihood}
-              severity={hazard.initialSeverity}
-              onChange={(l, s) =>
-                onUpdate({ initialLikelihood: l, initialSeverity: s })
-              }
-            />
-            <RiskMatrixPicker
-              label="Residual"
-              likelihood={hazard.residualLikelihood}
-              severity={hazard.residualSeverity}
-              onChange={(l, s) =>
-                onUpdate({ residualLikelihood: l, residualSeverity: s })
-              }
-            />
+          <div className="rounded-lg border border-line bg-surface-2/50 p-3">
+            <div className="mx-auto max-w-[15rem]">
+              <RiskMatrixPicker
+                label="Overall risk"
+                likelihood={hazard.likelihood}
+                severity={hazard.severity}
+                onChange={(l, s) => onUpdate({ likelihood: l, severity: s })}
+              />
+            </div>
           </div>
-          {residualHigher && (
-            <p className="flex items-center gap-1.5 text-xs text-medium">
-              <TriangleAlert className="size-3.5" />
-              Residual risk is higher than the initial rating — check your
-              ratings.
-            </p>
-          )}
-          <Field label="Additional controls needed">
-            <Textarea
-              value={hazard.additionalControls}
-              onChange={(e) => onUpdate({ additionalControls: e.target.value })}
-              rows={2}
-              placeholder="Further action to reduce risk"
-            />
+          <Field label="Risk category">
+            <Select
+              value={hazard.riskCategory}
+              onChange={(e) => onUpdate({ riskCategory: e.target.value })}
+            >
+              {RISK_CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </Select>
           </Field>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 border-t border-line pt-4 sm:grid-cols-3">
-        <Field label="Action owner">
-          <Input
-            value={hazard.actionOwnerName}
-            onChange={(e) => onUpdate({ actionOwnerName: e.target.value })}
-            placeholder="Who is responsible?"
+      <div className="mt-3">
+        <Field label="Current controls">
+          <Textarea
+            value={hazard.currentControls}
+            onChange={(e) => onUpdate({ currentControls: e.target.value })}
+            rows={3}
+            placeholder="Measures already in place that the rating reflects"
           />
-        </Field>
-        <Field label="Action due">
-          <Input
-            type="date"
-            value={hazard.actionDueDate}
-            onChange={(e) => onUpdate({ actionDueDate: e.target.value })}
-          />
-        </Field>
-        <Field label="Action status">
-          <Select
-            value={hazard.actionStatus}
-            onChange={(e) => onUpdate({ actionStatus: e.target.value })}
-          >
-            {ACTION_STATUSES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </Select>
         </Field>
       </div>
     </div>

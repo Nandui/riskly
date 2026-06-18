@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { listAssessments, type AssessmentRow } from "@/lib/data/assessments";
-import { clampRating } from "@/lib/risk";
-import { ASSESSMENT_STATUSES, OPEN_ACTION_STATES } from "@/lib/constants";
+import { clampRating, riskScore, riskBand, isHighRisk } from "@/lib/risk";
+import { ASSESSMENT_STATUSES } from "@/lib/constants";
 
 export async function getDashboard(centerId: string | null) {
   const rows = await listAssessments({ centerId });
@@ -11,28 +11,25 @@ export async function getDashboard(centerId: string | null) {
   for (const s of ASSESSMENT_STATUSES) statusCounts[s.value] = 0;
   for (const a of rows) statusCounts[a.status] = (statusCounts[a.status] ?? 0) + 1;
 
-  const bandCounts = { low: 0, medium: 0, high: 0, critical: 0 };
+  const bandCounts = { low: 0, medium: 0, high: 0, veryHigh: 0 };
   for (const a of active)
     if (a.summary.headlineBand) bandCounts[a.summary.headlineBand]++;
 
   const matrix: Record<string, number> = {};
   let hazardCount = 0;
+  let highRiskHazards = 0;
   for (const a of active)
     for (const h of a.hazards) {
-      const key = `${clampRating(h.residualLikelihood)}-${clampRating(h.residualSeverity)}`;
+      const key = `${clampRating(h.likelihood)}-${clampRating(h.severity)}`;
       matrix[key] = (matrix[key] ?? 0) + 1;
       hazardCount++;
+      if (isHighRisk(riskScore(h.likelihood, h.severity))) highRiskHazards++;
     }
 
   const reviewsOverdue = active.filter(
     (a) => a.summary.review.key === "overdue",
   ).length;
   const reviewsDue = active.filter((a) => a.summary.review.key === "due").length;
-  const openActions = active.reduce((n, a) => n + a.summary.openActions, 0);
-  const overdueActions = active.reduce(
-    (n, a) => n + a.summary.overdueActions,
-    0,
-  );
 
   const attention = active
     .filter((a) => a.summary.review.key !== "ok")
@@ -48,10 +45,9 @@ export async function getDashboard(centerId: string | null) {
     bandCounts,
     matrix,
     hazardCount,
+    highRiskHazards,
     reviewsOverdue,
     reviewsDue,
-    openActions,
-    overdueActions,
     attention,
     recent,
   };
@@ -68,10 +64,9 @@ export async function getReviewQueue(
     .sort((x, y) => x.summary.review.days - y.summary.review.days);
 }
 
-export async function getOpenActions(centerId: string | null) {
+export async function getHighRiskHazards(centerId: string | null) {
   const hazards = await db.hazard.findMany({
     where: {
-      actionStatus: { in: [...OPEN_ACTION_STATES] },
       assessment: {
         status: { not: "Archived" },
         ...(centerId ? { centerId } : {}),
@@ -82,30 +77,25 @@ export async function getOpenActions(centerId: string | null) {
         select: {
           id: true,
           reference: true,
-          title: true,
-          status: true,
+          subjectType: true,
           center: { select: { name: true } },
           area: { select: { name: true } },
+          role: { select: { name: true } },
+          activity: { select: { name: true } },
         },
       },
     },
   });
 
-  const today = new Date();
   return hazards
-    .map((h) => ({
-      ...h,
-      overdue: !!(h.actionDueDate && new Date(h.actionDueDate) < today),
-    }))
-    .sort((a, b) => {
-      const ad = a.actionDueDate
-        ? new Date(a.actionDueDate).getTime()
-        : Infinity;
-      const bd = b.actionDueDate
-        ? new Date(b.actionDueDate).getTime()
-        : Infinity;
-      return ad - bd;
-    });
+    .map((h) => {
+      const score = riskScore(h.likelihood, h.severity);
+      return { ...h, score, band: riskBand(score) };
+    })
+    .filter((h) => isHighRisk(h.score))
+    .sort((a, b) => b.score - a.score);
 }
 
-export type OpenAction = Awaited<ReturnType<typeof getOpenActions>>[number];
+export type HighRiskHazard = Awaited<
+  ReturnType<typeof getHighRiskHazards>
+>[number];

@@ -68,16 +68,17 @@ model Activity {
   assessments RiskAssessment[]
 }
 
-// The core document. Classified by centre + area + role + activity.
+// The core document. Each assessment is ABOUT one subject — an area, a role
+// or an activity (subjectType says which) — at a centre, and is named after it.
 model RiskAssessment {
   id                    String    @id @default(cuid())
   reference             String    @unique
-  title                 String
   description           String?
   centerId              String
   center                Center    @relation(fields: [centerId], references: [id], onDelete: Cascade)
-  areaId                String
-  area                  Area      @relation(fields: [areaId], references: [id])
+  subjectType           String    @default("Area") // Area | Role | Activity
+  areaId                String?
+  area                  Area?     @relation(fields: [areaId], references: [id])
   roleId                String?
   role                  Role?     @relation(fields: [roleId], references: [id])
   activityId            String?
@@ -104,28 +105,26 @@ model RiskAssessment {
   @@index([nextReviewDate])
 }
 
-// Hazard line item — the heart of the 5x5 matrix (initial + residual L x S).
+// Hazard line item: Hazard | Risk Factor | Person at Risk | Consequence |
+// Current Controls | Likelihood × Consequence Severity = Overall Risk | Category.
 model Hazard {
-  id                 String         @id @default(cuid())
-  assessmentId       String
-  assessment         RiskAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  sortOrder          Int            @default(0)
-  hazardDescription  String
-  whoAtRisk          String?
-  existingControls   String?
-  initialLikelihood  Int            @default(1) // 1-5
-  initialSeverity    Int            @default(1) // 1-5
-  additionalControls String?
-  residualLikelihood Int            @default(1) // 1-5
-  residualSeverity   Int            @default(1) // 1-5
-  actionOwnerName    String?
-  actionDueDate      DateTime?
-  actionStatus       String         @default("NA") // NA | Open | InProgress | Done
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  id              String         @id @default(cuid())
+  assessmentId    String
+  assessment      RiskAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  sortOrder       Int            @default(0)
+  hazard          String
+  riskFactor      String?
+  personAtRisk    String?
+  consequence     String?
+  currentControls String?
+  likelihood      Int            @default(1) // 1-5
+  severity        Int            @default(1) // 1-5 (consequence severity)
+  riskCategory    String         @default("Physical")
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@index([assessmentId])
-  @@index([actionStatus])
+  @@index([riskCategory])
 }
 
 // Audit trail of reviews — supports the monitoring story.

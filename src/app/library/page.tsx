@@ -1,15 +1,26 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { getCenterContext } from "@/lib/center-context";
-import { listAreas, listRoles, listActivities } from "@/lib/data/library";
+import {
+  listAreas,
+  listRoles,
+  listActivities,
+  type LibraryEntity,
+} from "@/lib/data/library";
 import { LibraryManager } from "@/components/library/library-manager";
 
 export const metadata = { title: "Library" };
 
 export default async function LibraryPage() {
-  const { selected } = await getCenterContext();
-  const [areas, roles, activities] = await Promise.all([
-    selected ? listAreas(selected.id) : Promise.resolve([]),
+  const { selected, centers } = await getCenterContext();
+
+  const areaEntries = await Promise.all(
+    centers.map(async (c) => [c.id, await listAreas(c.id)] as const),
+  );
+  const areasByCenter: Record<string, LibraryEntity[]> =
+    Object.fromEntries(areaEntries);
+
+  const [roles, activities] = await Promise.all([
     listRoles(),
     listActivities(),
   ]);
@@ -19,12 +30,13 @@ export default async function LibraryPage() {
       <PageHeader
         eyebrow="Reference data"
         title="Library"
-        description="The areas, roles and activities used to classify every assessment. Keep these tidy and assessments stay easy to find."
+        description="The areas, roles and activities used to build assessments. Areas belong to a centre; roles and activities are shared across all centres."
       />
       <Card className="p-5 sm:p-6">
         <LibraryManager
-          selectedCenter={selected ? { id: selected.id, name: selected.name } : null}
-          areas={areas}
+          centers={centers.map((c) => ({ id: c.id, name: c.name }))}
+          defaultCenterId={selected?.id ?? centers[0]?.id ?? null}
+          areasByCenter={areasByCenter}
           roles={roles}
           activities={activities}
         />

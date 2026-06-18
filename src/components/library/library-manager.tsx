@@ -18,7 +18,7 @@ import {
   Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/form";
+import { Input, Select } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
 import type { FormState } from "@/lib/form";
 import type { LibraryEntity } from "@/lib/data/library";
@@ -50,17 +50,24 @@ const TABS = [
 type TabKey = (typeof TABS)[number]["key"];
 
 export function LibraryManager({
-  selectedCenter,
-  areas,
+  centers,
+  defaultCenterId,
+  areasByCenter,
   roles,
   activities,
 }: {
-  selectedCenter: { id: string; name: string } | null;
-  areas: LibraryEntity[];
+  centers: { id: string; name: string }[];
+  defaultCenterId: string | null;
+  areasByCenter: Record<string, LibraryEntity[]>;
   roles: LibraryEntity[];
   activities: LibraryEntity[];
 }) {
   const [tab, setTab] = useState<TabKey>("areas");
+  const [areaCenterId, setAreaCenterId] = useState<string>(
+    defaultCenterId ?? centers[0]?.id ?? "",
+  );
+  const areas = areasByCenter[areaCenterId] ?? [];
+  const areaCenterName = centers.find((c) => c.id === areaCenterId)?.name ?? "";
   const counts = { areas: areas.length, roles: roles.length, activities: activities.length };
 
   return (
@@ -92,18 +99,35 @@ export function LibraryManager({
 
       <div className="pt-6">
         {tab === "areas" &&
-          (selectedCenter ? (
-            <EntityPanel
-              singular="area"
-              description={`Physical areas at ${selectedCenter.name}. Areas are specific to each centre.`}
-              items={areas}
-              createAction={createArea.bind(null, selectedCenter.id)}
-              updateAction={updateArea}
-              deleteAction={deleteArea}
-            />
-          ) : (
+          (centers.length === 0 ? (
             <div className="rounded-lg border border-dashed border-line-strong bg-surface/60 p-8 text-center text-sm text-muted">
-              Choose a single centre in the switcher to manage its areas.
+              Add a centre first — areas belong to a centre.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <label className="flex flex-wrap items-center gap-2 text-sm text-muted">
+                Areas for centre
+                <Select
+                  value={areaCenterId}
+                  onChange={(e) => setAreaCenterId(e.target.value)}
+                  className="w-auto min-w-[12rem]"
+                >
+                  {centers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <EntityPanel
+                key={areaCenterId}
+                singular="area"
+                description={`Physical areas at ${areaCenterName}. Areas are specific to each centre.`}
+                items={areas}
+                createAction={createArea.bind(null, areaCenterId)}
+                updateAction={updateArea}
+                deleteAction={deleteArea}
+              />
             </div>
           ))}
 
