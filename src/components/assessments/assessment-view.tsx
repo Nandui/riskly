@@ -55,6 +55,7 @@ function splitLines(value: string | null): string[] {
 type HazardComputed = AssessmentDetail["hazards"][number] & {
   score: number;
   band: RiskBand;
+  number: number; // stable 1-based position in the assessment (drives the ref)
 };
 
 export function AssessmentView({
@@ -70,9 +71,9 @@ export function AssessmentView({
 }) {
   const hazards = useMemo<HazardComputed[]>(
     () =>
-      a.hazards.map((h) => {
+      a.hazards.map((h, i) => {
         const score = riskScore(h.likelihood, h.severity);
-        return { ...h, score, band: riskBand(score) };
+        return { ...h, score, band: riskBand(score), number: i + 1 };
       }),
     [a.hazards],
   );
@@ -310,11 +311,12 @@ export function AssessmentView({
             </p>
           ) : (
             <div className="space-y-3">
-              {visible.map((h, i) => (
+              {visible.map((h) => (
                 <HazardRecord
                   key={h.id}
                   h={h}
-                  n={i + 1}
+                  n={h.number}
+                  assessmentRef={a.reference}
                   assessmentId={a.id}
                   canRequest={canRequest}
                 />
@@ -453,16 +455,19 @@ function HazardRecord({
   h,
   n,
   assessmentId,
+  assessmentRef,
   canRequest,
 }: {
   h: HazardComputed;
   n: number;
   assessmentId: string;
+  assessmentRef: string;
   canRequest: boolean;
 }) {
   const meta = BAND_META[h.band];
   const consequences = splitLines(h.consequence);
   const controls = splitLines(h.currentControls);
+  const reference = `${assessmentRef}-HZ-${String(n).padStart(3, "0")}`;
 
   return (
     <div className="flex overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-xs print-break-avoid">
@@ -496,9 +501,12 @@ function HazardRecord({
           >
             {n}
           </span>
-          <h3 className="min-w-0 flex-1 truncate font-semibold text-ink">
-            {h.hazard}
-          </h3>
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[0.625rem] font-medium tracking-wide text-faint">
+              {reference}
+            </p>
+            <h3 className="truncate font-semibold text-ink">{h.hazard}</h3>
+          </div>
           <CategoryBadge category={h.riskCategory} />
           {canRequest && (
             <RequestHazardReviewButton
