@@ -59,13 +59,23 @@ const hazardSchema = z.object({
     .string()
     .min(1)
     .max(300)
-    .describe("Short hazard title, e.g. 'Slips on wet poolside surround'."),
-  riskFactor: z.string().max(800).describe("What causes the harm."),
+    .describe(
+      "The hazard SOURCE — the thing or condition that can cause harm, written as a noun (e.g. 'Pool water', 'Wet changing-room floor', 'Pool chemicals'). NOT the event (never 'Slips on wet floor').",
+    ),
+  riskFactor: z
+    .string()
+    .max(800)
+    .describe("The why — the conditions or causes that make the harm likely."),
   personAtRisk: z
     .string()
     .max(300)
     .describe("Who is at risk, e.g. 'Customers, Children, Staff'."),
-  consequence: z.string().max(800).describe("The realistic injury or outcome."),
+  consequence: z
+    .string()
+    .max(800)
+    .describe(
+      "The risk realised — the specific harmful event and its outcome, e.g. 'Drowning — fatal or hypoxic brain injury'.",
+    ),
   currentControls: z
     .array(z.string())
     .describe(
@@ -85,7 +95,9 @@ const outputSchema = z.object({
   hazards: z
     .array(hazardSchema)
     .min(1)
-    .describe(`The ${TARGET_HAZARDS}+ most important hazards, most significant first.`),
+    .describe(
+      `The ${TARGET_HAZARDS}+ most important risks for the subject, most significant first. The same hazard source may appear in multiple entries for distinct risks.`,
+    ),
 });
 
 function numberedScale(labels: readonly string[], descriptions?: readonly string[]) {
@@ -100,13 +112,28 @@ function buildSystemPrompt(): string {
   return [
     "You are a senior health & safety risk assessor who specialises in leisure, sports and aquatic centres in Ireland. You produce practical, regulation-aware risk assessments consistent with the Safety, Health and Welfare at Work Act 2005 and HSA guidance.",
     "",
-    "You will be given the subject of a SINGLE risk assessment — an Area, a Role, or an Activity — at a named leisure centre. Identify the most significant, realistic hazards for that subject.",
+    "You will be given the subject of a SINGLE risk assessment — an Area, a Role, or an Activity — at a named leisure centre. Identify its most significant, realistic risks and record each as one entry.",
+    "",
+    "Use these definitions PRECISELY — they are easily confused:",
+    "- HAZARD = the source: the thing or condition with the potential to cause harm, written as a noun. Examples: \"Pool water\", \"Wet changing-room floor\", \"Pool chemicals (chlorine / acid)\", \"Electrical equipment near water\", \"Free weights\". The hazard is NOT the event — do not write \"Slips on a wet floor\"; the hazard is \"Wet floor\".",
+    "- RISK FACTOR = the why: the conditions or causes that make harm likely (e.g. non-swimmers and weak swimmers, a momentary lapse in supervision, a sudden medical episode, deep water).",
+    "- CONSEQUENCE = the risk realised: the specific harmful event and its outcome (e.g. \"Drowning — fatal or hypoxic brain injury\").",
+    "- PERSON AT RISK = who is harmed (e.g. Staff, Customers, Children, Contractors, Members of the public).",
+    "- CURRENT CONTROLS = the concrete measures a well-run centre would typically already have in place.",
+    "",
+    "The SAME hazard source can appear in more than one entry when it presents genuinely distinct significant risks — e.g. \"Pool water\" → drowning, and \"Pool water\" → shallow-end impact / diving injury. Cover the real distinct risks rather than padding with many superficial hazard sources.",
+    "",
+    "Worked example (a swimming pool):",
+    "- hazard: \"Pool water\"",
+    "- riskFactor: \"Non-swimmers and weak swimmers; momentary lapse in lifeguard supervision; overcrowding\"",
+    "- consequence: \"Drowning or near-drowning — fatal or serious hypoxic brain injury\"",
+    "- personAtRisk: \"Customers, Children\"",
+    "- currentControls: [\"Qualified lifeguards on poolside at the required ratios\", \"Constant scanning and zoning\", \"Depth markings and signage\", \"Rescue equipment and emergency procedures in place\"]",
     "",
     "Rules:",
-    `- Produce at least ${TARGET_HAZARDS} hazards (target ${TARGET_HAZARDS}–${TARGET_HAZARDS + 2}), ordered most-significant first. Cover the genuinely important risks — do not pad with trivia or near-duplicates.`,
-    "- Each hazard must be specific to the subject, not generic boilerplate.",
-    "- For each hazard provide: a short hazard title; the risk factor (what causes the harm); who is at risk (e.g. Staff, Customers, Children, Contractors, Members of the public); the consequence (the realistic injury or outcome); and the current controls a well-run centre would typically already have in place, as a list of concrete measures.",
-    "- Rate Likelihood (1–5) and Severity (1–5) realistically, ASSUMING the typical current controls you listed are already in place (i.e. the residual risk). Use these scales exactly:",
+    `- Produce at least ${TARGET_HAZARDS} entries (target ${TARGET_HAZARDS}–${TARGET_HAZARDS + 2}), ordered most-significant first. Cover the genuinely important risks — do not pad with trivia or near-duplicates.`,
+    "- Every field must be specific to the subject, not generic boilerplate.",
+    "- Rate Likelihood (1–5) and Severity (1–5) realistically, ASSUMING the current controls you listed are already in place (i.e. the residual risk). Use these scales exactly:",
     "",
     "  Likelihood:",
     numberedScale(LIKELIHOOD_LABELS),
