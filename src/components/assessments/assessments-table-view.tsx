@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { MapPin, UserRound, Activity, ChevronRight } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
@@ -12,6 +12,7 @@ import {
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { StatusBadge } from "@/components/ui/badge";
 import { ReviewChip } from "@/components/ui/review-chip";
+import { AssessmentDrawer } from "@/components/assessments/assessment-drawer";
 import type { AssessmentRow } from "@/lib/data/assessments";
 import { ASSESSMENT_STATUSES } from "@/lib/constants";
 import { RISK_BANDS, BAND_META } from "@/lib/risk";
@@ -30,7 +31,7 @@ export function AssessmentsTableView({
   rows: AssessmentRow[];
   showCenter: boolean;
 }) {
-  const router = useRouter();
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const columns: ColumnDef<AssessmentRow>[] = [
     {
@@ -183,16 +184,24 @@ export function AssessmentsTableView({
   ];
 
   return (
-    <DataTable
-      columns={columns}
-      data={rows}
-      searchable
-      searchPlaceholder="Search reference or subject…"
-      facets={facets}
-      initialColumnVisibility={{ band: false, subjectType: false }}
-      onRowClick={(r) => router.push(`/assessments/${r.id}`)}
-      pageSize={15}
-      emptyState="No assessments match your filters."
-    />
+    <>
+      <DataTable
+        columns={columns}
+        data={rows}
+        searchable
+        searchPlaceholder="Search reference or subject…"
+        facets={facets}
+        initialColumnVisibility={{ band: false, subjectType: false }}
+        onRowClick={(r) => setOpenId(r.id)}
+        pageSize={15}
+        emptyState="No assessments match your filters."
+      />
+      <AssessmentDrawer
+        id={openId}
+        onOpenChange={(open) => {
+          if (!open) setOpenId(null);
+        }}
+      />
+    </>
   );
 }
