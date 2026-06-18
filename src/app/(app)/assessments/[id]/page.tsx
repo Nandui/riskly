@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, UsersRound } from "lucide-react";
+import { ArrowLeft, UserRound, Building2 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/badge";
 import { AssessmentView } from "@/components/assessments/assessment-view";
 import { AssessmentActions } from "@/components/assessments/assessment-actions";
@@ -68,11 +68,20 @@ export default async function AssessmentDetailPage({
             {title}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">{classification}</p>
-          {a.assignees.length > 0 && (
-            <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-              <UsersRound className="size-3.5 text-faint" />
-              Assigned to{" "}
-              {a.assignees.map((u) => u.name ?? u.email).join(", ")}
+          {(a.owner || a.department) && (
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              {a.owner && (
+                <span className="inline-flex items-center gap-1.5">
+                  <UserRound className="size-3.5 text-faint" />
+                  {a.owner.name ?? a.owner.email}
+                </span>
+              )}
+              {a.department && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Building2 className="size-3.5 text-faint" />
+                  {a.department.name}
+                </span>
+              )}
             </p>
           )}
         </div>

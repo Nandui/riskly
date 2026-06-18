@@ -90,15 +90,20 @@ export function AssessmentModal({
             </DialogHeader>
 
             <div className="flex-1 space-y-5 overflow-y-auto p-5">
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <Fact label="Owner">
-                  {data.assignees.length ? (
+                  {data.owner ? (
                     <span className="inline-flex items-center gap-1.5">
                       <UsersRound className="size-3.5 text-faint" />
-                      {data.assignees.map((u) => u.name ?? u.email).join(", ")}
+                      {data.owner.name ?? data.owner.email}
                     </span>
                   ) : (
-                    <span className="text-muted-foreground">Unassigned</span>
+                    <span className="text-muted-foreground">No owner</span>
+                  )}
+                </Fact>
+                <Fact label="Department">
+                  {data.department ?? (
+                    <span className="text-muted-foreground">—</span>
                   )}
                 </Fact>
                 <Fact label="Overall risk">

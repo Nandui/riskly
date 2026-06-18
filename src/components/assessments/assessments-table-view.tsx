@@ -80,6 +80,22 @@ export function AssessmentsTableView({
         ]
       : []),
     {
+      id: "department",
+      accessorFn: (r) => r.department?.name ?? "",
+      filterFn: facetedFilter<AssessmentRow>(),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Dept" />
+      ),
+      cell: ({ row }) =>
+        row.original.department ? (
+          <span className="text-sm text-ink-soft">
+            {row.original.department.name}
+          </span>
+        ) : (
+          <span className="text-faint">—</span>
+        ),
+    },
+    {
       id: "risk",
       accessorFn: (r) => r.summary.overallScore,
       header: ({ column }) => (
@@ -156,6 +172,11 @@ export function AssessmentsTableView({
   const centreOptions = Array.from(new Set(rows.map((r) => r.center.name)))
     .sort()
     .map((name) => ({ label: name, value: name }));
+  const departmentOptions = Array.from(
+    new Set(rows.map((r) => r.department?.name).filter(Boolean) as string[]),
+  )
+    .sort()
+    .map((name) => ({ label: name, value: name }));
 
   const facets: FacetConfig[] = [
     {
@@ -180,6 +201,15 @@ export function AssessmentsTableView({
         { label: "Activity", value: "Activity" },
       ],
     },
+    ...(departmentOptions.length
+      ? [
+          {
+            columnId: "department",
+            title: "Department",
+            options: departmentOptions,
+          },
+        ]
+      : []),
     ...(showCenter
       ? [{ columnId: "center", title: "Centre", options: centreOptions }]
       : []),
@@ -193,7 +223,11 @@ export function AssessmentsTableView({
         searchable={!compact}
         searchPlaceholder="Search reference or subject…"
         facets={compact ? [] : facets}
-        initialColumnVisibility={{ band: false, subjectType: false }}
+        initialColumnVisibility={{
+          band: false,
+          subjectType: false,
+          ...(compact ? { department: false } : {}),
+        }}
         onRowClick={(r) => setOpenId(r.id)}
         pageSize={compact ? 6 : 15}
         emptyState="No assessments match your filters."

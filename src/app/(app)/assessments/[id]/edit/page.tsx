@@ -54,7 +54,8 @@ export default async function EditAssessmentPage({
       severity: h.severity,
       riskCategory: h.riskCategory,
     })),
-    assigneeIds: a.assignees.map((u) => u.id),
+    ownerId: a.ownerId ?? "",
+    departmentId: a.departmentId ?? "",
   };
 
   return (
@@ -83,6 +84,7 @@ export default async function EditAssessmentPage({
           id: u.id,
           name: u.name ?? u.email ?? "Unknown user",
         }))}
+        departments={form.departments}
         defaults={defaults}
         cancelHref={`/assessments/${a.id}`}
       />

@@ -16,6 +16,7 @@ import {
   MapPin,
   Users,
   Activity,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/form";
@@ -32,6 +33,9 @@ import {
   createActivity,
   updateActivity,
   deleteActivity,
+  createDepartment,
+  updateDepartment,
+  deleteDepartment,
 } from "@/lib/actions/library";
 
 type CreateAction = (prev: FormState, fd: FormData) => Promise<FormState>;
@@ -46,6 +50,7 @@ const TABS = [
   { key: "areas", label: "Areas", icon: MapPin },
   { key: "roles", label: "Roles", icon: Users },
   { key: "activities", label: "Activities", icon: Activity },
+  { key: "departments", label: "Departments", icon: Building2 },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -55,12 +60,14 @@ export function LibraryManager({
   areasByCenter,
   roles,
   activities,
+  departments,
 }: {
   centers: { id: string; name: string }[];
   defaultCenterId: string | null;
   areasByCenter: Record<string, LibraryEntity[]>;
   roles: LibraryEntity[];
   activities: LibraryEntity[];
+  departments: LibraryEntity[];
 }) {
   const [tab, setTab] = useState<TabKey>("areas");
   const [areaCenterId, setAreaCenterId] = useState<string>(
@@ -68,7 +75,12 @@ export function LibraryManager({
   );
   const areas = areasByCenter[areaCenterId] ?? [];
   const areaCenterName = centers.find((c) => c.id === areaCenterId)?.name ?? "";
-  const counts = { areas: areas.length, roles: roles.length, activities: activities.length };
+  const counts = {
+    areas: areas.length,
+    roles: roles.length,
+    activities: activities.length,
+    departments: departments.length,
+  };
 
   return (
     <div>
@@ -83,7 +95,7 @@ export function LibraryManager({
               className={cn(
                 "-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
                 active
-                  ? "border-brand text-brand"
+                  ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-ink",
               )}
             >
@@ -151,6 +163,17 @@ export function LibraryManager({
             createAction={createActivity}
             updateAction={updateActivity}
             deleteAction={deleteActivity}
+          />
+        )}
+
+        {tab === "departments" && (
+          <EntityPanel
+            singular="department"
+            description="Departments that own assessments (Ops, Maintenance, Accounts…), shared across all centres."
+            items={departments}
+            createAction={createDepartment}
+            updateAction={updateDepartment}
+            deleteAction={deleteDepartment}
           />
         )}
       </div>

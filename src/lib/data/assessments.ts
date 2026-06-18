@@ -64,7 +64,7 @@ export interface AssessmentFilters {
   status?: string;
   band?: string;
   search?: string;
-  assignedToUserId?: string;
+  ownedByUserId?: string;
 }
 
 const listSelect = {
@@ -72,6 +72,8 @@ const listSelect = {
   area: { select: { name: true } },
   role: { select: { name: true } },
   activity: { select: { name: true } },
+  owner: { select: { id: true, name: true, email: true } },
+  department: { select: { id: true, name: true } },
   hazards: {
     select: {
       likelihood: true,
@@ -87,8 +89,7 @@ export async function listAssessments(filters: AssessmentFilters = {}) {
   if (filters.roleId) where.roleId = filters.roleId;
   if (filters.activityId) where.activityId = filters.activityId;
   if (filters.status) where.status = filters.status;
-  if (filters.assignedToUserId)
-    where.assignees = { some: { id: filters.assignedToUserId } };
+  if (filters.ownedByUserId) where.ownerId = filters.ownedByUserId;
   if (filters.search) {
     const q = filters.search.trim();
     where.OR = [
@@ -131,10 +132,8 @@ export async function getAssessmentDetail(id: string) {
       activity: true,
       hazards: { orderBy: { sortOrder: "asc" } },
       reviewLogs: { orderBy: { reviewedDate: "desc" } },
-      assignees: {
-        orderBy: { name: "asc" },
-        select: { id: true, name: true, email: true, image: true },
-      },
+      owner: { select: { id: true, name: true, email: true } },
+      department: { select: { id: true, name: true } },
       reviewRequests: {
         orderBy: { createdAt: "desc" },
         include: {
@@ -153,7 +152,7 @@ export type AssessmentDetail = NonNullable<
 
 // Centres + their areas + org roles/activities, for the assessment form selects.
 export async function getAssessmentFormData() {
-  const [centers, roles, activities, users] = await Promise.all([
+  const [centers, roles, activities, departments, users] = await Promise.all([
     db.center.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
@@ -174,6 +173,10 @@ export async function getAssessmentFormData() {
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: { id: true, name: true },
     }),
+    db.department.findMany({
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true },
+    }),
     db.user.findMany({
       where: { isActive: true },
       orderBy: [{ name: "asc" }, { email: "asc" }],
@@ -189,6 +192,7 @@ export async function getAssessmentFormData() {
     areasByCenter,
     roles,
     activities,
+    departments,
     users,
   };
 }

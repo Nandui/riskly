@@ -41,11 +41,10 @@ export async function getAssessmentDrawerData(id: string) {
     highRiskCount: summary.highRiskCount,
     approvedByName: a.approvedByName,
     approvedAt: a.approvedAt ? formatDate(a.approvedAt) : null,
-    assignees: a.assignees.map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-    })),
+    owner: a.owner
+      ? { id: a.owner.id, name: a.owner.name, email: a.owner.email }
+      : null,
+    department: a.department?.name ?? null,
     hazards: a.hazards.map((h) => {
       const score = riskScore(h.likelihood, h.severity);
       return {

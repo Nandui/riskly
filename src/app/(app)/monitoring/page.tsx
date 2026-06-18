@@ -17,7 +17,7 @@ import {
   getReviewQueue,
   getHighRiskHazards,
   getOpenReviewRequests,
-  getAssignedToMe,
+  getOwnedByMe,
 } from "@/lib/data/monitoring";
 import { assessmentTitle } from "@/lib/data/assessments";
 import { getCurrentUser, can } from "@/lib/auth";
@@ -52,11 +52,11 @@ function Stat({
 export default async function MonitoringPage() {
   const { selected, selectedId } = await getCenterContext();
   const user = await getCurrentUser();
-  const [queue, highRisk, openRequests, assignedToMe] = await Promise.all([
+  const [queue, highRisk, openRequests, ownedByMe] = await Promise.all([
     getReviewQueue(selectedId),
     getHighRiskHazards(selectedId),
     getOpenReviewRequests(selectedId),
-    user ? getAssignedToMe(user.id, selectedId) : Promise.resolve([]),
+    user ? getOwnedByMe(user.id, selectedId) : Promise.resolve([]),
   ]);
 
   const canReview = can(user, "review");
@@ -129,15 +129,15 @@ export default async function MonitoringPage() {
         />
       </div>
 
-      {assignedToMe.length > 0 && (
+      {ownedByMe.length > 0 && (
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <UserRoundCheck className="size-4 text-muted-foreground" /> Assigned to me
+            <UserRoundCheck className="size-4 text-muted-foreground" /> Owned by me
             <span className="font-normal tnum text-muted-foreground">
-              {assignedToMe.length}
+              {ownedByMe.length}
             </span>
           </h2>
-          <AssessmentTable rows={assignedToMe} showCenter={!selected} />
+          <AssessmentTable rows={ownedByMe} showCenter={!selected} />
         </section>
       )}
 

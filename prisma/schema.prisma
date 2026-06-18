@@ -72,6 +72,19 @@ model Activity {
   assessments RiskAssessment[]
 }
 
+// Organisational department that owns assessments (Ops, Maintenance, Accounts…).
+// Org-level shared library, managed on the Library page.
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assessments RiskAssessment[]
+}
+
 // The core document. Each assessment is ABOUT one subject — an area, a role
 // or an activity (subjectType says which) — at a centre, and is named after it.
 model RiskAssessment {
@@ -87,6 +100,10 @@ model RiskAssessment {
   role                  Role?     @relation(fields: [roleId], references: [id])
   activityId            String?
   activity              Activity? @relation(fields: [activityId], references: [id])
+  ownerId               String?
+  owner                 User?       @relation("OwnedBy", fields: [ownerId], references: [id])
+  departmentId          String?
+  department            Department? @relation(fields: [departmentId], references: [id])
   status                String    @default("Draft") // Draft | Active | UnderReview | Archived
   assessorName          String?
   approvedByName        String?
@@ -105,12 +122,13 @@ model RiskAssessment {
   reviewLogs     ReviewLog[]
   reviewRequests ReviewRequest[]
   auditLogs      AuditLog[]
-  assignees      User[]          @relation("Assignees")
 
   @@index([centerId])
   @@index([areaId])
   @@index([roleId])
   @@index([activityId])
+  @@index([ownerId])
+  @@index([departmentId])
   @@index([status])
   @@index([nextReviewDate])
 }
@@ -166,7 +184,7 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  assignedAssessments    RiskAssessment[] @relation("Assignees")
+  ownedAssessments       RiskAssessment[] @relation("OwnedBy")
   approvedAssessments    RiskAssessment[] @relation("ApprovedBy")
   reviewRequestsMade     ReviewRequest[]  @relation("RequestedBy")
   reviewRequestsResolved ReviewRequest[]  @relation("ResolvedBy")

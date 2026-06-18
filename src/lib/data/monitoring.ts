@@ -157,11 +157,11 @@ export type OpenReviewRequest = Awaited<
   ReturnType<typeof getOpenReviewRequests>
 >[number];
 
-// Non-archived assessments the given user is an assignee of.
-export async function getAssignedToMe(
+// Non-archived assessments the given user owns.
+export async function getOwnedByMe(
   userId: string,
   centerId: string | null,
 ): Promise<AssessmentRow[]> {
-  const rows = await listAssessments({ centerId, assignedToUserId: userId });
+  const rows = await listAssessments({ centerId, ownedByUserId: userId });
   return rows.filter((a) => a.status !== "Archived");
 }

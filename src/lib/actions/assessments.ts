@@ -28,15 +28,6 @@ function parseAssessmentForm(formData: FormData) {
       hazards = [];
     }
   }
-  let assigneeIds: unknown = [];
-  const rawAssignees = formData.get("assigneeIds");
-  if (typeof rawAssignees === "string" && rawAssignees.trim()) {
-    try {
-      assigneeIds = JSON.parse(rawAssignees);
-    } catch {
-      assigneeIds = [];
-    }
-  }
   return assessmentSchema.safeParse({
     description: formData.get("description"),
     centerId: formData.get("centerId"),
@@ -47,7 +38,8 @@ function parseAssessmentForm(formData: FormData) {
     assessmentDate: formData.get("assessmentDate"),
     reviewFrequencyMonths: formData.get("reviewFrequencyMonths"),
     hazards,
-    assigneeIds,
+    ownerId: formData.get("ownerId"),
+    departmentId: formData.get("departmentId"),
   });
 }
 
@@ -138,7 +130,8 @@ export async function createAssessment(
       lastReviewedDate: d.status === "Draft" ? null : assessmentDate,
       nextReviewDate,
       hazards: { create: hazardCreateData(d.hazards) },
-      assignees: { connect: d.assigneeIds.map((id) => ({ id })) },
+      ownerId: emptyToNull(d.ownerId),
+      departmentId: emptyToNull(d.departmentId),
     },
   });
 
@@ -199,7 +192,8 @@ export async function updateAssessment(
           ? { approvedByName: null, approvedById: null, approvedAt: null }
           : {}),
         hazards: { create: hazardCreateData(d.hazards) },
-        assignees: { set: d.assigneeIds.map((id) => ({ id })) },
+        ownerId: emptyToNull(d.ownerId),
+        departmentId: emptyToNull(d.departmentId),
       },
     }),
   ]);

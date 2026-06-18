@@ -66,7 +66,8 @@ export const assessmentSchema = z.object({
   assessmentDate: z.string().min(1, "Set an assessment date"),
   reviewFrequencyMonths: z.coerce.number().int().min(1).max(60),
   hazards: z.array(hazardSchema).default([]),
-  assigneeIds: z.array(z.string()).default([]),
+  ownerId: optionalText(60),
+  departmentId: optionalText(60),
 });
 export type AssessmentInput = z.infer<typeof assessmentSchema>;
 

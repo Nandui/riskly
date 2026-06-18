@@ -5,6 +5,7 @@ import {
   listAreas,
   listRoles,
   listActivities,
+  listDepartments,
   type LibraryEntity,
 } from "@/lib/data/library";
 import { LibraryManager } from "@/components/library/library-manager";
@@ -22,9 +23,10 @@ export default async function LibraryPage() {
   const areasByCenter: Record<string, LibraryEntity[]> =
     Object.fromEntries(areaEntries);
 
-  const [roles, activities] = await Promise.all([
+  const [roles, activities, departments] = await Promise.all([
     listRoles(),
     listActivities(),
+    listDepartments(),
   ]);
 
   return (
@@ -32,7 +34,7 @@ export default async function LibraryPage() {
       <PageHeader
         eyebrow="Reference data"
         title="Library"
-        description="The areas, roles and activities used to build assessments. Areas belong to a centre; roles and activities are shared across all centres."
+        description="The areas, roles, activities and departments used to build assessments. Areas belong to a centre; the rest are shared across all centres."
       />
       <Card className="p-5 sm:p-6">
         <LibraryManager
@@ -41,6 +43,7 @@ export default async function LibraryPage() {
           areasByCenter={areasByCenter}
           roles={roles}
           activities={activities}
+          departments={departments}
         />
       </Card>
     </div>

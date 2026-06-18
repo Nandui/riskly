@@ -226,3 +226,75 @@ export async function deleteActivity(id: string): Promise<FormState> {
   revalidateLibrary();
   return { ok: true };
 }
+
+// ---------------- Departments (org-level) ----------------
+export async function createDepartment(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
+  const parsed = parseEntity(formData);
+  if (!parsed.success)
+    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error) };
+  try {
+    const max = await db.department.aggregate({ _max: { sortOrder: true } });
+    await db.department.create({
+      data: {
+        name: parsed.data.name,
+        description: emptyToNull(parsed.data.description),
+        sortOrder: (max._max.sortOrder ?? 0) + 1,
+      },
+    });
+  } catch (e) {
+    if (isUniqueError(e))
+      return {
+        ok: false,
+        fieldErrors: { name: "A department with this name exists." },
+      };
+    throw e;
+  }
+  revalidateLibrary();
+  return { ok: true };
+}
+
+export async function updateDepartment(
+  id: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
+  const parsed = parseEntity(formData);
+  if (!parsed.success)
+    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error) };
+  try {
+    await db.department.update({
+      where: { id },
+      data: {
+        name: parsed.data.name,
+        description: emptyToNull(parsed.data.description),
+      },
+    });
+  } catch (e) {
+    if (isUniqueError(e))
+      return {
+        ok: false,
+        fieldErrors: { name: "A department with this name exists." },
+      };
+    throw e;
+  }
+  revalidateLibrary();
+  return { ok: true };
+}
+
+export async function deleteDepartment(id: string): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
+  const count = await db.riskAssessment.count({ where: { departmentId: id } });
+  if (count > 0)
+    return { ok: false, error: `In use by ${count} assessment(s).` };
+  await db.department.delete({ where: { id } });
+  revalidateLibrary();
+  return { ok: true };
+}

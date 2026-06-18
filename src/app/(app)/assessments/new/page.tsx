@@ -47,7 +47,8 @@ export default async function NewAssessmentPage() {
     assessmentDate: toDateInputValue(new Date()),
     reviewFrequencyMonths: 12,
     hazards: [],
-    assigneeIds: [],
+    ownerId: "",
+    departmentId: "",
   };
 
   return (
@@ -73,6 +74,7 @@ export default async function NewAssessmentPage() {
           id: u.id,
           name: u.name ?? u.email ?? "Unknown user",
         }))}
+        departments={form.departments}
         defaults={defaults}
         cancelHref="/assessments"
       />

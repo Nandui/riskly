@@ -47,6 +47,19 @@ export async function listActivities(): Promise<LibraryEntity[]> {
   }));
 }
 
+export async function listDepartments(): Promise<LibraryEntity[]> {
+  const rows = await db.department.findMany({
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    include: { _count: { select: { assessments: true } } },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    description: r.description,
+    usageCount: r._count.assessments,
+  }));
+}
+
 // Lightweight option lists for assessment form selects.
 export async function getTaxonomyOptions(centerId?: string | null) {
   const [areas, roles, activities] = await Promise.all([
