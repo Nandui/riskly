@@ -194,7 +194,7 @@ export default async function DashboardPage() {
               <h2 className="text-sm font-semibold text-ink">Needs attention</h2>
               <Link
                 href="/monitoring"
-                className="inline-flex items-center gap-1 text-sm text-brand hover:underline"
+                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
               >
                 Monitoring <ArrowRight className="size-3.5" />
               </Link>
@@ -215,7 +215,7 @@ export default async function DashboardPage() {
               </h2>
               <Link
                 href="/assessments"
-                className="inline-flex items-center gap-1 text-sm text-brand hover:underline"
+                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
               >
                 All assessments <ArrowRight className="size-3.5" />
               </Link>

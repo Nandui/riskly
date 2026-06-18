@@ -130,7 +130,7 @@ export function CenterForm({
             type="checkbox"
             name="isActive"
             defaultChecked={center.isActive}
-            className="size-4 rounded border-line-strong accent-brand"
+            className="size-4 rounded border-line-strong accent-primary"
           />
           Active — appears in the centre switcher
         </label>

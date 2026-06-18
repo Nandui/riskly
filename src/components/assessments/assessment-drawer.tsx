@@ -4,19 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   UsersRound,
-  RefreshCw,
   ShieldCheck,
   ExternalLink,
   Pencil,
   History,
-  FilePlus2,
-  Upload,
-  Undo2,
-  CircleCheck,
-  MessageSquarePlus,
-  CheckCheck,
-  Dot,
-  type LucideIcon,
 } from "lucide-react";
 import {
   Sheet,
@@ -30,23 +21,13 @@ import { StatusBadge, CategoryBadge } from "@/components/ui/badge";
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { ReviewChip } from "@/components/ui/review-chip";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ActivityTimeline } from "@/components/ui/activity-timeline";
 import { buttonClasses } from "@/components/ui/button";
 import {
   getAssessmentDrawerData,
   type AssessmentDrawerData,
 } from "@/lib/actions/assessment-detail";
 import { cn } from "@/lib/utils";
-
-const ACTION_META: Record<string, { label: string; Icon: LucideIcon }> = {
-  created: { label: "Created", Icon: FilePlus2 },
-  updated: { label: "Edited", Icon: Pencil },
-  imported: { label: "Imported", Icon: Upload },
-  approved: { label: "Approved", Icon: ShieldCheck },
-  approval_revoked: { label: "Approval withdrawn", Icon: Undo2 },
-  review_logged: { label: "Review logged", Icon: CircleCheck },
-  review_requested: { label: "Review requested", Icon: MessageSquarePlus },
-  review_request_resolved: { label: "Review request resolved", Icon: CheckCheck },
-};
 
 function Fact({
   label,
@@ -210,35 +191,15 @@ export function AssessmentDrawer({
                   <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink">
                     <History className="size-4 text-muted-foreground" /> Activity
                   </h3>
-                  <ul className="space-y-3">
-                    {data.audit.map((e) => {
-                      const meta = ACTION_META[e.action] ?? {
-                        label: e.action,
-                        Icon: Dot,
-                      };
-                      return (
-                        <li key={e.id} className="flex items-start gap-3 text-sm">
-                          <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted-foreground">
-                            <meta.Icon className="size-3.5" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-ink">
-                              <span className="font-medium">{meta.label}</span>
-                              {e.detail && (
-                                <span className="text-muted-foreground">
-                                  {" "}
-                                  — {e.detail}
-                                </span>
-                              )}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {e.userName ?? "System"} · {e.createdAt}
-                            </p>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <ActivityTimeline
+                    items={data.audit.map((e) => ({
+                      id: e.id,
+                      action: e.action,
+                      detail: e.detail,
+                      userName: e.userName,
+                      timestamp: e.createdAt,
+                    }))}
+                  />
                 </section>
               )}
             </div>

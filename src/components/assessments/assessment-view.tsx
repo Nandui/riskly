@@ -4,19 +4,11 @@ import {
   RefreshCw,
   History,
   ShieldCheck,
-  FilePlus2,
-  Pencil,
-  Upload,
-  Undo2,
-  CircleCheck,
-  MessageSquarePlus,
-  CheckCheck,
-  Dot,
-  type LucideIcon,
 } from "lucide-react";
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { CategoryBadge } from "@/components/ui/badge";
 import { ReviewChip } from "@/components/ui/review-chip";
+import { ActivityTimeline } from "@/components/ui/activity-timeline";
 import {
   ApproveButton,
   WithdrawApprovalButton,
@@ -67,20 +59,6 @@ function Block({ label, value }: { label: string; value: string | null }) {
     </div>
   );
 }
-
-const ACTION_META: Record<string, { label: string; Icon: LucideIcon }> = {
-  created: { label: "Created", Icon: FilePlus2 },
-  updated: { label: "Edited", Icon: Pencil },
-  imported: { label: "Imported", Icon: Upload },
-  approved: { label: "Approved", Icon: ShieldCheck },
-  approval_revoked: { label: "Approval withdrawn", Icon: Undo2 },
-  review_logged: { label: "Review logged", Icon: CircleCheck },
-  review_requested: { label: "Review requested", Icon: MessageSquarePlus },
-  review_request_resolved: {
-    label: "Review request resolved",
-    Icon: CheckCheck,
-  },
-};
 
 export function AssessmentView({
   assessment: a,
@@ -254,32 +232,17 @@ export function AssessmentView({
           <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
             <History className="size-4 text-muted-foreground" /> Activity
           </h2>
-          <ul className="space-y-3 rounded-[var(--radius-card)] border border-line bg-surface p-4">
-            {a.auditLogs.map((e) => {
-              const meta = ACTION_META[e.action] ?? {
-                label: e.action,
-                Icon: Dot,
-              };
-              return (
-                <li key={e.id} className="flex items-start gap-3 text-sm">
-                  <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted-foreground">
-                    <meta.Icon className="size-3.5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-ink">
-                      <span className="font-medium">{meta.label}</span>
-                      {e.detail && (
-                        <span className="text-muted-foreground"> — {e.detail}</span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {e.userName ?? "System"} · {formatDateTime(e.createdAt)}
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="rounded-[var(--radius-card)] border border-line bg-surface p-4">
+            <ActivityTimeline
+              items={a.auditLogs.map((e) => ({
+                id: e.id,
+                action: e.action,
+                detail: e.detail,
+                userName: e.userName,
+                timestamp: formatDateTime(e.createdAt),
+              }))}
+            />
+          </div>
         </section>
       )}
     </div>

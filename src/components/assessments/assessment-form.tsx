@@ -163,7 +163,7 @@ export function AssessmentForm({
                   className={cn(
                     "rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
                     active
-                      ? "bg-brand text-white shadow-xs"
+                      ? "bg-primary text-primary-foreground shadow-xs"
                       : "text-muted-foreground hover:text-ink",
                   )}
                 >
@@ -263,7 +263,7 @@ export function AssessmentForm({
                     className={cn(
                       "rounded-full border px-3 py-1 text-sm transition-colors",
                       selected
-                        ? "border-brand bg-brand-soft text-brand-strong"
+                        ? "border-primary/40 bg-accent text-accent-foreground"
                         : "border-line-strong bg-surface text-ink-soft hover:bg-surface-2",
                     )}
                   >
