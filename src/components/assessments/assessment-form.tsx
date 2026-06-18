@@ -243,7 +243,8 @@ export function AssessmentForm({
               Hazards &amp; risk rating
             </h2>
             <p className="text-xs text-muted">
-              Click a matrix cell to set likelihood × severity for each hazard.
+              Set the likelihood and consequence for each hazard — overall risk
+              is calculated automatically.
             </p>
           </div>
           <span className="text-xs tnum text-muted">

@@ -6,7 +6,7 @@ One organisation, many centres. Every assessment is built around one subject —
 
 ## What it does
 
-- **Document** — create and edit assessments with hazard line-items, existing/additional controls, and per-hazard 5×5 scoring. Click a matrix cell to set likelihood × severity; scores and bands compute live.
+- **Document** — create and edit assessments with hazard line-items and controls. Set each hazard's Likelihood and Consequence severity; the Overall Risk score, band and an animated risk gauge update live.
 - **Monitor** — a dashboard and monitoring queue surface overdue / due-soon reviews and high-risk hazards (High / Very High). Log a review to roll the next review date forward and keep an audit trail.
 - **Reference** — a searchable knowledge base, groupable by area, role or activity, with a clean, print-friendly read-only view of every assessment.
 
@@ -16,17 +16,23 @@ Data is scoped to a **current centre** (chosen in the sidebar switcher), with an
 
 - **Next.js** (App Router, React Server Components, Server Actions) + **TypeScript**
 - **Tailwind CSS v4** for styling (design tokens in `src/app/globals.css`)
-- **Prisma** ORM with a **SQLite** database (swap the datasource for Postgres later)
+- **Prisma** ORM with **PostgreSQL** (local via Docker; **Neon** on Vercel in production)
 - **Zod** for input validation
+- **Vercel** hosting with Analytics + Speed Insights
 
 ## Getting started
 
+Riskly uses PostgreSQL. The quickest local setup uses Docker:
+
 ```bash
-npm install          # install dependencies
-npm run db:push      # create the SQLite database from the Prisma schema
-npm run db:seed      # load realistic demo data (2 centres, 9 assessments)
-npm run dev          # start the dev server → http://localhost:3000
+docker compose up -d   # start a local Postgres on localhost:5432
+npm install            # install dependencies
+npm run db:migrate     # create the tables from the Prisma migrations
+npm run db:seed        # optional: load demo data (the Bishopstown example)
+npm run dev            # start the dev server → http://localhost:3000
 ```
+
+No Docker? Point `.env` at a Neon "dev" branch instead — see [DEPLOY.md](DEPLOY.md).
 
 ### Scripts
 
@@ -34,12 +40,19 @@ npm run dev          # start the dev server → http://localhost:3000
 | --- | --- |
 | `npm run dev` | Start the development server |
 | `npm run build` / `npm start` | Production build / serve |
-| `npm run db:push` | Apply the Prisma schema to the database |
-| `npm run db:seed` | Wipe and reload demo data |
-| `npm run db:reset` | Force-reset the database and reseed |
+| `npm run db:migrate` | Create & apply a migration on your dev database |
+| `npm run db:deploy` | Apply pending migrations (used in production) |
+| `npm run db:seed` | Load demo data |
+| `npm run db:reset` | Drop, re-migrate and reseed the dev database |
 | `npm run db:studio` | Open Prisma Studio to browse the data |
 
-The database connection string lives in `.env` (`DATABASE_URL="file:./dev.db"`).
+Connection strings live in `.env` — copy [`.env.example`](.env.example) to get started.
+
+## Deployment
+
+Hosted on **Vercel** with a **Neon** Postgres database (both free-tier), so data
+is persistent. Migrations run automatically on every deploy via `vercel-build`.
+Full click-by-click guide: **[DEPLOY.md](DEPLOY.md)**.
 
 ## Project structure
 

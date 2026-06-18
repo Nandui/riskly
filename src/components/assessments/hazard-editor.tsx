@@ -1,11 +1,19 @@
 "use client";
 
 import { Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
-import { RiskMatrixPicker } from "@/components/risk-matrix";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Field } from "@/components/ui/form";
+import { RiskGauge } from "@/components/ui/risk-gauge";
 import { RISK_CATEGORIES } from "@/lib/constants";
+import {
+  riskScore,
+  likelihoodLabel,
+  severityLabel,
+  SEVERITY_DESCRIPTIONS,
+} from "@/lib/risk";
 import { cn } from "@/lib/utils";
+
+const RATINGS = [1, 2, 3, 4, 5];
 
 export interface HazardDraft {
   key: string;
@@ -189,14 +197,48 @@ function HazardCard({
         </div>
 
         <div className="space-y-3">
-          <div className="rounded-lg border border-line bg-surface-2/50 p-3">
-            <div className="mx-auto max-w-[15rem]">
-              <RiskMatrixPicker
-                label="Overall risk"
-                likelihood={hazard.likelihood}
-                severity={hazard.severity}
-                onChange={(l, s) => onUpdate({ likelihood: l, severity: s })}
-              />
+          <div className="space-y-3 rounded-lg border border-line bg-surface-2/50 p-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="Likelihood">
+                <Select
+                  value={String(hazard.likelihood)}
+                  onChange={(e) =>
+                    onUpdate({ likelihood: Number(e.target.value) })
+                  }
+                >
+                  {RATINGS.map((n) => (
+                    <option key={n} value={n}>
+                      {n} — {likelihoodLabel(n)}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Consequence severity">
+                <Select
+                  value={String(hazard.severity)}
+                  onChange={(e) =>
+                    onUpdate({ severity: Number(e.target.value) })
+                  }
+                >
+                  {RATINGS.map((n) => (
+                    <option key={n} value={n}>
+                      {n} — {severityLabel(n)}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+            <p className="text-xs leading-relaxed text-muted">
+              {SEVERITY_DESCRIPTIONS[hazard.severity - 1]}
+            </p>
+            <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Overall risk
+                </p>
+                <p className="text-[0.7rem] text-faint">Likelihood × severity</p>
+              </div>
+              <RiskGauge score={riskScore(hazard.likelihood, hazard.severity)} />
             </div>
           </div>
           <Field label="Risk category">

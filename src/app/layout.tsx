@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AppShell } from "@/components/app-shell";
 import { getCenterContext } from "@/lib/center-context";
 
@@ -34,6 +36,10 @@ export const metadata: Metadata = {
     "Document, monitor and reference health & safety risk assessments across your leisure centres.",
 };
 
+// Every page renders live, per-request data from the database — never
+// statically generated at build time.
+export const dynamic = "force-dynamic";
+
 export default async function RootLayout({
   children,
 }: {
@@ -50,6 +56,8 @@ export default async function RootLayout({
         <AppShell centers={centers} selectedId={selectedId}>
           {children}
         </AppShell>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
