@@ -5,6 +5,7 @@ import {
   CalendarClock,
   TriangleAlert,
   Inbox,
+  CircleAlert,
   ArrowRight,
   LayoutDashboard,
   Plus,
@@ -17,7 +18,7 @@ import { AssessmentsTableView } from "@/components/assessments/assessments-table
 import { RiskMatrixHeat } from "@/components/risk-matrix";
 import { RiskBandChart, CategoryChart } from "@/components/dashboard/dashboard-charts";
 import { getCenterContext } from "@/lib/center-context";
-import { getDashboard } from "@/lib/data/monitoring";
+import { getDashboard, getNeedsAction } from "@/lib/data/monitoring";
 import { getCurrentUser, can } from "@/lib/auth";
 import { RISK_BANDS, BAND_META } from "@/lib/risk";
 import { cn, pluralize } from "@/lib/utils";
@@ -62,9 +63,10 @@ function Kpi({
 
 export default async function DashboardPage() {
   const { selected, selectedId } = await getCenterContext();
-  const [d, user] = await Promise.all([
+  const user = await getCurrentUser();
+  const [d, needsAction] = await Promise.all([
     getDashboard(selectedId),
-    getCurrentUser(),
+    user ? getNeedsAction(user.id, selectedId) : Promise.resolve([]),
   ]);
   const canEdit = can(user, "editContent");
 
@@ -142,6 +144,31 @@ export default async function DashboardPage() {
               href="/monitoring"
             />
           </div>
+
+          {needsAction.length > 0 && (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  <CircleAlert className="size-4 text-medium" /> Needs your
+                  action
+                  <span className="font-normal tnum text-muted-foreground">
+                    {needsAction.length}
+                  </span>
+                </h2>
+                <Link
+                  href="/monitoring"
+                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                >
+                  Monitoring <ArrowRight className="size-3.5" />
+                </Link>
+              </div>
+              <AssessmentsTableView
+                rows={needsAction}
+                showCenter={!selected}
+                compact
+              />
+            </section>
+          )}
 
           <div className="grid gap-4 lg:grid-cols-3">
             <Card>

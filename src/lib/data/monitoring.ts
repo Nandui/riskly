@@ -165,3 +165,13 @@ export async function getOwnedByMe(
   const rows = await listAssessments({ centerId, ownedByUserId: userId });
   return rows.filter((a) => a.status !== "Archived");
 }
+
+// Assessments the user owns that are back Under review (e.g. a hazard was
+// added) — they need the owner to re-check and get them re-approved.
+export async function getNeedsAction(
+  userId: string,
+  centerId: string | null,
+): Promise<AssessmentRow[]> {
+  const rows = await listAssessments({ centerId, ownedByUserId: userId });
+  return rows.filter((a) => a.status === "UnderReview");
+}

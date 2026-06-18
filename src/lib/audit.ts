@@ -4,6 +4,7 @@ import type { CurrentUser } from "@/lib/auth";
 export type AuditAction =
   | "created"
   | "updated"
+  | "hazard_added"
   | "imported"
   | "approved"
   | "approval_revoked"

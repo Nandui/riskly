@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { assessmentSchema, type AssessmentInput } from "@/lib/validation";
+import {
+  assessmentSchema,
+  hazardSchema,
+  type AssessmentInput,
+} from "@/lib/validation";
 import { fieldErrorsFromZod, emptyToNull, type FormState } from "@/lib/form";
 import { computeNextReviewDate } from "@/lib/utils";
 import { nextReference } from "@/lib/data/assessments";
@@ -224,4 +228,83 @@ export async function deleteAssessment(id: string): Promise<FormState> {
   await db.riskAssessment.delete({ where: { id } });
   revalidateAssessments(id);
   redirect("/assessments");
+}
+
+// Add a single hazard to an existing assessment. This is a material change, so
+// it sends the assessment back to Under review and clears any prior sign-off.
+export async function addHazard(
+  assessmentId: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
+
+  const parsed = hazardSchema.safeParse({
+    hazard: formData.get("hazard"),
+    riskFactor: formData.get("riskFactor"),
+    personAtRisk: formData.get("personAtRisk"),
+    consequence: formData.get("consequence"),
+    currentControls: formData.get("currentControls"),
+    likelihood: formData.get("likelihood"),
+    severity: formData.get("severity"),
+    riskCategory: formData.get("riskCategory"),
+  });
+  if (!parsed.success) {
+    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error) };
+  }
+  const d = parsed.data;
+
+  const existing = await db.riskAssessment.findUnique({
+    where: { id: assessmentId },
+    select: { status: true, approvedByName: true },
+  });
+  if (!existing) return { ok: false, error: "Assessment not found." };
+
+  const max = await db.hazard.aggregate({
+    where: { assessmentId },
+    _max: { sortOrder: true },
+  });
+  const wasApproved = Boolean(existing.approvedByName);
+  // Archived assessments keep their status; everything else goes Under review.
+  const toReview = existing.status !== "Archived";
+
+  await db.hazard.create({
+    data: {
+      assessmentId,
+      sortOrder: (max._max.sortOrder ?? 0) + 1,
+      hazard: d.hazard,
+      riskFactor: emptyToNull(d.riskFactor),
+      personAtRisk: emptyToNull(d.personAtRisk),
+      consequence: emptyToNull(d.consequence),
+      currentControls: emptyToNull(d.currentControls),
+      likelihood: d.likelihood,
+      severity: d.severity,
+      riskCategory: d.riskCategory ?? "Physical",
+    },
+  });
+
+  await db.riskAssessment.update({
+    where: { id: assessmentId },
+    data: {
+      ...(toReview ? { status: "UnderReview" } : {}),
+      ...(wasApproved
+        ? { approvedByName: null, approvedById: null, approvedAt: null }
+        : {}),
+    },
+  });
+
+  const user = await getCurrentUser();
+  await recordAudit(assessmentId, user, "hazard_added", d.hazard);
+  if (wasApproved) {
+    await recordAudit(
+      assessmentId,
+      user,
+      "approval_revoked",
+      "Reset because a hazard was added",
+    );
+  }
+
+  revalidateAssessments(assessmentId);
+  return { ok: true };
 }

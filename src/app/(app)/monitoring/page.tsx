@@ -5,6 +5,7 @@ import {
   CircleCheckBig,
   Inbox,
   UserRoundCheck,
+  CircleAlert,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -60,6 +61,7 @@ export default async function MonitoringPage() {
   ]);
 
   const canReview = can(user, "review");
+  const needsAction = ownedByMe.filter((a) => a.status === "UnderReview");
 
   const items: ReviewItem[] = queue.map((a) => ({
     id: a.id,
@@ -128,6 +130,22 @@ export default async function MonitoringPage() {
           tone={requestItems.length > 0 ? "medium" : "default"}
         />
       </div>
+
+      {needsAction.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <CircleAlert className="size-4 text-medium" /> Needs your action
+            <span className="font-normal tnum text-muted-foreground">
+              {needsAction.length}
+            </span>
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Assessments you own that have changed and are back under review —
+            re-check them and get them re-approved.
+          </p>
+          <AssessmentTable rows={needsAction} showCenter={!selected} />
+        </section>
+      )}
 
       {ownedByMe.length > 0 && (
         <section className="space-y-3">

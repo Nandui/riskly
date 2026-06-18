@@ -15,6 +15,7 @@ import {
   ApproveButton,
   WithdrawApprovalButton,
 } from "@/components/assessments/approval-button";
+import { AddHazardButton } from "@/components/assessments/add-hazard-modal";
 import type { AssessmentDetail } from "@/lib/data/assessments";
 import {
   formatDate,
@@ -58,9 +59,11 @@ type HazardComputed = AssessmentDetail["hazards"][number] & {
 export function AssessmentView({
   assessment: a,
   canApprove,
+  canEdit,
 }: {
   assessment: AssessmentDetail;
   canApprove: boolean;
+  canEdit: boolean;
 }) {
   const hazards = useMemo<HazardComputed[]>(
     () =>
@@ -272,6 +275,11 @@ export function AssessmentView({
                 ? hazardCount
                 : `${visible.length} / ${hazardCount}`}
             </span>
+            {canEdit && (
+              <div className="no-print ml-auto">
+                <AddHazardButton assessmentId={a.id} />
+              </div>
+            )}
           </div>
 
           {hazardCount === 0 ? (

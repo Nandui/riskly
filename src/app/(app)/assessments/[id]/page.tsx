@@ -97,7 +97,11 @@ export default async function AssessmentDetailPage({
         </div>
       </div>
 
-      <AssessmentView assessment={a} canApprove={can(user, "review")} />
+      <AssessmentView
+        assessment={a}
+        canApprove={can(user, "review")}
+        canEdit={canEdit}
+      />
 
       <ReviewRequestPanel
         assessmentId={a.id}

@@ -7,6 +7,7 @@ import {
   CircleCheck,
   MessageSquarePlus,
   CheckCheck,
+  ListPlus,
   Dot,
   type LucideIcon,
 } from "lucide-react";
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
 const ACTION_META: Record<string, { label: string; Icon: LucideIcon }> = {
   created: { label: "Created", Icon: FilePlus2 },
   updated: { label: "Edited", Icon: Pencil },
+  hazard_added: { label: "Hazard added", Icon: ListPlus },
   imported: { label: "Imported", Icon: Upload },
   approved: { label: "Approved", Icon: ShieldCheck },
   approval_revoked: { label: "Approval withdrawn", Icon: Undo2 },
