@@ -1,18 +1,29 @@
 // ------------------------------------------------------------------
 // LLM workflow that kickstarts a risk assessment: given a subject
-// (an Area, Role or Activity) at a leisure centre, Claude drafts the most
+// (an Area, Role or Activity) at a leisure centre, the model drafts the most
 // important hazards — fully rated on Riskly's own 1-5 likelihood/severity
 // scales — which a human then reviews and edits before saving.
 //
-// Server-only: ANTHROPIC_API_KEY is read here and never reaches the client.
+// Routed through the Vercel AI Gateway (the `ai` SDK with a "creator/model"
+// id), so it uses whichever provider keys (DeepSeek, Google AI Studio, …) are
+// configured on the team's gateway. Server-only: auth comes from
+// AI_GATEWAY_API_KEY or, on a Vercel deployment, the OIDC token automatically.
 // ------------------------------------------------------------------
 
-import Anthropic, { APIError } from "@anthropic-ai/sdk";
+import { generateObject, APICallError, NoObjectGeneratedError } from "ai";
 import { z } from "zod";
-import { LIKELIHOOD_LABELS, SEVERITY_LABELS, SEVERITY_DESCRIPTIONS } from "@/lib/risk";
+import {
+  LIKELIHOOD_LABELS,
+  SEVERITY_LABELS,
+  SEVERITY_DESCRIPTIONS,
+  clampRating,
+} from "@/lib/risk";
 import { RISK_CATEGORIES } from "@/lib/constants";
 
-const DEFAULT_MODEL = "claude-sonnet-4-6";
+// Fast, cheap, reliable structured output, and available on Google AI Studio.
+// Override with any model id from your AI Gateway via RISKLY_AI_MODEL, e.g.
+// "deepseek/deepseek-v3.1" or "google/gemini-3.5-flash".
+const DEFAULT_MODEL = "google/gemini-2.5-flash";
 const TARGET_HAZARDS = 10;
 const MAX_HAZARDS = 16;
 
@@ -43,19 +54,38 @@ export interface DraftedHazard {
   riskCategory: string;
 }
 
-// What we accept back from the model (lenient — clamp/normalise after).
-const aiHazardSchema = z.object({
-  hazard: z.string().trim().min(2).max(300),
-  riskFactor: z.string().trim().max(800).optional().default(""),
-  personAtRisk: z.string().trim().max(300).optional().default(""),
-  consequence: z.string().trim().max(800).optional().default(""),
-  currentControls: z.array(z.string().trim().min(1)).optional().default([]),
-  likelihood: z.coerce.number().int().min(1).max(5),
-  severity: z.coerce.number().int().min(1).max(5),
-  riskCategory: z.enum(CATEGORY_VALUES).catch("Physical"),
+const hazardSchema = z.object({
+  hazard: z
+    .string()
+    .min(1)
+    .max(300)
+    .describe("Short hazard title, e.g. 'Slips on wet poolside surround'."),
+  riskFactor: z.string().max(800).describe("What causes the harm."),
+  personAtRisk: z
+    .string()
+    .max(300)
+    .describe("Who is at risk, e.g. 'Customers, Children, Staff'."),
+  consequence: z.string().max(800).describe("The realistic injury or outcome."),
+  currentControls: z
+    .array(z.string())
+    .describe(
+      "Concrete controls a well-run centre would typically already have in place.",
+    ),
+  likelihood: z
+    .number()
+    .int()
+    .min(1)
+    .max(5)
+    .describe("Residual likelihood 1-5, assuming the listed controls are in place."),
+  severity: z.number().int().min(1).max(5).describe("Consequence severity 1-5."),
+  riskCategory: z.enum(CATEGORY_VALUES).describe("The single best-fit risk category."),
 });
-const aiOutputSchema = z.object({
-  hazards: z.array(aiHazardSchema).min(1).max(MAX_HAZARDS),
+
+const outputSchema = z.object({
+  hazards: z
+    .array(hazardSchema)
+    .min(1)
+    .describe(`The ${TARGET_HAZARDS}+ most important hazards, most significant first.`),
 });
 
 function numberedScale(labels: readonly string[], descriptions?: readonly string[]) {
@@ -70,7 +100,7 @@ function buildSystemPrompt(): string {
   return [
     "You are a senior health & safety risk assessor who specialises in leisure, sports and aquatic centres in Ireland. You produce practical, regulation-aware risk assessments consistent with the Safety, Health and Welfare at Work Act 2005 and HSA guidance.",
     "",
-    "You will be given the subject of a SINGLE risk assessment — an Area, a Role, or an Activity — at a named leisure centre. Identify the most significant, realistic hazards for that subject and record them with the record_hazards tool.",
+    "You will be given the subject of a SINGLE risk assessment — an Area, a Role, or an Activity — at a named leisure centre. Identify the most significant, realistic hazards for that subject.",
     "",
     "Rules:",
     `- Produce at least ${TARGET_HAZARDS} hazards (target ${TARGET_HAZARDS}–${TARGET_HAZARDS + 2}), ordered most-significant first. Cover the genuinely important risks — do not pad with trivia or near-duplicates.`,
@@ -86,7 +116,6 @@ function buildSystemPrompt(): string {
     "",
     `- Choose a riskCategory for each hazard from exactly: ${CATEGORY_VALUES.join(", ")}.`,
     "- Do NOT invent site-specific facts (specific equipment models, named staff, exact dimensions, real incident history). Keep controls standard best-practice that a human can tailor.",
-    "- Output ONLY through the record_hazards tool — no prose.",
   ].join("\n");
 }
 
@@ -105,98 +134,62 @@ function buildUserPrompt(s: DraftSubject): string {
   return lines.join("\n");
 }
 
-const HAZARD_TOOL: Anthropic.Tool = {
-  name: "record_hazards",
-  description: "Record the drafted hazards for this risk assessment.",
-  input_schema: {
-    type: "object",
-    properties: {
-      hazards: {
-        type: "array",
-        minItems: TARGET_HAZARDS,
-        maxItems: MAX_HAZARDS,
-        items: {
-          type: "object",
-          properties: {
-            hazard: { type: "string", description: "Short hazard title, e.g. 'Slips on wet poolside surround'." },
-            riskFactor: { type: "string", description: "What causes the harm." },
-            personAtRisk: { type: "string", description: "Who is at risk, e.g. 'Customers, Children'." },
-            consequence: { type: "string", description: "The realistic injury or outcome." },
-            currentControls: {
-              type: "array",
-              items: { type: "string" },
-              description: "Concrete controls a well-run centre would typically already have in place.",
-            },
-            likelihood: { type: "integer", minimum: 1, maximum: 5, description: "Residual likelihood 1-5." },
-            severity: { type: "integer", minimum: 1, maximum: 5, description: "Consequence severity 1-5." },
-            riskCategory: { type: "string", enum: [...CATEGORY_VALUES] },
-          },
-          required: [
-            "hazard",
-            "riskFactor",
-            "personAtRisk",
-            "consequence",
-            "currentControls",
-            "likelihood",
-            "severity",
-            "riskCategory",
-          ],
-        },
-      },
-    },
-    required: ["hazards"],
-  },
-};
-
 export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard[]> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
+  if (!process.env.AI_GATEWAY_API_KEY && !process.env.VERCEL_OIDC_TOKEN) {
     throw new AiDraftError(
-      "AI drafting isn't configured yet — set ANTHROPIC_API_KEY in the environment.",
+      "AI drafting isn't configured — set AI_GATEWAY_API_KEY, or deploy on Vercel where the AI Gateway authenticates automatically.",
     );
   }
-  const model = process.env.RISKLY_AI_MODEL || DEFAULT_MODEL;
-  const client = new Anthropic({ apiKey });
 
-  let res: Anthropic.Message;
+  const model = process.env.RISKLY_AI_MODEL || DEFAULT_MODEL;
+  // Gemini models reason before answering and can eat the output budget, so
+  // give Google models headroom; DeepSeek/others cap lower, so stay within ~8k.
+  const maxOutputTokens = model.startsWith("google/") ? 16000 : 8000;
+
   try {
-    res = await client.messages.create({
+    const { object } = await generateObject({
       model,
-      max_tokens: 8000,
+      schema: outputSchema,
       system: buildSystemPrompt(),
-      tools: [HAZARD_TOOL],
-      tool_choice: { type: "tool", name: "record_hazards" },
-      messages: [{ role: "user", content: buildUserPrompt(subject) }],
+      prompt: buildUserPrompt(subject),
+      maxOutputTokens,
     });
+
+    return object.hazards.slice(0, MAX_HAZARDS).map((h) => ({
+      hazard: h.hazard.trim(),
+      riskFactor: h.riskFactor.trim(),
+      personAtRisk: h.personAtRisk.trim(),
+      consequence: h.consequence.trim(),
+      currentControls: h.currentControls
+        .map((c) => c.trim())
+        .filter(Boolean)
+        .join("\n"),
+      likelihood: clampRating(h.likelihood),
+      severity: clampRating(h.severity),
+      riskCategory: CATEGORY_VALUES.includes(h.riskCategory) ? h.riskCategory : "Physical",
+    }));
   } catch (err) {
-    if (err instanceof APIError) {
+    if (err instanceof AiDraftError) throw err;
+    if (NoObjectGeneratedError.isInstance(err)) {
       throw new AiDraftError(
-        err.status === 401
-          ? "The AI API key was rejected. Check ANTHROPIC_API_KEY."
-          : "The AI service is unavailable right now. Please try again.",
+        "The model couldn't produce a valid set of hazards. Try again, or switch RISKLY_AI_MODEL to another model.",
       );
     }
-    throw err;
+    if (APICallError.isInstance(err)) {
+      const status = err.statusCode;
+      if (status === 401 || status === 403) {
+        throw new AiDraftError(
+          "The AI Gateway rejected the request — check the gateway auth and that the provider key is configured.",
+        );
+      }
+      if (status === 404) {
+        throw new AiDraftError(
+          `Model "${model}" isn't available on your AI Gateway. Set RISKLY_AI_MODEL to a model you've enabled.`,
+        );
+      }
+      throw new AiDraftError("The AI service is unavailable right now. Please try again.");
+    }
+    console.error("[ai-draft] generateObject failed", err);
+    throw new AiDraftError("AI drafting failed unexpectedly. Please try again.");
   }
-
-  const toolUse = res.content.find((b) => b.type === "tool_use");
-  if (!toolUse || toolUse.type !== "tool_use") {
-    throw new AiDraftError("The model didn't return any hazards. Please try again.");
-  }
-
-  const parsed = aiOutputSchema.safeParse(toolUse.input);
-  if (!parsed.success) {
-    throw new AiDraftError("The model returned hazards in an unexpected shape. Please try again.");
-  }
-
-  return parsed.data.hazards.map((h) => ({
-    hazard: h.hazard,
-    riskFactor: h.riskFactor,
-    personAtRisk: h.personAtRisk,
-    consequence: h.consequence,
-    currentControls: h.currentControls.join("\n"),
-    likelihood: h.likelihood,
-    severity: h.severity,
-    riskCategory: h.riskCategory,
-  }));
 }
