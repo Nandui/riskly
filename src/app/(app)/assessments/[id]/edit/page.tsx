@@ -62,7 +62,7 @@ export default async function EditAssessmentPage({
       <div>
         <Link
           href={`/assessments/${a.id}`}
-          className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"
+          className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-ink"
         >
           <ArrowLeft className="size-4" /> Back to assessment
         </Link>

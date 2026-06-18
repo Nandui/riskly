@@ -80,7 +80,7 @@ function ReviewRow({
           >
             {item.title}
           </Link>
-          <p className="text-xs text-muted">
+          <p className="text-xs text-muted-foreground">
             {item.centerName} · {item.subjectType} · due {item.nextReviewDate}
           </p>
         </div>

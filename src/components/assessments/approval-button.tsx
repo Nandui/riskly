@@ -26,7 +26,7 @@ export function WithdrawApprovalButton({ id }: { id: string }) {
       type="button"
       disabled={pending}
       onClick={() => start(() => void revokeApproval(id))}
-      className="text-xs font-medium text-muted underline-offset-2 hover:text-critical hover:underline disabled:opacity-50"
+      className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-critical hover:underline disabled:opacity-50"
     >
       {pending ? "Withdrawing…" : "Withdraw approval"}
     </button>

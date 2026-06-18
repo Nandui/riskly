@@ -68,7 +68,7 @@ export function HazardEditor({
   return (
     <div className="space-y-4">
       {hazards.length === 0 && (
-        <div className="rounded-[var(--radius-card)] border border-dashed border-line-strong bg-surface/60 p-8 text-center text-sm text-muted">
+        <div className="rounded-[var(--radius-card)] border border-dashed border-line-strong bg-surface/60 p-8 text-center text-sm text-muted-foreground">
           No hazards yet. Add the first hazard to start rating risk.
         </div>
       )}
@@ -116,7 +116,7 @@ function HazardCard({
   onMove: (dir: -1 | 1) => void;
 }) {
   const iconBtn =
-    "flex size-7 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent";
+    "flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent";
 
   return (
     <div
@@ -228,12 +228,12 @@ function HazardCard({
                 </Select>
               </Field>
             </div>
-            <p className="text-xs leading-relaxed text-muted">
+            <p className="text-xs leading-relaxed text-muted-foreground">
               {SEVERITY_DESCRIPTIONS[hazard.severity - 1]}
             </p>
             <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Overall risk
                 </p>
                 <p className="text-[0.7rem] text-faint">Likelihood × severity</p>

@@ -16,7 +16,7 @@ export default async function SignInPage() {
       <h1 className="font-display text-xl font-semibold tracking-tight text-ink">
         {hasUsers ? "Sign in to Riskly" : "Welcome to Riskly"}
       </h1>
-      <p className="mt-1.5 text-sm text-muted">
+      <p className="mt-1.5 text-sm text-muted-foreground">
         {hasUsers
           ? "Enter your email and password."
           : "Create the first administrator account to get started."}

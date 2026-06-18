@@ -45,7 +45,7 @@ function Stat({
         : "text-ink";
   return (
     <div className="rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-xs">
-      <p className="text-xs text-muted">{label}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
       <p className={cn("mt-1 text-2xl font-semibold tnum", toneCls)}>{value}</p>
     </div>
   );
@@ -121,8 +121,8 @@ export default async function MonitoringPage() {
       {assignedToMe.length > 0 && (
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <UserRoundCheck className="size-4 text-muted" /> Assigned to me
-            <span className="font-normal tnum text-muted">
+            <UserRoundCheck className="size-4 text-muted-foreground" /> Assigned to me
+            <span className="font-normal tnum text-muted-foreground">
               {assignedToMe.length}
             </span>
           </h2>
@@ -133,8 +133,8 @@ export default async function MonitoringPage() {
       {canReview && (
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <Inbox className="size-4 text-muted" /> Review requests
-            <span className="font-normal tnum text-muted">
+            <Inbox className="size-4 text-muted-foreground" /> Review requests
+            <span className="font-normal tnum text-muted-foreground">
               {requestItems.length}
             </span>
           </h2>
@@ -152,8 +152,8 @@ export default async function MonitoringPage() {
 
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <CalendarClock className="size-4 text-muted" /> Reviews due
-          <span className="font-normal tnum text-muted">{items.length}</span>
+          <CalendarClock className="size-4 text-muted-foreground" /> Reviews due
+          <span className="font-normal tnum text-muted-foreground">{items.length}</span>
         </h2>
         {items.length === 0 ? (
           <EmptyState
@@ -172,8 +172,8 @@ export default async function MonitoringPage() {
 
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <TriangleAlert className="size-4 text-muted" /> High &amp; very high risk
-          <span className="font-normal tnum text-muted">{highRisk.length}</span>
+          <TriangleAlert className="size-4 text-muted-foreground" /> High &amp; very high risk
+          <span className="font-normal tnum text-muted-foreground">{highRisk.length}</span>
         </h2>
         {highRisk.length === 0 ? (
           <EmptyState
@@ -191,7 +191,7 @@ export default async function MonitoringPage() {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-ink">{h.hazard}</p>
-                    <p className="text-xs text-muted">
+                    <p className="text-xs text-muted-foreground">
                       <span className="font-mono text-faint">
                         {h.assessment.reference}
                       </span>{" "}

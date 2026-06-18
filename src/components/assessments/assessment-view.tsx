@@ -50,7 +50,7 @@ function Fact({
     <div className="flex items-start gap-2.5">
       <Icon className="mt-0.5 size-4 shrink-0 text-faint" />
       <div>
-        <dt className="text-xs text-muted">{label}</dt>
+        <dt className="text-xs text-muted-foreground">{label}</dt>
         <dd className="text-sm font-medium text-ink">{children}</dd>
       </div>
     </div>
@@ -127,7 +127,7 @@ export function AssessmentView({
           <div>
             <p className="eyebrow mb-1.5">Next review</p>
             <ReviewChip review={summary.review} />
-            <p className="mt-1 text-xs text-muted">
+            <p className="mt-1 text-xs text-muted-foreground">
               {formatDate(a.nextReviewDate)}
             </p>
           </div>
@@ -141,7 +141,7 @@ export function AssessmentView({
                 <p className="mt-1.5 text-sm font-medium text-ink">
                   {a.approvedByName}
                 </p>
-                <p className="text-xs text-muted">{formatDate(a.approvedAt)}</p>
+                <p className="text-xs text-muted-foreground">{formatDate(a.approvedAt)}</p>
                 {canApprove && (
                   <div className="no-print mt-2">
                     <WithdrawApprovalButton id={a.id} />
@@ -153,7 +153,7 @@ export function AssessmentView({
                 <ApproveButton id={a.id} />
               </div>
             ) : (
-              <p className="text-sm text-muted">Not yet approved</p>
+              <p className="text-sm text-muted-foreground">Not yet approved</p>
             )}
           </div>
           <div className="flex gap-5 border-t border-line pt-3 text-sm">
@@ -161,7 +161,7 @@ export function AssessmentView({
               <p className="text-lg font-semibold tnum text-ink">
                 {summary.hazardCount}
               </p>
-              <p className="text-xs text-muted">hazards</p>
+              <p className="text-xs text-muted-foreground">hazards</p>
             </div>
             <div>
               <p
@@ -169,7 +169,7 @@ export function AssessmentView({
               >
                 {summary.highRiskCount}
               </p>
-              <p className="text-xs text-muted">high risk</p>
+              <p className="text-xs text-muted-foreground">high risk</p>
             </div>
           </div>
         </div>
@@ -178,13 +178,13 @@ export function AssessmentView({
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-ink">
           Hazards &amp; controls
-          <span className="ml-2 font-normal tnum text-muted">
+          <span className="ml-2 font-normal tnum text-muted-foreground">
             {summary.hazardCount}
           </span>
         </h2>
 
         {a.hazards.length === 0 ? (
-          <p className="rounded-[var(--radius-card)] border border-dashed border-line-strong bg-surface/60 px-4 py-8 text-center text-sm text-muted">
+          <p className="rounded-[var(--radius-card)] border border-dashed border-line-strong bg-surface/60 px-4 py-8 text-center text-sm text-muted-foreground">
             No hazards recorded.
           </p>
         ) : (
@@ -222,7 +222,7 @@ export function AssessmentView({
       {a.reviewLogs.length > 0 && (
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <History className="size-4 text-muted" /> Review history
+            <History className="size-4 text-muted-foreground" /> Review history
           </h2>
           <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface">
             {a.reviewLogs.map((r) => (
@@ -234,13 +234,13 @@ export function AssessmentView({
                   <span className="font-medium text-ink">
                     {formatDate(r.reviewedDate)}
                   </span>
-                  <span className="text-muted"> · {outcomeLabel(r.outcome)}</span>
+                  <span className="text-muted-foreground"> · {outcomeLabel(r.outcome)}</span>
                   {r.reviewerName && (
-                    <span className="text-muted"> · {r.reviewerName}</span>
+                    <span className="text-muted-foreground"> · {r.reviewerName}</span>
                   )}
-                  {r.notes && <p className="text-muted">{r.notes}</p>}
+                  {r.notes && <p className="text-muted-foreground">{r.notes}</p>}
                 </div>
-                <span className="text-xs text-muted">
+                <span className="text-xs text-muted-foreground">
                   next {formatDate(r.nextReviewDate)}
                 </span>
               </li>
@@ -252,7 +252,7 @@ export function AssessmentView({
       {a.auditLogs.length > 0 && (
         <section className="space-y-3 print-break-avoid">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <History className="size-4 text-muted" /> Activity
+            <History className="size-4 text-muted-foreground" /> Activity
           </h2>
           <ul className="space-y-3 rounded-[var(--radius-card)] border border-line bg-surface p-4">
             {a.auditLogs.map((e) => {
@@ -262,17 +262,17 @@ export function AssessmentView({
               };
               return (
                 <li key={e.id} className="flex items-start gap-3 text-sm">
-                  <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted">
+                  <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted-foreground">
                     <meta.Icon className="size-3.5" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-ink">
                       <span className="font-medium">{meta.label}</span>
                       {e.detail && (
-                        <span className="text-muted"> — {e.detail}</span>
+                        <span className="text-muted-foreground"> — {e.detail}</span>
                       )}
                     </p>
-                    <p className="text-xs text-muted">
+                    <p className="text-xs text-muted-foreground">
                       {e.userName ?? "System"} · {formatDateTime(e.createdAt)}
                     </p>
                   </div>

@@ -47,7 +47,7 @@ export function ReferenceControls({
                 "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                 active
                   ? "bg-brand text-white shadow-xs"
-                  : "text-muted hover:text-ink",
+                  : "text-muted-foreground hover:text-ink",
               )}
             >
               <g.icon className="size-4" />
@@ -73,7 +73,7 @@ export function ReferenceControls({
           aria-label="Search reference"
         />
         {pending && (
-          <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted" />
+          <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
         )}
       </form>
 

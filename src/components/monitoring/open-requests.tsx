@@ -53,7 +53,7 @@ function RequestRow({
         >
           {r.title}
         </Link>
-        <p className="text-xs text-muted">
+        <p className="text-xs text-muted-foreground">
           <span className="font-mono text-faint">{r.reference}</span> ·{" "}
           {r.centerName} · {r.requestedBy} · {r.createdAt}
         </p>
@@ -75,7 +75,7 @@ function RequestRow({
             type="button"
             disabled={pending}
             onClick={() => resolve("Dismissed")}
-            className="rounded-md px-2 py-1 text-xs font-medium text-muted hover:bg-surface-2 hover:text-ink"
+            className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-surface-2 hover:text-ink"
           >
             Dismiss
           </button>

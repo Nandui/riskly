@@ -84,12 +84,12 @@ export function LibraryManager({
                 "-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
                 active
                   ? "border-brand text-brand"
-                  : "border-transparent text-muted hover:text-ink",
+                  : "border-transparent text-muted-foreground hover:text-ink",
               )}
             >
               <t.icon className="size-4" />
               {t.label}
-              <span className="rounded-full bg-surface-2 px-1.5 text-xs tnum text-muted">
+              <span className="rounded-full bg-surface-2 px-1.5 text-xs tnum text-muted-foreground">
                 {counts[t.key]}
               </span>
             </button>
@@ -100,12 +100,12 @@ export function LibraryManager({
       <div className="pt-6">
         {tab === "areas" &&
           (centers.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-line-strong bg-surface/60 p-8 text-center text-sm text-muted">
+            <div className="rounded-lg border border-dashed border-line-strong bg-surface/60 p-8 text-center text-sm text-muted-foreground">
               Add a centre first — areas belong to a centre.
             </div>
           ) : (
             <div className="space-y-4">
-              <label className="flex flex-wrap items-center gap-2 text-sm text-muted">
+              <label className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 Areas for centre
                 <Select
                   value={areaCenterId}
@@ -178,10 +178,10 @@ function EntityPanel({
   const pluralLabel = plural ?? `${singular}s`;
   return (
     <div className="space-y-5">
-      <p className="text-sm text-muted">{description}</p>
+      <p className="text-sm text-muted-foreground">{description}</p>
       <AddForm singular={singular} action={createAction} />
       {items.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-line-strong bg-surface/60 px-4 py-8 text-center text-sm text-muted">
+        <p className="rounded-lg border border-dashed border-line-strong bg-surface/60 px-4 py-8 text-center text-sm text-muted-foreground">
           No {pluralLabel} yet — add one above.
         </p>
       ) : (
@@ -282,7 +282,7 @@ function EntityRow({
       <div className="min-w-0 flex-1">
         <p className="font-medium text-ink">{item.name}</p>
         {item.description && (
-          <p className="truncate text-sm text-muted">{item.description}</p>
+          <p className="truncate text-sm text-muted-foreground">{item.description}</p>
         )}
       </div>
       <span className="hidden shrink-0 text-xs tnum text-faint sm:inline">
@@ -292,7 +292,7 @@ function EntityRow({
         type="button"
         onClick={() => setEditing(true)}
         aria-label={`Edit ${item.name}`}
-        className="flex size-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-ink"
+        className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-2 hover:text-ink"
       >
         <Pencil className="size-4" />
       </button>
@@ -391,7 +391,7 @@ function DeleteControl({
         <button
           type="button"
           onClick={() => setConfirm(false)}
-          className="text-xs text-muted hover:text-ink"
+          className="text-xs text-muted-foreground hover:text-ink"
         >
           Cancel
         </button>
@@ -413,7 +413,7 @@ function DeleteControl({
           setConfirm(true);
         }}
         aria-label={`Delete ${singular}`}
-        className="flex size-8 items-center justify-center rounded-md text-muted hover:bg-critical-bg hover:text-critical"
+        className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-critical-bg hover:text-critical"
       >
         <Trash2 className="size-4" />
       </button>

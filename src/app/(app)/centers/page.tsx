@@ -85,7 +85,7 @@ export default async function CentersPage() {
                 )}
               </div>
 
-              <dl className="mt-4 space-y-1.5 text-sm text-muted">
+              <dl className="mt-4 space-y-1.5 text-sm text-muted-foreground">
                 {c.address && (
                   <div className="flex gap-2">
                     <MapPin className="mt-0.5 size-4 shrink-0 text-faint" />
@@ -110,12 +110,12 @@ export default async function CentersPage() {
                 <span className="flex items-center gap-1.5 text-ink-soft">
                   <ClipboardList className="size-4 text-faint" />
                   <span className="font-semibold tnum">{c._count.assessments}</span>
-                  <span className="text-muted">assessments</span>
+                  <span className="text-muted-foreground">assessments</span>
                 </span>
                 <span className="flex items-center gap-1.5 text-ink-soft">
                   <LayoutGrid className="size-4 text-faint" />
                   <span className="font-semibold tnum">{c._count.areas}</span>
-                  <span className="text-muted">areas</span>
+                  <span className="text-muted-foreground">areas</span>
                 </span>
               </div>
 

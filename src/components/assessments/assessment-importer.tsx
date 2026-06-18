@@ -389,7 +389,7 @@ export function AssessmentImporter({ options }: { options: ImportOptions }) {
             <Download className="size-3.5" /> Download template
           </button>
         </div>
-        <p className="mt-1 text-xs text-muted">
+        <p className="mt-1 text-xs text-muted-foreground">
           In Notion, open the area’s table → <strong>•••</strong> →{" "}
           <strong>Export</strong> → <em>Markdown &amp; CSV</em>, then upload the
           CSV here. Columns are matched by name (Hazard, Risk Factor, Person at
@@ -401,11 +401,11 @@ export function AssessmentImporter({ options }: { options: ImportOptions }) {
           htmlFor="imp-file"
           className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line-strong bg-surface-2 px-4 py-8 text-center transition-colors hover:border-brand"
         >
-          <UploadCloud className="size-6 text-muted" />
+          <UploadCloud className="size-6 text-muted-foreground" />
           <span className="text-sm font-medium text-ink">
             {fileName ?? "Choose a CSV file"}
           </span>
-          <span className="text-xs text-muted">or paste the rows below</span>
+          <span className="text-xs text-muted-foreground">or paste the rows below</span>
           <input
             id="imp-file"
             type="file"
@@ -456,7 +456,7 @@ export function AssessmentImporter({ options }: { options: ImportOptions }) {
             <div className="scroll-slim mt-3 overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-muted">
+                  <tr className="text-left text-xs text-muted-foreground">
                     <th className="py-1.5 pr-3 font-medium">Hazard</th>
                     <th className="px-2 py-1.5 text-center font-medium">L</th>
                     <th className="px-2 py-1.5 text-center font-medium">S</th>
@@ -473,10 +473,10 @@ export function AssessmentImporter({ options }: { options: ImportOptions }) {
                         <td className="max-w-[18rem] truncate py-1.5 pr-3 text-ink">
                           {h.hazard}
                         </td>
-                        <td className="px-2 py-1.5 text-center text-muted">
+                        <td className="px-2 py-1.5 text-center text-muted-foreground">
                           {h.likelihood}
                         </td>
-                        <td className="px-2 py-1.5 text-center text-muted">
+                        <td className="px-2 py-1.5 text-center text-muted-foreground">
                           {h.severity}
                         </td>
                         <td className="px-2 py-1.5 text-center">
@@ -489,14 +489,14 @@ export function AssessmentImporter({ options }: { options: ImportOptions }) {
                             {score}
                           </span>
                         </td>
-                        <td className="px-2 py-1.5 text-muted">{h.riskCategory}</td>
+                        <td className="px-2 py-1.5 text-muted-foreground">{h.riskCategory}</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
               {parsed.hazards.length > 8 && (
-                <p className="mt-2 text-xs text-muted">
+                <p className="mt-2 text-xs text-muted-foreground">
                   …and {parsed.hazards.length - 8} more.
                 </p>
               )}
@@ -523,7 +523,7 @@ export function AssessmentImporter({ options }: { options: ImportOptions }) {
               )}
             </Button>
             {!subjectReady && parsed.hazards.length > 0 && (
-              <span className="text-xs text-muted">
+              <span className="text-xs text-muted-foreground">
                 Choose where it belongs above first.
               </span>
             )}

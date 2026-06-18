@@ -72,7 +72,7 @@ export function ReviewRequestPanel({
       )}
 
       {requests.length === 0 ? (
-        <p className="rounded-[var(--radius-card)] border border-dashed border-line-strong bg-surface/60 px-4 py-6 text-center text-sm text-muted">
+        <p className="rounded-[var(--radius-card)] border border-dashed border-line-strong bg-surface/60 px-4 py-6 text-center text-sm text-muted-foreground">
           No review requests.
         </p>
       ) : (
@@ -83,7 +83,7 @@ export function ReviewRequestPanel({
                 <p className="whitespace-pre-line text-sm text-ink-soft">
                   {r.notes}
                 </p>
-                <p className="mt-1 text-xs text-muted">
+                <p className="mt-1 text-xs text-muted-foreground">
                   {r.requestedBy} · {r.createdAt}
                   {r.resolvedBy && r.resolvedAt
                     ? ` · ${r.status.toLowerCase()} by ${r.resolvedBy}`
@@ -170,7 +170,7 @@ function ResolveButtons({ id }: { id: string }) {
         type="button"
         disabled={pending}
         onClick={() => resolve("Dismissed")}
-        className="rounded-md px-2 py-1 text-xs font-medium text-muted hover:bg-surface-2 hover:text-ink"
+        className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-surface-2 hover:text-ink"
       >
         Dismiss
       </button>

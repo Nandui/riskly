@@ -61,7 +61,7 @@ function NewUserForm() {
       className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-xs"
     >
       <h2 className="text-sm font-semibold text-ink">Add a user</h2>
-      <p className="mt-0.5 text-xs text-muted">
+      <p className="mt-0.5 text-xs text-muted-foreground">
         They sign in with this email and password. Share the password with them —
         they can change it from their own account.
       </p>
@@ -146,9 +146,9 @@ function UserRow({ u }: { u: UserItem }) {
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-ink">
             {u.name ?? u.email}
-            {u.isSelf && <span className="text-xs font-normal text-muted"> (you)</span>}
+            {u.isSelf && <span className="text-xs font-normal text-muted-foreground"> (you)</span>}
           </p>
-          <p className="truncate text-xs text-muted">{u.email}</p>
+          <p className="truncate text-xs text-muted-foreground">{u.email}</p>
         </div>
 
         {!u.isActive && (
@@ -183,7 +183,7 @@ function UserRow({ u }: { u: UserItem }) {
             setResetOpen((v) => !v);
           }}
           title="Reset password"
-          className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-40"
+          className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-40"
         >
           <KeyRound className="size-4" /> Reset
         </button>
@@ -196,7 +196,7 @@ function UserRow({ u }: { u: UserItem }) {
               void setUserActive(u.id, !u.isActive);
             })
           }
-          className="rounded-md px-2.5 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-40 disabled:hover:bg-transparent"
+          className="rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-40 disabled:hover:bg-transparent"
         >
           {u.isActive ? "Deactivate" : "Activate"}
         </button>

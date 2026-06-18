@@ -19,7 +19,7 @@ function Tag({
   children: React.ReactNode;
 }) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-muted">
+    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
       <Icon className="size-3.5 text-faint" />
       {children}
     </span>

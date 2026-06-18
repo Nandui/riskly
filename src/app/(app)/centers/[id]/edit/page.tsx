@@ -28,7 +28,7 @@ export default async function EditCenterPage({
       <div>
         <Link
           href="/centers"
-          className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"
+          className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-ink"
         >
           <ArrowLeft className="size-4" /> Centres
         </Link>
@@ -45,7 +45,7 @@ export default async function EditCenterPage({
 
       <Card className="border-critical-line/60 p-6">
         <h2 className="text-sm font-semibold text-ink">Danger zone</h2>
-        <p className="mb-4 mt-1 text-sm text-muted">
+        <p className="mb-4 mt-1 text-sm text-muted-foreground">
           Deleting a centre is permanent. It is only possible once the centre has
           no assessments.
         </p>

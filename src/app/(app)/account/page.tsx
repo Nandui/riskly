@@ -19,11 +19,11 @@ export default async function AccountPage() {
       <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-xs">
         <dl className="grid gap-4 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-muted">Email</dt>
+            <dt className="text-muted-foreground">Email</dt>
             <dd className="mt-0.5 font-medium text-ink">{me.email}</dd>
           </div>
           <div>
-            <dt className="text-muted">Role</dt>
+            <dt className="text-muted-foreground">Role</dt>
             <dd className="mt-0.5 font-medium text-ink">
               {ROLE_META[me.role]?.label ?? me.role}
             </dd>

@@ -52,7 +52,7 @@ export default async function AssessmentDetailPage({
       <div className="no-print">
         <Link
           href="/assessments"
-          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-ink"
         >
           <ArrowLeft className="size-4" /> Assessments
         </Link>
@@ -61,15 +61,15 @@ export default async function AssessmentDetailPage({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between print-break-avoid">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
-            <span className="font-mono text-sm text-muted">{a.reference}</span>
+            <span className="font-mono text-sm text-muted-foreground">{a.reference}</span>
             <StatusBadge status={a.status} />
           </div>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">
             {title}
           </h1>
-          <p className="mt-1 text-sm text-muted">{classification}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{classification}</p>
           {a.assignees.length > 0 && (
-            <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-muted">
+            <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
               <UsersRound className="size-3.5 text-faint" />
               Assigned to{" "}
               {a.assignees.map((u) => u.name ?? u.email).join(", ")}

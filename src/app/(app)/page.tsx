@@ -50,11 +50,11 @@ function Kpi({
       className="group rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-xs transition-colors hover:border-line-strong"
     >
       <div className="flex items-center justify-between">
-        <p className="text-xs text-muted">{label}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
         <Icon className="size-4 text-faint" />
       </div>
       <p className={cn("mt-2 text-3xl font-semibold tnum", toneCls)}>{value}</p>
-      <p className="mt-0.5 text-xs text-muted">{sub ?? " "}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">{sub ?? " "}</p>
     </Link>
   );
 }
@@ -177,7 +177,7 @@ export default async function DashboardPage() {
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle>Overall risk profile</CardTitle>
-                <span className="text-xs text-muted">
+                <span className="text-xs text-muted-foreground">
                   {d.activeCount} {pluralize(d.activeCount, "assessment")}
                 </span>
               </CardHeader>
@@ -189,7 +189,7 @@ export default async function DashboardPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Overall risk map</CardTitle>
-                <span className="text-xs text-muted">
+                <span className="text-xs text-muted-foreground">
                   {d.hazardCount} {pluralize(d.hazardCount, "hazard")}
                 </span>
               </CardHeader>
@@ -212,7 +212,7 @@ export default async function DashboardPage() {
               </Link>
             </div>
             {d.attention.length === 0 ? (
-              <div className="rounded-[var(--radius-card)] border border-dashed border-line-strong bg-surface/60 px-4 py-8 text-center text-sm text-muted">
+              <div className="rounded-[var(--radius-card)] border border-dashed border-line-strong bg-surface/60 px-4 py-8 text-center text-sm text-muted-foreground">
                 No reviews are overdue or due soon. Nicely on top of it.
               </div>
             ) : (

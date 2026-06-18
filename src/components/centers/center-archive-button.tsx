@@ -23,7 +23,7 @@ export function CenterArchiveButton({
         })
       }
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink",
+        "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-ink",
         pending && "opacity-60",
       )}
     >

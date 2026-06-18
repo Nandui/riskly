@@ -9,7 +9,7 @@ export function RolePermissionMatrix() {
   return (
     <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-xs">
       <h2 className="text-sm font-semibold text-ink">Role permissions</h2>
-      <p className="mt-0.5 text-xs text-muted">
+      <p className="mt-0.5 text-xs text-muted-foreground">
         What each role can do. Each role also includes everything the roles to
         its left can do.
       </p>
@@ -20,7 +20,7 @@ export function RolePermissionMatrix() {
             <tr>
               <th
                 scope="col"
-                className="py-2 pr-3 text-left text-xs font-medium uppercase tracking-wide text-muted"
+                className="py-2 pr-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground"
               >
                 Permission
               </th>
@@ -45,7 +45,7 @@ export function RolePermissionMatrix() {
                   <span className="block font-medium text-ink">
                     {capability.label}
                   </span>
-                  <span className="mt-0.5 block text-xs text-muted">
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
                     {capability.description}
                   </span>
                 </th>

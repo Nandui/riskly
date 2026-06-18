@@ -72,7 +72,7 @@ export function AssessmentFilters({
             aria-label="Search assessments"
           />
           {pending && (
-            <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted" />
+            <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
           )}
         </form>
 
@@ -155,7 +155,7 @@ export function AssessmentFilters({
               setSearch("");
               startTransition(() => router.push(basePath));
             }}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-sm text-muted hover:text-ink"
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:text-ink"
           >
             <X className="size-4" /> Clear
           </button>

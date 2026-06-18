@@ -87,7 +87,7 @@ export default async function ReferencePage({
         />
       ) : (
         <div className="space-y-6">
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             {rows.length} {subjectType.toLowerCase()}{" "}
             {pluralize(rows.length, "assessment")}
           </p>

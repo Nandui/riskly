@@ -15,7 +15,7 @@ export default async function NewCenterPage() {
       <div>
         <Link
           href="/centers"
-          className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"
+          className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-ink"
         >
           <ArrowLeft className="size-4" /> Centres
         </Link>

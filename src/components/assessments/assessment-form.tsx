@@ -164,7 +164,7 @@ export function AssessmentForm({
                     "rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
                     active
                       ? "bg-brand text-white shadow-xs"
-                      : "text-muted hover:text-ink",
+                      : "text-muted-foreground hover:text-ink",
                   )}
                 >
                   {t.label}
@@ -249,7 +249,7 @@ export function AssessmentForm({
             Assignees
           </label>
           {users.length === 0 ? (
-            <p className="text-sm text-muted">No users to assign yet.</p>
+            <p className="text-sm text-muted-foreground">No users to assign yet.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {users.map((u) => {
@@ -273,7 +273,7 @@ export function AssessmentForm({
               })}
             </div>
           )}
-          <p className="mt-1.5 text-xs text-muted">
+          <p className="mt-1.5 text-xs text-muted-foreground">
             People responsible for reviewing this assessment.
           </p>
         </div>
@@ -285,12 +285,12 @@ export function AssessmentForm({
             <h2 className="text-sm font-semibold text-ink">
               Hazards &amp; risk rating
             </h2>
-            <p className="text-xs text-muted">
+            <p className="text-xs text-muted-foreground">
               Set the likelihood and consequence for each hazard — overall risk
               is calculated automatically.
             </p>
           </div>
-          <span className="text-xs tnum text-muted">
+          <span className="text-xs tnum text-muted-foreground">
             {hazards.length} {hazards.length === 1 ? "hazard" : "hazards"}
           </span>
         </div>

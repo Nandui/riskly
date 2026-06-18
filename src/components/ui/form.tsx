@@ -37,7 +37,7 @@ export const Select = React.forwardRef<
     >
       {children}
     </select>
-    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
   </div>
 ));
 Select.displayName = "Select";
@@ -83,7 +83,7 @@ export function Field({
         </Label>
       )}
       {children}
-      {hint && !error && <p className="mt-1.5 text-xs text-muted">{hint}</p>}
+      {hint && !error && <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>}
       {error && <p className="mt-1.5 text-xs font-medium text-critical">{error}</p>}
     </div>
   );

@@ -12,7 +12,7 @@ const META = {
     icon: CalendarClock,
   },
   ok: {
-    cls: "bg-surface-2 text-muted border-line",
+    cls: "bg-surface-2 text-muted-foreground border-line",
     icon: CalendarCheck,
   },
 } as const;

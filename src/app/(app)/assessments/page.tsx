@@ -104,7 +104,7 @@ export default async function AssessmentsPage({
         )
       ) : (
         <div className="space-y-3">
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             {rows.length} {pluralize(rows.length, "assessment")}
           </p>
           <AssessmentTable rows={rows} showCenter={!selected} />
