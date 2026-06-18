@@ -44,11 +44,11 @@
   --color-review: #a16207;
   --color-archived: #94a3b8;
 
-  /* sidebar text helpers (bg/border come from shadcn sidebar tokens) */
-  --color-sidebar-2: #0e2a31;
-  --color-sidebar-line: #1c3a42;
-  --color-sidebar-ink: #d6e7e9;
-  --color-sidebar-muted: #7ba0a6;
+  /* sidebar (light) — surface/border come from the shadcn sidebar tokens */
+  --color-sidebar-2: #f1f5f9;   /* hover surface */
+  --color-sidebar-line: #e3e8ee; /* divider / border */
+  --color-sidebar-ink: #0f1c2e;  /* primary text */
+  --color-sidebar-muted: #64748b; /* secondary text */
 
   /* typefaces (wired by next/font in layout.tsx) */
   --font-display: var(--ff-display), ui-sans-serif, system-ui, sans-serif;
@@ -92,13 +92,13 @@
   --chart-4: #64748b;
   --chart-5: #15803d;
 
-  --sidebar: #0a1e24;
-  --sidebar-foreground: #d6e7e9;
-  --sidebar-primary: #6366f1;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #334155;
+  --sidebar-primary: #4f46e5;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #0e2a31;
-  --sidebar-accent-foreground: #eef2ff;
-  --sidebar-border: #1c3a42;
+  --sidebar-accent: #eef2ff; /* indigo-50 — active nav background */
+  --sidebar-accent-foreground: #3730a3; /* indigo-800 — active nav text */
+  --sidebar-border: #e3e8ee;
   --sidebar-ring: #6366f1;
 }
 

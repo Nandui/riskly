@@ -67,7 +67,7 @@ function Wordmark() {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/logo.svg" alt="Riskly" className="size-9 shrink-0" />
       <div className="leading-none">
-        <span className="block font-display text-lg font-semibold tracking-tight text-white">
+        <span className="block font-display text-lg font-semibold tracking-tight text-ink">
           Riskly
         </span>
         <span className="text-[0.65rem] uppercase tracking-[0.16em] text-sidebar-muted">
@@ -157,7 +157,7 @@ export function AppShell({
       {/* Sidebar */}
       <aside
         className={cn(
-          "no-print fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col bg-sidebar text-sidebar-ink transition-transform duration-200 ease-out",
+          "no-print fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col border-r border-sidebar-line bg-sidebar text-sidebar-ink transition-transform duration-200 ease-out",
           "md:sticky md:top-0 md:h-screen md:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
@@ -168,7 +168,7 @@ export function AppShell({
             type="button"
             onClick={() => setOpen(false)}
             aria-label="Close navigation"
-            className="flex size-8 items-center justify-center rounded-md text-sidebar-muted hover:bg-sidebar-2 hover:text-white md:hidden"
+            className="flex size-8 items-center justify-center rounded-md text-sidebar-muted hover:bg-sidebar-2 hover:text-ink md:hidden"
           >
             <X className="size-5" />
           </button>
@@ -190,14 +190,16 @@ export function AppShell({
                 className={cn(
                   "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   active
-                    ? "bg-sidebar-primary text-white shadow-xs"
-                    : "text-sidebar-ink/80 hover:bg-sidebar-2 hover:text-white",
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-ink/80 hover:bg-sidebar-2 hover:text-ink",
                 )}
               >
                 <item.icon
                   className={cn(
                     "size-[1.15rem] shrink-0",
-                    active ? "text-white" : "text-sidebar-muted group-hover:text-white",
+                    active
+                      ? "text-sidebar-accent-foreground"
+                      : "text-sidebar-muted group-hover:text-ink",
                   )}
                 />
                 {item.label}
@@ -223,7 +225,7 @@ export function AppShell({
               </span>
             )}
             <div className="min-w-0 flex-1 leading-tight">
-              <p className="truncate text-sm font-medium text-white">
+              <p className="truncate text-sm font-medium text-ink">
                 {user.name ?? user.email}
               </p>
               <p className="truncate text-[0.7rem] text-sidebar-muted">
@@ -235,7 +237,7 @@ export function AppShell({
               onClick={() => setOpen(false)}
               aria-label="Account settings"
               title="Account settings"
-              className="flex size-8 items-center justify-center rounded-md text-sidebar-muted transition-colors hover:bg-sidebar-2 hover:text-white"
+              className="flex size-8 items-center justify-center rounded-md text-sidebar-muted transition-colors hover:bg-sidebar-2 hover:text-ink"
             >
               <Settings className="size-4" />
             </Link>
@@ -244,7 +246,7 @@ export function AppShell({
                 type="submit"
                 aria-label="Sign out"
                 title="Sign out"
-                className="flex size-8 items-center justify-center rounded-md text-sidebar-muted transition-colors hover:bg-sidebar-2 hover:text-white"
+                className="flex size-8 items-center justify-center rounded-md text-sidebar-muted transition-colors hover:bg-sidebar-2 hover:text-ink"
               >
                 <LogOut className="size-4" />
               </button>

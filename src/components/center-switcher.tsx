@@ -17,7 +17,7 @@ export function CenterSwitcher({
 
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand">
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
         <Building2 className="size-4" />
       </span>
       <select
@@ -31,7 +31,7 @@ export function CenterSwitcher({
         }
         className={cn(
           "h-10 w-full cursor-pointer appearance-none rounded-lg border border-sidebar-line bg-sidebar-2 pl-9 pr-9 text-sm font-medium text-sidebar-ink",
-          "transition-colors hover:border-brand/60 focus-visible:border-brand focus-visible:outline-none",
+          "transition-colors hover:border-line-strong focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/25 focus-visible:outline-none",
           pending && "opacity-70",
         )}
       >
