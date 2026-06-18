@@ -68,3 +68,28 @@ export async function getTaxonomyOptions(centerId?: string | null) {
   ]);
   return { areas, roles, activities };
 }
+
+// Everything the CSV importer needs to populate its centre / subject pickers.
+export async function getImportOptions() {
+  const [centers, areas, roles, activities] = await Promise.all([
+    db.center.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    db.area.findMany({
+      orderBy: [{ name: "asc" }],
+      select: { id: true, name: true, centerId: true },
+    }),
+    db.role.findMany({
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true },
+    }),
+    db.activity.findMany({
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true },
+    }),
+  ]);
+  return { centers, areas, roles, activities };
+}
+
+export type ImportOptions = Awaited<ReturnType<typeof getImportOptions>>;

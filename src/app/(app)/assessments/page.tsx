@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, ClipboardList } from "lucide-react";
+import { Plus, ClipboardList, Upload } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -57,9 +57,17 @@ export default async function AssessmentsPage({
         description="Every risk assessment in scope. Filter by area, role, activity, status or residual risk."
         actions={
           canEdit ? (
-            <Link href="/assessments/new" className={buttonClasses()}>
-              <Plus className="size-4" /> New assessment
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/assessments/import"
+                className={buttonClasses({ variant: "secondary" })}
+              >
+                <Upload className="size-4" /> Import
+              </Link>
+              <Link href="/assessments/new" className={buttonClasses()}>
+                <Plus className="size-4" /> New assessment
+              </Link>
+            </div>
           ) : undefined
         }
       />
