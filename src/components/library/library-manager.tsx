@@ -84,7 +84,7 @@ export function LibraryManager({
 
   return (
     <div>
-      <div className="flex gap-1 overflow-x-auto border-b border-line">
+      <div className="scrollbar-none inline-flex max-w-full gap-1 overflow-x-auto rounded-lg bg-surface-2 p-1">
         {TABS.map((t) => {
           const active = tab === t.key;
           return (
@@ -93,15 +93,22 @@ export function LibraryManager({
               type="button"
               onClick={() => setTab(t.key)}
               className={cn(
-                "-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+                "flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                 active
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-ink",
+                  ? "bg-surface text-primary shadow-xs"
+                  : "text-muted-foreground hover:text-ink",
               )}
             >
               <t.icon className="size-4" />
               {t.label}
-              <span className="rounded-full bg-surface-2 px-1.5 text-xs tnum text-muted-foreground">
+              <span
+                className={cn(
+                  "rounded-full px-1.5 text-xs tnum",
+                  active
+                    ? "bg-accent text-accent-foreground"
+                    : "bg-surface text-muted-foreground",
+                )}
+              >
                 {counts[t.key]}
               </span>
             </button>

@@ -25,7 +25,7 @@ export function AdminWorkspace({
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-1 overflow-x-auto border-b border-line">
+      <div className="scrollbar-none flex gap-1 overflow-x-auto border-b border-line">
         {TABS.map((t) => {
           const active = tab === t.key;
           return (

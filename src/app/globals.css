@@ -239,6 +239,15 @@
   }
 }
 
+/* Hide scrollbars on horizontally-scrollable tab strips — avoids the
+   spurious vertical scrollbar that overflow-x:auto otherwise spawns. */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
