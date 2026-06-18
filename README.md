@@ -84,5 +84,5 @@ src/
 
 ## Notes & roadmap
 
-- **Authentication is intentionally deferred** in this version — there is no login yet. The data model is auth-ready: assessor/approver are kept as fields, and users/roles (Admin / Assessor / Viewer) with per-centre access can be layered on later.
-- Possible next steps: real auth & permissions, PDF export & e-signatures, photo/file attachments, assessment version history & approval workflow, and email reminders for due reviews.
+- **Authentication** — Google sign-in (Auth.js + Prisma adapter), restricted to your Google Workspace domain. Roles: **Admin / Assessor / Reviewer / Contributor / Viewer**, with per-assessment **assignees** and a **review-request** workflow. Set it up via [DEPLOY.md](DEPLOY.md).
+- Possible next steps: PDF export & e-signatures, photo/file attachments, assessment version history & approval workflow, per-centre user access, and email notifications for assignments / requests / overdue reviews.

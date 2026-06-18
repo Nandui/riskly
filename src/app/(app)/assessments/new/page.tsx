@@ -8,10 +8,12 @@ import { getAssessmentFormData } from "@/lib/data/assessments";
 import { getCenterContext } from "@/lib/center-context";
 import { createAssessment } from "@/lib/actions/assessments";
 import { toDateInputValue } from "@/lib/utils";
+import { requireCapability } from "@/lib/auth";
 
 export const metadata = { title: "New assessment" };
 
 export default async function NewAssessmentPage() {
+  await requireCapability("editContent");
   const [form, { selected }] = await Promise.all([
     getAssessmentFormData(),
     getCenterContext(),
@@ -46,6 +48,7 @@ export default async function NewAssessmentPage() {
     assessmentDate: toDateInputValue(new Date()),
     reviewFrequencyMonths: 12,
     hazards: [],
+    assigneeIds: [],
   };
 
   return (
@@ -67,6 +70,10 @@ export default async function NewAssessmentPage() {
         areasByCenter={form.areasByCenter}
         roles={form.roles}
         activities={form.activities}
+        users={form.users.map((u) => ({
+          id: u.id,
+          name: u.name ?? u.email ?? "Unknown user",
+        }))}
         defaults={defaults}
         cancelHref="/assessments"
       />

@@ -54,6 +54,42 @@ npm run db:seed
 ```
 (then delete the demo records from the app when you're ready for real data.)
 
+## Authentication (Google sign-in)
+
+Riskly gates access with Google sign-in (Auth.js). Roles: **Admin · Assessor ·
+Reviewer · Contributor · Viewer**. Sign-in is restricted to the
+`leisureworldcork.com` Google Workspace domain.
+
+### 1. Create a Google OAuth client
+1. In **Google Cloud Console** → create/select a project.
+2. **APIs & Services → OAuth consent screen** → choose **Internal** (Workspace)
+   → set an app name and support email.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID →
+   Web application**. Add:
+   - **Authorized JavaScript origins:** `https://riskly-leisureworld.vercel.app`
+     and `http://localhost:3000`
+   - **Authorized redirect URIs:**
+     `https://riskly-leisureworld.vercel.app/api/auth/callback/google` and
+     `http://localhost:3000/api/auth/callback/google`
+4. Copy the **Client ID** and **Client secret**.
+
+### 2. Add the auth environment variables (Vercel → Settings → Environment Variables)
+| Variable | Value |
+| --- | --- |
+| `AUTH_SECRET` | a random secret — run `npx auth secret`, or any 32-byte base64 string |
+| `AUTH_GOOGLE_ID` | the OAuth **Client ID** |
+| `AUTH_GOOGLE_SECRET` | the OAuth **Client secret** |
+| `AUTH_ALLOWED_DOMAINS` | `leisureworldcork.com` |
+| `AUTH_ADMIN_EMAILS` | your `@leisureworldcork.com` email (becomes Admin, always allowed in) |
+
+Redeploy, then visit the site and sign in — your account lands as **Admin**.
+Manage everyone else under **Users**.
+
+### 3. Turn off Vercel Deployment Protection
+Now that the app gates access itself, let staff reach the sign-in page:
+**Project → Settings → Deployment Protection → Vercel Authentication →
+Disabled** (or restrict it to Preview deployments only).
+
 ## Local development
 
 You need a local Postgres. Two easy options:

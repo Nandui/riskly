@@ -20,6 +20,48 @@ export const SUBJECT_TYPES = [
 
 export type SubjectType = (typeof SUBJECT_TYPES)[number]["value"];
 
+// User roles (increasing privilege). See can() in src/lib/auth.ts.
+export const ROLES = [
+  { value: "Viewer", label: "Viewer" },
+  { value: "Contributor", label: "Contributor" },
+  { value: "Reviewer", label: "Reviewer" },
+  { value: "Assessor", label: "Assessor" },
+  { value: "Admin", label: "Admin" },
+] as const;
+
+export type UserRole = (typeof ROLES)[number]["value"];
+
+export const ROLE_META: Record<
+  string,
+  { label: string; pill: string; description: string }
+> = {
+  Viewer: {
+    label: "Viewer",
+    pill: "bg-slate-100 text-slate-600 border border-slate-200",
+    description: "Read-only access to everything.",
+  },
+  Contributor: {
+    label: "Contributor",
+    pill: "bg-cyan-50 text-cyan-700 border border-cyan-200",
+    description: "Can request reviews and add notes.",
+  },
+  Reviewer: {
+    label: "Reviewer",
+    pill: "bg-blue-50 text-blue-700 border border-blue-200",
+    description: "Can review assessments, log reviews and action requests.",
+  },
+  Assessor: {
+    label: "Assessor",
+    pill: "bg-violet-50 text-violet-700 border border-violet-200",
+    description: "Can create, edit and delete assessments and manage the library.",
+  },
+  Admin: {
+    label: "Admin",
+    pill: "bg-brand-soft text-brand-strong border border-brand/25",
+    description: "Full access, including centres and user management.",
+  },
+};
+
 export const STATUS_META: Record<
   string,
   { label: string; pill: string; dot: string }

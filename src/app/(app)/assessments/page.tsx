@@ -8,6 +8,7 @@ import { AssessmentTable } from "@/components/assessments/assessment-table";
 import { getCenterContext } from "@/lib/center-context";
 import { listAssessments } from "@/lib/data/assessments";
 import { getTaxonomyOptions } from "@/lib/data/library";
+import { getCurrentUser, can } from "@/lib/auth";
 import { pluralize } from "@/lib/utils";
 
 export const metadata = { title: "Assessments" };
@@ -45,6 +46,7 @@ export default async function AssessmentsPage({
     getTaxonomyOptions(selectedId),
   ]);
 
+  const canEdit = can(await getCurrentUser(), "editContent");
   const anyFilter = Object.values(current).some(Boolean);
 
   return (
@@ -54,9 +56,11 @@ export default async function AssessmentsPage({
         title="Assessments"
         description="Every risk assessment in scope. Filter by area, role, activity, status or residual risk."
         actions={
-          <Link href="/assessments/new" className={buttonClasses()}>
-            <Plus className="size-4" /> New assessment
-          </Link>
+          canEdit ? (
+            <Link href="/assessments/new" className={buttonClasses()}>
+              <Plus className="size-4" /> New assessment
+            </Link>
+          ) : undefined
         }
       />
 
@@ -82,9 +86,11 @@ export default async function AssessmentsPage({
             title="No assessments yet"
             description="Create your first risk assessment to start documenting hazards and controls."
             action={
-              <Link href="/assessments/new" className={buttonClasses()}>
-                <Plus className="size-4" /> New assessment
-              </Link>
+              canEdit ? (
+                <Link href="/assessments/new" className={buttonClasses()}>
+                  <Plus className="size-4" /> New assessment
+                </Link>
+              ) : undefined
             }
           />
         )

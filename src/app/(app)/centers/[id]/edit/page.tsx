@@ -7,6 +7,7 @@ import { CenterForm } from "@/components/centers/center-form";
 import { CenterDeleteButton } from "@/components/centers/center-delete-button";
 import { getCenter } from "@/lib/data/centers";
 import { updateCenter } from "@/lib/actions/centers";
+import { requireCapability } from "@/lib/auth";
 
 export const metadata = { title: "Edit centre" };
 
@@ -15,6 +16,7 @@ export default async function EditCenterPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireCapability("admin");
   const { id } = await params;
   const center = await getCenter(id);
   if (!center) notFound();

@@ -29,6 +29,7 @@ export interface AssessmentDefaults {
   assessmentDate: string;
   reviewFrequencyMonths: number;
   hazards: HazardDraft[];
+  assigneeIds: string[];
 }
 
 export function AssessmentForm({
@@ -38,6 +39,7 @@ export function AssessmentForm({
   areasByCenter,
   roles,
   activities,
+  users,
   defaults,
   cancelHref,
 }: {
@@ -47,6 +49,7 @@ export function AssessmentForm({
   areasByCenter: Record<string, Option[]>;
   roles: Option[];
   activities: Option[];
+  users: Option[];
   defaults: AssessmentDefaults;
   cancelHref: string;
 }) {
@@ -60,6 +63,14 @@ export function AssessmentForm({
   const [subjectType, setSubjectType] = useState(defaults.subjectType || "Area");
   const [subjectId, setSubjectId] = useState(defaults.subjectId);
   const [hazards, setHazards] = useState<HazardDraft[]>(defaults.hazards);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>(
+    defaults.assigneeIds,
+  );
+
+  const toggleAssignee = (id: string) =>
+    setAssigneeIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
 
   const subjectOptions: Option[] =
     subjectType === "Area"
@@ -113,6 +124,11 @@ export function AssessmentForm({
       <input type="hidden" name="centerId" value={centerId} />
       <input type="hidden" name="subjectType" value={subjectType} />
       <input type="hidden" name="subjectId" value={subjectId} />
+      <input
+        type="hidden"
+        name="assigneeIds"
+        value={JSON.stringify(assigneeIds)}
+      />
 
       <section className={cardClass}>
         <h2 className="text-sm font-semibold text-ink">
@@ -233,6 +249,40 @@ export function AssessmentForm({
               defaultValue={defaults.approvedByName}
             />
           </Field>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-ink-soft">
+            Assignees
+          </label>
+          {users.length === 0 ? (
+            <p className="text-sm text-muted">No users to assign yet.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {users.map((u) => {
+                const selected = assigneeIds.includes(u.id);
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => toggleAssignee(u.id)}
+                    aria-pressed={selected}
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-sm transition-colors",
+                      selected
+                        ? "border-brand bg-brand-soft text-brand-strong"
+                        : "border-line-strong bg-surface text-ink-soft hover:bg-surface-2",
+                    )}
+                  >
+                    {u.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <p className="mt-1.5 text-xs text-muted">
+            People responsible for reviewing this assessment.
+          </p>
         </div>
       </section>
 

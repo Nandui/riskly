@@ -10,28 +10,51 @@ import {
   BookOpen,
   Building2,
   Tags,
+  Users,
   Menu,
   X,
   ShieldAlert,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { can, type Capability } from "@/lib/permissions";
 import { CenterSwitcher } from "@/components/center-switcher";
+import { signOutAction } from "@/lib/actions/auth";
 import type { CenterSummary } from "@/lib/center-shared";
+
+interface ShellUser {
+  name: string | null;
+  email: string | null;
+  image: string | null;
+  role: string;
+}
 
 const NAV: {
   href: string;
   label: string;
   icon: LucideIcon;
   exact?: boolean;
+  cap: Capability;
 }[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/assessments", label: "Assessments", icon: ClipboardList },
-  { href: "/monitoring", label: "Monitoring", icon: CalendarClock },
-  { href: "/reference", label: "Reference", icon: BookOpen },
-  { href: "/centers", label: "Centres", icon: Building2 },
-  { href: "/library", label: "Library", icon: Tags },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, cap: "view" },
+  { href: "/assessments", label: "Assessments", icon: ClipboardList, cap: "view" },
+  { href: "/monitoring", label: "Monitoring", icon: CalendarClock, cap: "view" },
+  { href: "/reference", label: "Reference", icon: BookOpen, cap: "view" },
+  { href: "/library", label: "Library", icon: Tags, cap: "editContent" },
+  { href: "/centers", label: "Centres", icon: Building2, cap: "admin" },
+  { href: "/users", label: "Users", icon: Users, cap: "admin" },
 ];
+
+function initials(user: ShellUser) {
+  const base = user.name || user.email || "?";
+  return base
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join("");
+}
 
 function Wordmark() {
   return (
@@ -54,10 +77,12 @@ function Wordmark() {
 export function AppShell({
   centers,
   selectedId,
+  user,
   children,
 }: {
   centers: CenterSummary[];
   selectedId: string | null;
+  user: ShellUser;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -65,6 +90,8 @@ export function AppShell({
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+
+  const navItems = NAV.filter((item) => can(user, item.cap));
 
   return (
     <div className="min-h-screen md:flex">
@@ -122,7 +149,7 @@ export function AppShell({
         </div>
 
         <nav className="scroll-slim flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
-          {NAV.map((item) => {
+          {navItems.map((item) => {
             const active = isActive(item.href, item.exact);
             return (
               <Link
@@ -149,10 +176,41 @@ export function AppShell({
           })}
         </nav>
 
-        <div className="border-t border-sidebar-line px-5 py-4">
-          <p className="text-[0.7rem] leading-relaxed text-sidebar-muted">
-            One organisation · multiple centres
-          </p>
+        {/* Signed-in user + sign out */}
+        <div className="border-t border-sidebar-line p-3">
+          <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+            {user.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.image}
+                alt=""
+                referrerPolicy="no-referrer"
+                className="size-8 rounded-full"
+              />
+            ) : (
+              <span className="flex size-8 items-center justify-center rounded-full bg-sidebar-2 text-xs font-semibold text-sidebar-ink">
+                {initials(user)}
+              </span>
+            )}
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="truncate text-sm font-medium text-white">
+                {user.name ?? user.email}
+              </p>
+              <p className="truncate text-[0.7rem] text-sidebar-muted">
+                {user.role}
+              </p>
+            </div>
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                aria-label="Sign out"
+                title="Sign out"
+                className="flex size-8 items-center justify-center rounded-md text-sidebar-muted transition-colors hover:bg-sidebar-2 hover:text-white"
+              >
+                <LogOut className="size-4" />
+              </button>
+            </form>
+          </div>
         </div>
       </aside>
 

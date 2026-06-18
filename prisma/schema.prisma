@@ -97,8 +97,10 @@ model RiskAssessment {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  hazards    Hazard[]
-  reviewLogs ReviewLog[]
+  hazards        Hazard[]
+  reviewLogs     ReviewLog[]
+  reviewRequests ReviewRequest[]
+  assignees      User[]          @relation("Assignees")
 
   @@index([centerId])
   @@index([areaId])
@@ -143,4 +145,83 @@ model ReviewLog {
   createdAt      DateTime       @default(now())
 
   @@index([assessmentId])
+}
+
+// ---- Authentication & users (Auth.js / NextAuth + Prisma adapter) ----
+
+// App user. Auth.js fields + our role / active flag / relations.
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          String    @default("Viewer") // Viewer | Contributor | Reviewer | Assessor | Admin
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts            Account[]
+  sessions            Session[]
+  assignedAssessments RiskAssessment[] @relation("Assignees")
+  reviewRequestsMade  ReviewRequest[]  @relation("RequestedBy")
+  reviewRequestsResolved ReviewRequest[] @relation("ResolvedBy")
+
+  @@index([role])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// A request (raised by a Contributor+) that an assessment be reviewed.
+model ReviewRequest {
+  id            String         @id @default(cuid())
+  assessmentId  String
+  assessment    RiskAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  requestedById String
+  requestedBy   User           @relation("RequestedBy", fields: [requestedById], references: [id])
+  notes         String
+  status        String         @default("Open") // Open | Actioned | Dismissed
+  createdAt     DateTime       @default(now())
+  resolvedAt    DateTime?
+  resolvedById  String?
+  resolvedBy    User?          @relation("ResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([assessmentId])
+  @@index([status])
 }

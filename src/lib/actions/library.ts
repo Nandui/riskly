@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { taxonomySchema } from "@/lib/validation";
 import { fieldErrorsFromZod, emptyToNull, type FormState } from "@/lib/form";
+import { denyUnless } from "@/lib/auth";
 
 function revalidateLibrary() {
   revalidatePath("/library");
@@ -32,6 +33,8 @@ export async function createArea(
   formData: FormData,
 ): Promise<FormState> {
   if (!centerId) return { ok: false, error: "Select a centre first." };
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
   const parsed = parseEntity(formData);
   if (!parsed.success)
     return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error) };
@@ -56,6 +59,8 @@ export async function updateArea(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
   const parsed = parseEntity(formData);
   if (!parsed.success)
     return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error) };
@@ -71,6 +76,8 @@ export async function updateArea(
 }
 
 export async function deleteArea(id: string): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
   const count = await db.riskAssessment.count({ where: { areaId: id } });
   if (count > 0)
     return {
@@ -87,6 +94,8 @@ export async function createRole(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
   const parsed = parseEntity(formData);
   if (!parsed.success)
     return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error) };
@@ -113,6 +122,8 @@ export async function updateRole(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
   const parsed = parseEntity(formData);
   if (!parsed.success)
     return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error) };
@@ -134,6 +145,8 @@ export async function updateRole(
 }
 
 export async function deleteRole(id: string): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
   const count = await db.riskAssessment.count({ where: { roleId: id } });
   if (count > 0)
     return { ok: false, error: `In use by ${count} assessment(s).` };
@@ -147,6 +160,8 @@ export async function createActivity(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
   const parsed = parseEntity(formData);
   if (!parsed.success)
     return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error) };
@@ -176,6 +191,8 @@ export async function updateActivity(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
   const parsed = parseEntity(formData);
   if (!parsed.success)
     return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error) };
@@ -200,6 +217,8 @@ export async function updateActivity(
 }
 
 export async function deleteActivity(id: string): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
   const count = await db.riskAssessment.count({ where: { activityId: id } });
   if (count > 0)
     return { ok: false, error: `In use by ${count} assessment(s).` };

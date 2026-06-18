@@ -4,10 +4,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { CenterForm } from "@/components/centers/center-form";
 import { createCenter } from "@/lib/actions/centers";
+import { requireCapability } from "@/lib/auth";
 
 export const metadata = { title: "New centre" };
 
-export default function NewCenterPage() {
+export default async function NewCenterPage() {
+  await requireCapability("admin");
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>

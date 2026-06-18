@@ -6,22 +6,31 @@ import { Pencil, Printer, Trash2 } from "lucide-react";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { deleteAssessment } from "@/lib/actions/assessments";
 
-export function AssessmentActions({ id }: { id: string }) {
+export function AssessmentActions({
+  id,
+  canEdit,
+}: {
+  id: string;
+  canEdit: boolean;
+}) {
   const [pending, startTransition] = useTransition();
   const [confirm, setConfirm] = useState(false);
 
   return (
     <div className="flex items-center gap-2">
-      <Link
-        href={`/assessments/${id}/edit`}
-        className={buttonClasses({ variant: "secondary", size: "sm" })}
-      >
-        <Pencil className="size-4" /> Edit
-      </Link>
+      {canEdit && (
+        <Link
+          href={`/assessments/${id}/edit`}
+          className={buttonClasses({ variant: "secondary", size: "sm" })}
+        >
+          <Pencil className="size-4" /> Edit
+        </Link>
+      )}
       <Button variant="ghost" size="sm" onClick={() => window.print()}>
         <Printer className="size-4" /> Print
       </Button>
-      {confirm ? (
+      {canEdit &&
+        (confirm ? (
         <span className="flex items-center gap-1.5">
           <Button
             variant="danger"
@@ -49,7 +58,7 @@ export function AssessmentActions({ id }: { id: string }) {
         >
           <Trash2 className="size-4" />
         </Button>
-      )}
+        ))}
     </div>
   );
 }

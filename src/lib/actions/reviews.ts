@@ -5,11 +5,15 @@ import { db } from "@/lib/db";
 import { reviewLogSchema } from "@/lib/validation";
 import { fieldErrorsFromZod, emptyToNull, type FormState } from "@/lib/form";
 import { computeNextReviewDate } from "@/lib/utils";
+import { denyUnless } from "@/lib/auth";
 
 export async function logReview(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  const denied = await denyUnless("review");
+  if (denied) return denied;
+
   const parsed = reviewLogSchema.safeParse({
     assessmentId: formData.get("assessmentId"),
     reviewedDate: formData.get("reviewedDate"),

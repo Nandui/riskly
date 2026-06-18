@@ -8,10 +8,12 @@ import {
   type LibraryEntity,
 } from "@/lib/data/library";
 import { LibraryManager } from "@/components/library/library-manager";
+import { requireCapability } from "@/lib/auth";
 
 export const metadata = { title: "Library" };
 
 export default async function LibraryPage() {
+  await requireCapability("editContent");
   const { selected, centers } = await getCenterContext();
 
   const areaEntries = await Promise.all(

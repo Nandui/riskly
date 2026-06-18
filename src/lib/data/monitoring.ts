@@ -38,6 +38,16 @@ export async function getDashboard(centerId: string | null) {
 
   const recent = rows.slice(0, 5);
 
+  const openRequests = await db.reviewRequest.count({
+    where: {
+      status: "Open",
+      assessment: {
+        status: { not: "Archived" },
+        ...(centerId ? { centerId } : {}),
+      },
+    },
+  });
+
   return {
     total: rows.length,
     activeCount: active.length,
@@ -48,6 +58,7 @@ export async function getDashboard(centerId: string | null) {
     highRiskHazards,
     reviewsOverdue,
     reviewsDue,
+    openRequests,
     attention,
     recent,
   };
@@ -99,3 +110,43 @@ export async function getHighRiskHazards(centerId: string | null) {
 export type HighRiskHazard = Awaited<
   ReturnType<typeof getHighRiskHazards>
 >[number];
+
+export async function getOpenReviewRequests(centerId: string | null) {
+  return db.reviewRequest.findMany({
+    where: {
+      status: "Open",
+      assessment: {
+        status: { not: "Archived" },
+        ...(centerId ? { centerId } : {}),
+      },
+    },
+    orderBy: { createdAt: "asc" },
+    include: {
+      requestedBy: { select: { name: true, email: true } },
+      assessment: {
+        select: {
+          id: true,
+          reference: true,
+          subjectType: true,
+          center: { select: { name: true } },
+          area: { select: { name: true } },
+          role: { select: { name: true } },
+          activity: { select: { name: true } },
+        },
+      },
+    },
+  });
+}
+
+export type OpenReviewRequest = Awaited<
+  ReturnType<typeof getOpenReviewRequests>
+>[number];
+
+// Non-archived assessments the given user is an assignee of.
+export async function getAssignedToMe(
+  userId: string,
+  centerId: string | null,
+): Promise<AssessmentRow[]> {
+  const rows = await listAssessments({ centerId, assignedToUserId: userId });
+  return rows.filter((a) => a.status !== "Archived");
+}

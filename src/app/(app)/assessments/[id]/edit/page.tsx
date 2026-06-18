@@ -10,6 +10,7 @@ import {
 } from "@/lib/data/assessments";
 import { updateAssessment } from "@/lib/actions/assessments";
 import { toDateInputValue } from "@/lib/utils";
+import { requireCapability } from "@/lib/auth";
 
 export const metadata = { title: "Edit assessment" };
 
@@ -18,6 +19,7 @@ export default async function EditAssessmentPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireCapability("editContent");
   const { id } = await params;
   const [a, form] = await Promise.all([
     getAssessmentDetail(id),
@@ -53,6 +55,7 @@ export default async function EditAssessmentPage({
       severity: h.severity,
       riskCategory: h.riskCategory,
     })),
+    assigneeIds: a.assignees.map((u) => u.id),
   };
 
   return (
@@ -77,6 +80,10 @@ export default async function EditAssessmentPage({
         areasByCenter={form.areasByCenter}
         roles={form.roles}
         activities={form.activities}
+        users={form.users.map((u) => ({
+          id: u.id,
+          name: u.name ?? u.email ?? "Unknown user",
+        }))}
         defaults={defaults}
         cancelHref={`/assessments/${a.id}`}
       />

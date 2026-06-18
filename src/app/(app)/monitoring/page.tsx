@@ -4,15 +4,25 @@ import {
   TriangleAlert,
   ShieldCheck,
   CircleCheckBig,
+  Inbox,
+  UserRoundCheck,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { CategoryBadge } from "@/components/ui/badge";
 import { ReviewQueue, type ReviewItem } from "@/components/monitoring/review-queue";
+import { OpenRequests } from "@/components/monitoring/open-requests";
+import { AssessmentTable } from "@/components/assessments/assessment-table";
 import { getCenterContext } from "@/lib/center-context";
-import { getReviewQueue, getHighRiskHazards } from "@/lib/data/monitoring";
+import {
+  getReviewQueue,
+  getHighRiskHazards,
+  getOpenReviewRequests,
+  getAssignedToMe,
+} from "@/lib/data/monitoring";
 import { assessmentTitle } from "@/lib/data/assessments";
+import { getCurrentUser, can } from "@/lib/auth";
 import { formatDate, toDateInputValue } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -43,10 +53,15 @@ function Stat({
 
 export default async function MonitoringPage() {
   const { selected, selectedId } = await getCenterContext();
-  const [queue, highRisk] = await Promise.all([
+  const user = await getCurrentUser();
+  const [queue, highRisk, openRequests, assignedToMe] = await Promise.all([
     getReviewQueue(selectedId),
     getHighRiskHazards(selectedId),
+    getOpenReviewRequests(selectedId),
+    user ? getAssignedToMe(user.id, selectedId) : Promise.resolve([]),
   ]);
+
+  const canReview = can(user, "review");
 
   const items: ReviewItem[] = queue.map((a) => ({
     id: a.id,
@@ -60,6 +75,17 @@ export default async function MonitoringPage() {
     nextReviewDate: formatDate(a.nextReviewDate),
     residualScore: a.summary.headlineBand ? a.summary.maxRiskScore : null,
     residualBand: a.summary.headlineBand,
+  }));
+
+  const requestItems = openRequests.map((r) => ({
+    id: r.id,
+    notes: r.notes,
+    requestedBy: r.requestedBy?.name ?? r.requestedBy?.email ?? "Someone",
+    createdAt: formatDate(r.createdAt),
+    assessmentId: r.assessment.id,
+    reference: r.assessment.reference,
+    title: assessmentTitle(r.assessment),
+    centerName: r.assessment.center.name,
   }));
 
   const todayInput = toDateInputValue(new Date());
@@ -86,11 +112,43 @@ export default async function MonitoringPage() {
           tone={dueReviews > 0 ? "medium" : "default"}
         />
         <Stat
-          label="High-risk hazards"
-          value={highRisk.length}
-          tone={highRisk.length > 0 ? "critical" : "default"}
+          label="Open review requests"
+          value={requestItems.length}
+          tone={requestItems.length > 0 ? "medium" : "default"}
         />
       </div>
+
+      {assignedToMe.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <UserRoundCheck className="size-4 text-muted" /> Assigned to me
+            <span className="font-normal tnum text-muted">
+              {assignedToMe.length}
+            </span>
+          </h2>
+          <AssessmentTable rows={assignedToMe} showCenter={!selected} />
+        </section>
+      )}
+
+      {canReview && (
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <Inbox className="size-4 text-muted" /> Review requests
+            <span className="font-normal tnum text-muted">
+              {requestItems.length}
+            </span>
+          </h2>
+          {requestItems.length === 0 ? (
+            <EmptyState
+              icon={CircleCheckBig}
+              title="No open requests"
+              description="No one has requested a review in this scope."
+            />
+          ) : (
+            <OpenRequests items={requestItems} canResolve={canReview} />
+          )}
+        </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
@@ -104,7 +162,11 @@ export default async function MonitoringPage() {
             description="No assessments are overdue or due for review in this scope."
           />
         ) : (
-          <ReviewQueue items={items} todayInput={todayInput} />
+          <ReviewQueue
+            items={items}
+            todayInput={todayInput}
+            canReview={canReview}
+          />
         )}
       </section>
 

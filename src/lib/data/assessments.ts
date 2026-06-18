@@ -57,6 +57,7 @@ export interface AssessmentFilters {
   status?: string;
   band?: string;
   search?: string;
+  assignedToUserId?: string;
 }
 
 const listSelect = {
@@ -79,6 +80,8 @@ export async function listAssessments(filters: AssessmentFilters = {}) {
   if (filters.roleId) where.roleId = filters.roleId;
   if (filters.activityId) where.activityId = filters.activityId;
   if (filters.status) where.status = filters.status;
+  if (filters.assignedToUserId)
+    where.assignees = { some: { id: filters.assignedToUserId } };
   if (filters.search) {
     const q = filters.search.trim();
     where.OR = [
@@ -121,6 +124,17 @@ export async function getAssessmentDetail(id: string) {
       activity: true,
       hazards: { orderBy: { sortOrder: "asc" } },
       reviewLogs: { orderBy: { reviewedDate: "desc" } },
+      assignees: {
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, email: true, image: true },
+      },
+      reviewRequests: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          requestedBy: { select: { name: true, email: true } },
+          resolvedBy: { select: { name: true, email: true } },
+        },
+      },
     },
   });
 }
@@ -131,7 +145,7 @@ export type AssessmentDetail = NonNullable<
 
 // Centres + their areas + org roles/activities, for the assessment form selects.
 export async function getAssessmentFormData() {
-  const [centers, roles, activities] = await Promise.all([
+  const [centers, roles, activities, users] = await Promise.all([
     db.center.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
@@ -152,6 +166,11 @@ export async function getAssessmentFormData() {
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: { id: true, name: true },
     }),
+    db.user.findMany({
+      where: { isActive: true },
+      orderBy: [{ name: "asc" }, { email: "asc" }],
+      select: { id: true, name: true, email: true },
+    }),
   ]);
 
   const areasByCenter: Record<string, { id: string; name: string }[]> = {};
@@ -162,6 +181,7 @@ export async function getAssessmentFormData() {
     areasByCenter,
     roles,
     activities,
+    users,
   };
 }
 

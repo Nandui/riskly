@@ -4,6 +4,7 @@ import {
   CalendarX,
   CalendarClock,
   TriangleAlert,
+  Inbox,
   ArrowRight,
   LayoutDashboard,
   Plus,
@@ -16,6 +17,7 @@ import { AssessmentTable } from "@/components/assessments/assessment-table";
 import { RiskMatrixHeat } from "@/components/risk-matrix";
 import { getCenterContext } from "@/lib/center-context";
 import { getDashboard } from "@/lib/data/monitoring";
+import { getCurrentUser, can } from "@/lib/auth";
 import { RISK_BANDS, BAND_META, type RiskBand } from "@/lib/risk";
 import { cn, pluralize } from "@/lib/utils";
 
@@ -90,7 +92,11 @@ function BandBar({ counts }: { counts: Record<RiskBand, number> }) {
 
 export default async function DashboardPage() {
   const { selected, selectedId } = await getCenterContext();
-  const d = await getDashboard(selectedId);
+  const [d, user] = await Promise.all([
+    getDashboard(selectedId),
+    getCurrentUser(),
+  ]);
+  const canEdit = can(user, "editContent");
 
   return (
     <div className="space-y-6">
@@ -99,9 +105,11 @@ export default async function DashboardPage() {
         title="Dashboard"
         description="Risk at a glance across your assessments — what's overdue, what needs action, and where risk sits."
         actions={
-          <Link href="/assessments/new" className={buttonClasses()}>
-            <Plus className="size-4" /> New assessment
-          </Link>
+          canEdit ? (
+            <Link href="/assessments/new" className={buttonClasses()}>
+              <Plus className="size-4" /> New assessment
+            </Link>
+          ) : undefined
         }
       />
 
@@ -123,7 +131,7 @@ export default async function DashboardPage() {
         />
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <Kpi
               icon={ClipboardList}
               label="Assessments"
@@ -153,6 +161,14 @@ export default async function DashboardPage() {
               value={d.highRiskHazards}
               tone={d.highRiskHazards > 0 ? "critical" : "default"}
               sub={d.highRiskHazards > 0 ? "High / very high" : "None in scope"}
+              href="/monitoring"
+            />
+            <Kpi
+              icon={Inbox}
+              label="Review requests"
+              value={d.openRequests}
+              tone={d.openRequests > 0 ? "medium" : "default"}
+              sub={d.openRequests > 0 ? "Awaiting action" : "None open"}
               href="/monitoring"
             />
           </div>

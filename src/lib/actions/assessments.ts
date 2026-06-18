@@ -7,6 +7,7 @@ import { assessmentSchema, type AssessmentInput } from "@/lib/validation";
 import { fieldErrorsFromZod, emptyToNull, type FormState } from "@/lib/form";
 import { computeNextReviewDate } from "@/lib/utils";
 import { nextReference } from "@/lib/data/assessments";
+import { denyUnless } from "@/lib/auth";
 
 function revalidateAssessments(id?: string) {
   revalidatePath("/assessments");
@@ -26,6 +27,15 @@ function parseAssessmentForm(formData: FormData) {
       hazards = [];
     }
   }
+  let assigneeIds: unknown = [];
+  const rawAssignees = formData.get("assigneeIds");
+  if (typeof rawAssignees === "string" && rawAssignees.trim()) {
+    try {
+      assigneeIds = JSON.parse(rawAssignees);
+    } catch {
+      assigneeIds = [];
+    }
+  }
   return assessmentSchema.safeParse({
     description: formData.get("description"),
     centerId: formData.get("centerId"),
@@ -37,6 +47,7 @@ function parseAssessmentForm(formData: FormData) {
     assessmentDate: formData.get("assessmentDate"),
     reviewFrequencyMonths: formData.get("reviewFrequencyMonths"),
     hazards,
+    assigneeIds,
   });
 }
 
@@ -90,6 +101,9 @@ export async function createAssessment(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
+
   const parsed = parseAssessmentForm(formData);
   if (!parsed.success) {
     return {
@@ -125,6 +139,7 @@ export async function createAssessment(
       lastReviewedDate: d.status === "Draft" ? null : assessmentDate,
       nextReviewDate,
       hazards: { create: hazardCreateData(d.hazards) },
+      assignees: { connect: d.assigneeIds.map((id) => ({ id })) },
     },
   });
 
@@ -137,6 +152,9 @@ export async function updateAssessment(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
+
   const parsed = parseAssessmentForm(formData);
   if (!parsed.success) {
     return {
@@ -175,6 +193,7 @@ export async function updateAssessment(
         reviewFrequencyMonths: d.reviewFrequencyMonths,
         nextReviewDate,
         hazards: { create: hazardCreateData(d.hazards) },
+        assignees: { set: d.assigneeIds.map((id) => ({ id })) },
       },
     }),
   ]);
@@ -184,6 +203,8 @@ export async function updateAssessment(
 }
 
 export async function deleteAssessment(id: string): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
   await db.riskAssessment.delete({ where: { id } });
   revalidateAssessments(id);
   redirect("/assessments");

@@ -15,11 +15,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { listCenters } from "@/lib/data/centers";
 import { CenterArchiveButton } from "@/components/centers/center-archive-button";
+import { requireCapability } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Centres" };
 
 export default async function CentersPage() {
+  await requireCapability("admin");
   const centers = await listCenters();
 
   return (

@@ -27,14 +27,21 @@ export interface ReviewItem {
 export function ReviewQueue({
   items,
   todayInput,
+  canReview,
 }: {
   items: ReviewItem[];
   todayInput: string;
+  canReview: boolean;
 }) {
   return (
     <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-xs">
       {items.map((it) => (
-        <ReviewRow key={it.id} item={it} todayInput={todayInput} />
+        <ReviewRow
+          key={it.id}
+          item={it}
+          todayInput={todayInput}
+          canReview={canReview}
+        />
       ))}
     </ul>
   );
@@ -43,9 +50,11 @@ export function ReviewQueue({
 function ReviewRow({
   item,
   todayInput,
+  canReview,
 }: {
   item: ReviewItem;
   todayInput: string;
+  canReview: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -87,17 +96,19 @@ function ReviewRow({
             {item.reviewLabel}
           </span>
           <StatusBadge status={item.status} />
-          <Button
-            size="sm"
-            variant={open ? "secondary" : "primary"}
-            onClick={() => setOpen((o) => !o)}
-          >
-            <CalendarCheck className="size-4" />
-            {open ? "Close" : "Log review"}
-          </Button>
+          {canReview && (
+            <Button
+              size="sm"
+              variant={open ? "secondary" : "primary"}
+              onClick={() => setOpen((o) => !o)}
+            >
+              <CalendarCheck className="size-4" />
+              {open ? "Close" : "Log review"}
+            </Button>
+          )}
         </div>
       </div>
-      {open && (
+      {open && canReview && (
         <div className="border-t border-line bg-surface-2/40 px-4 py-4">
           <LogReviewForm
             assessmentId={item.id}

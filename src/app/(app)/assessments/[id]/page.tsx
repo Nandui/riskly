@@ -1,10 +1,13 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, UsersRound } from "lucide-react";
 import { StatusBadge } from "@/components/ui/badge";
 import { AssessmentView } from "@/components/assessments/assessment-view";
 import { AssessmentActions } from "@/components/assessments/assessment-actions";
+import { ReviewRequestPanel } from "@/components/assessments/review-request-panel";
 import { getAssessmentDetail, assessmentTitle } from "@/lib/data/assessments";
+import { getCurrentUser, can } from "@/lib/auth";
+import { formatDate } from "@/lib/utils";
 
 export async function generateMetadata({
   params,
@@ -24,11 +27,25 @@ export default async function AssessmentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const a = await getAssessmentDetail(id);
+  const [a, user] = await Promise.all([
+    getAssessmentDetail(id),
+    getCurrentUser(),
+  ]);
   if (!a) notFound();
 
   const title = assessmentTitle(a);
   const classification = `${a.center.name} · ${a.subjectType} assessment`;
+  const canEdit = can(user, "editContent");
+
+  const requests = a.reviewRequests.map((r) => ({
+    id: r.id,
+    notes: r.notes,
+    status: r.status,
+    createdAt: formatDate(r.createdAt),
+    requestedBy: r.requestedBy?.name ?? r.requestedBy?.email ?? "Someone",
+    resolvedBy: r.resolvedBy?.name ?? r.resolvedBy?.email ?? null,
+    resolvedAt: r.resolvedAt ? formatDate(r.resolvedAt) : null,
+  }));
 
   return (
     <div className="space-y-6 print-full">
@@ -51,13 +68,27 @@ export default async function AssessmentDetailPage({
             {title}
           </h1>
           <p className="mt-1 text-sm text-muted">{classification}</p>
+          {a.assignees.length > 0 && (
+            <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-muted">
+              <UsersRound className="size-3.5 text-faint" />
+              Assigned to{" "}
+              {a.assignees.map((u) => u.name ?? u.email).join(", ")}
+            </p>
+          )}
         </div>
         <div className="no-print">
-          <AssessmentActions id={a.id} />
+          <AssessmentActions id={a.id} canEdit={canEdit} />
         </div>
       </div>
 
       <AssessmentView assessment={a} />
+
+      <ReviewRequestPanel
+        assessmentId={a.id}
+        requests={requests}
+        canRequest={can(user, "requestReview")}
+        canResolve={can(user, "review")}
+      />
     </div>
   );
 }

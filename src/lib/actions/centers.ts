@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { centerSchema } from "@/lib/validation";
 import { fieldErrorsFromZod, emptyToNull, type FormState } from "@/lib/form";
 import { slugify } from "@/lib/utils";
+import { denyUnless, assertCan } from "@/lib/auth";
 
 async function uniqueSlug(name: string, excludeId?: string): Promise<string> {
   const base = slugify(name);
@@ -31,6 +32,9 @@ export async function createCenter(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  const denied = await denyUnless("admin");
+  if (denied) return denied;
+
   const parsed = centerSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return {
@@ -60,6 +64,9 @@ export async function updateCenter(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  const denied = await denyUnless("admin");
+  if (denied) return denied;
+
   const parsed = centerSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return {
@@ -87,11 +94,15 @@ export async function updateCenter(
 }
 
 export async function setCenterActive(id: string, isActive: boolean) {
+  await assertCan("admin");
   await db.center.update({ where: { id }, data: { isActive } });
   revalidateCenters();
 }
 
 export async function deleteCenter(id: string): Promise<FormState> {
+  const denied = await denyUnless("admin");
+  if (denied) return denied;
+
   const assessments = await db.riskAssessment.count({ where: { centerId: id } });
   if (assessments > 0) {
     return {
