@@ -1,4 +1,7 @@
+import Link from "next/link";
+import { ScrollText } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { buttonClasses } from "@/components/ui/button";
 import { AdminWorkspace } from "@/components/admin/admin-workspace";
 import { CentresPanel } from "@/components/centers/centres-panel";
 import { UserManager } from "@/components/users/user-manager";
@@ -72,6 +75,14 @@ export default async function AdminPage() {
         eyebrow="Administration"
         title="Admin"
         description="Set up your organisation — centres, users, and the shared library of areas, roles, activities and departments."
+        actions={
+          <Link
+            href="/admin/audit"
+            className={buttonClasses({ variant: "secondary" })}
+          >
+            <ScrollText className="size-4" /> Audit log
+          </Link>
+        }
       />
       <AdminWorkspace
         centres={centresPanel}
