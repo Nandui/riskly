@@ -7,6 +7,10 @@ const optionalEmail = z
 
 export const centerSchema = z.object({
   name: z.string().trim().min(2, "Name is required").max(120),
+  siteCode: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z]{2}$/, "Use a 2-letter site code (e.g. BT)"),
   address: optionalText(300),
   contactName: optionalText(120),
   contactEmail: optionalEmail,

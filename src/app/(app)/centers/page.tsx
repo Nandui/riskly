@@ -67,7 +67,15 @@ export default async function CentersPage() {
                     <h2 className="font-semibold leading-tight text-ink">
                       {c.name}
                     </h2>
-                    <span className="font-mono text-xs text-faint">{c.slug}</span>
+                    {c.siteCode ? (
+                      <span className="font-mono text-xs font-semibold text-brand-strong">
+                        {c.siteCode}
+                      </span>
+                    ) : (
+                      <span className="text-xs font-medium text-amber-600">
+                        No site code — edit to add
+                      </span>
+                    )}
                   </div>
                 </div>
                 {!c.isActive && (

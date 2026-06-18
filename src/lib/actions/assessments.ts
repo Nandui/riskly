@@ -124,7 +124,7 @@ export async function createAssessment(
 
   const created = await db.riskAssessment.create({
     data: {
-      reference: await nextReference(),
+      reference: await nextReference(d.centerId),
       description: emptyToNull(d.description),
       centerId: d.centerId,
       subjectType: d.subjectType,

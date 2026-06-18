@@ -18,6 +18,7 @@ model Center {
   id           String   @id @default(cuid())
   name         String
   slug         String   @unique
+  siteCode     String? // 2-letter code used in assessment references (RA-XX-0001)
   address      String?
   contactName  String?
   contactEmail String?

@@ -29,6 +29,29 @@ function revalidateCenters() {
   revalidatePath("/", "layout");
 }
 
+// Renumber a centre's assessments to RA-{CODE}-{NNNN} (creation order). Two
+// passes so we never collide with an existing unique reference mid-update.
+async function renumberCenterAssessments(centerId: string, code: string) {
+  const list = await db.riskAssessment.findMany({
+    where: { centerId },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  if (list.length === 0) return;
+  for (const a of list) {
+    await db.riskAssessment.update({
+      where: { id: a.id },
+      data: { reference: `__tmp_${a.id}` },
+    });
+  }
+  for (let i = 0; i < list.length; i++) {
+    await db.riskAssessment.update({
+      where: { id: list[i].id },
+      data: { reference: `RA-${code}-${String(i + 1).padStart(4, "0")}` },
+    });
+  }
+}
+
 export async function createCenter(
   _prev: FormState,
   formData: FormData,
@@ -45,10 +68,23 @@ export async function createCenter(
     };
   }
   const d = parsed.data;
+  const code = d.siteCode.toUpperCase();
+  const clash = await db.center.findFirst({
+    where: { siteCode: code },
+    select: { id: true },
+  });
+  if (clash) {
+    return {
+      ok: false,
+      error: `Site code "${code}" is already used by another centre.`,
+      fieldErrors: { siteCode: "Already in use" },
+    };
+  }
   await db.center.create({
     data: {
       name: d.name,
       slug: await uniqueSlug(d.name),
+      siteCode: code,
       address: emptyToNull(d.address),
       contactName: emptyToNull(d.contactName),
       contactEmail: emptyToNull(d.contactEmail),
@@ -77,11 +113,28 @@ export async function updateCenter(
     };
   }
   const d = parsed.data;
+  const code = d.siteCode.toUpperCase();
+  const clash = await db.center.findFirst({
+    where: { siteCode: code, NOT: { id } },
+    select: { id: true },
+  });
+  if (clash) {
+    return {
+      ok: false,
+      error: `Site code "${code}" is already used by another centre.`,
+      fieldErrors: { siteCode: "Already in use" },
+    };
+  }
+  const previous = await db.center.findUnique({
+    where: { id },
+    select: { siteCode: true },
+  });
   await db.center.update({
     where: { id },
     data: {
       name: d.name,
       slug: await uniqueSlug(d.name, id),
+      siteCode: code,
       address: emptyToNull(d.address),
       contactName: emptyToNull(d.contactName),
       contactEmail: emptyToNull(d.contactEmail),
@@ -90,6 +143,10 @@ export async function updateCenter(
       isActive: formData.has("isActive"),
     },
   });
+  // Adopting or changing the site code renumbers this centre's references.
+  if ((previous?.siteCode ?? null) !== code) {
+    await renumberCenterAssessments(id, code);
+  }
   revalidateCenters();
   redirect("/centers");
 }

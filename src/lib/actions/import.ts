@@ -149,7 +149,7 @@ export async function importAssessment(
   } else {
     const created = await db.riskAssessment.create({
       data: {
-        reference: await nextReference(),
+        reference: await nextReference(d.centerId),
         centerId: d.centerId,
         subjectType: d.subjectType,
         areaId,

@@ -193,14 +193,29 @@ export async function getAssessmentFormData() {
   };
 }
 
-export async function nextReference(): Promise<string> {
+function deriveSiteCode(name: string): string {
+  const letters = name.replace(/[^A-Za-z]/g, "");
+  return (letters.slice(0, 2) || "XX").toUpperCase();
+}
+
+// Next reference for a centre: RA-{SITECODE}-{NNNN}, numbered per site.
+export async function nextReference(centerId: string): Promise<string> {
+  const center = await db.center.findUnique({
+    where: { id: centerId },
+    select: { siteCode: true, name: true },
+  });
+  const code = (
+    center?.siteCode || deriveSiteCode(center?.name ?? "")
+  ).toUpperCase();
+  const prefix = `RA-${code}-`;
   const rows = await db.riskAssessment.findMany({
+    where: { reference: { startsWith: prefix } },
     select: { reference: true },
   });
   let max = 0;
   for (const r of rows) {
-    const m = r.reference.match(/(\d+)\s*$/);
+    const m = r.reference.slice(prefix.length).match(/^(\d+)/);
     if (m) max = Math.max(max, parseInt(m[1], 10));
   }
-  return `RA-${String(max + 1).padStart(4, "0")}`;
+  return `${prefix}${String(max + 1).padStart(4, "0")}`;
 }

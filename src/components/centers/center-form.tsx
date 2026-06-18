@@ -10,6 +10,7 @@ type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 
 interface CenterFormValues {
   name: string;
+  siteCode: string | null;
   address: string | null;
   contactName: string | null;
   contactEmail: string | null;
@@ -48,6 +49,25 @@ export function CenterForm({
           defaultValue={center?.name ?? ""}
           placeholder="e.g. Riverside Leisure Centre"
           autoFocus
+        />
+      </Field>
+
+      <Field
+        label="Site code"
+        htmlFor="siteCode"
+        required
+        error={fe.siteCode}
+        hint="2 letters, used in assessment references — e.g. BT → RA-BT-0001"
+        className="sm:max-w-[14rem]"
+      >
+        <Input
+          id="siteCode"
+          name="siteCode"
+          defaultValue={center?.siteCode ?? ""}
+          placeholder="BT"
+          maxLength={2}
+          autoCapitalize="characters"
+          className="uppercase"
         />
       </Field>
 
