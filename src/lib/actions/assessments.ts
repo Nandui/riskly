@@ -9,8 +9,8 @@ import {
   type AssessmentInput,
 } from "@/lib/validation";
 import { fieldErrorsFromZod, emptyToNull, type FormState } from "@/lib/form";
-import { computeNextReviewDate } from "@/lib/utils";
-import { nextReference } from "@/lib/data/assessments";
+import { computeNextReviewDate, toDateInputValue } from "@/lib/utils";
+import { nextReference, assessmentTitle } from "@/lib/data/assessments";
 import { denyUnless, getCurrentUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 
@@ -93,6 +93,101 @@ function hazardCreateData(hazards: AssessmentInput["hazards"]) {
   }));
 }
 
+type ExistingForDiff = {
+  status: string;
+  centerId: string;
+  subjectType: string;
+  areaId: string | null;
+  roleId: string | null;
+  activityId: string | null;
+  assessorName: string | null;
+  reviewFrequencyMonths: number;
+  assessmentDate: Date;
+  ownerId: string | null;
+  departmentId: string | null;
+  description: string | null;
+  hazards: {
+    id: string;
+    hazard: string;
+    likelihood: number;
+    severity: number;
+    riskFactor: string | null;
+    personAtRisk: string | null;
+    consequence: string | null;
+    currentControls: string | null;
+    riskCategory: string;
+  }[];
+};
+
+// Build a concise human-readable summary of what an edit changed, for the
+// audit detail (matched by hazard id, sent from the form).
+function summariseEdit(
+  old: ExistingForDiff,
+  d: AssessmentInput,
+  subject: { areaId: string | null; roleId: string | null; activityId: string | null },
+): string | null {
+  const norm = (s: string | null | undefined) => (s ?? "").trim();
+  const changes: string[] = [];
+
+  if (old.status !== d.status)
+    changes.push(`Status: ${old.status} → ${d.status}`);
+
+  const oldSubject = old.areaId ?? old.roleId ?? old.activityId ?? null;
+  const newSubject = subject.areaId ?? subject.roleId ?? subject.activityId ?? null;
+  if (old.subjectType !== d.subjectType || oldSubject !== newSubject)
+    changes.push("Subject changed");
+  if (old.centerId !== d.centerId) changes.push("Centre changed");
+  if ((old.ownerId ?? "") !== norm(d.ownerId)) changes.push("Owner changed");
+  if ((old.departmentId ?? "") !== norm(d.departmentId))
+    changes.push("Department changed");
+  if (norm(old.assessorName) !== norm(d.assessorName))
+    changes.push("Assessor changed");
+  if (old.reviewFrequencyMonths !== d.reviewFrequencyMonths)
+    changes.push("Review frequency changed");
+  if (toDateInputValue(old.assessmentDate) !== d.assessmentDate)
+    changes.push("Assessment date changed");
+  if (norm(old.description) !== norm(d.description))
+    changes.push("Scope changed");
+
+  const oldById = new Map(old.hazards.map((h) => [h.id, h]));
+  const newIds = new Set(
+    d.hazards.map((h) => h.id).filter((x): x is string => Boolean(x)),
+  );
+  let added = 0;
+  let removed = 0;
+  let rerated = 0;
+  let edited = 0;
+  for (const h of d.hazards) {
+    const oh = h.id ? oldById.get(h.id) : undefined;
+    if (!oh) {
+      added++;
+      continue;
+    }
+    if (oh.likelihood !== h.likelihood || oh.severity !== h.severity) {
+      rerated++;
+      continue;
+    }
+    const textChanged =
+      norm(oh.hazard) !== norm(h.hazard) ||
+      norm(oh.riskFactor) !== norm(h.riskFactor) ||
+      norm(oh.personAtRisk) !== norm(h.personAtRisk) ||
+      norm(oh.consequence) !== norm(h.consequence) ||
+      norm(oh.currentControls) !== norm(h.currentControls) ||
+      oh.riskCategory !== h.riskCategory;
+    if (textChanged) edited++;
+  }
+  for (const oh of old.hazards) if (!newIds.has(oh.id)) removed++;
+
+  const hz: string[] = [];
+  if (added) hz.push(`${added} added`);
+  if (removed) hz.push(`${removed} removed`);
+  if (rerated) hz.push(`${rerated} re-rated`);
+  if (edited) hz.push(`${edited} edited`);
+  if (hz.length) changes.push(`Hazards: ${hz.join(", ")}`);
+
+  return changes.length ? changes.join(" · ") : null;
+}
+
 export async function createAssessment(
   _prev: FormState,
   formData: FormData,
@@ -167,14 +262,42 @@ export async function updateAssessment(
 
   const existing = await db.riskAssessment.findUnique({
     where: { id },
-    select: { lastReviewedDate: true, status: true, approvedByName: true },
+    select: {
+      lastReviewedDate: true,
+      status: true,
+      approvedByName: true,
+      centerId: true,
+      subjectType: true,
+      areaId: true,
+      roleId: true,
+      activityId: true,
+      assessorName: true,
+      reviewFrequencyMonths: true,
+      assessmentDate: true,
+      ownerId: true,
+      departmentId: true,
+      description: true,
+      hazards: {
+        select: {
+          id: true,
+          hazard: true,
+          likelihood: true,
+          severity: true,
+          riskFactor: true,
+          personAtRisk: true,
+          consequence: true,
+          currentControls: true,
+          riskCategory: true,
+        },
+      },
+    },
   });
   const assessmentDate = new Date(d.assessmentDate);
   const base = existing?.lastReviewedDate ?? assessmentDate;
   const nextReviewDate = computeNextReviewDate(base, d.reviewFrequencyMonths);
   // Editing the content invalidates any prior sign-off.
   const wasApproved = Boolean(existing?.approvedByName);
-  const statusChanged = existing != null && existing.status !== d.status;
+  const changeSummary = existing ? summariseEdit(existing, d, subject) : null;
 
   await db.$transaction([
     db.hazard.deleteMany({ where: { assessmentId: id } }),
@@ -203,12 +326,7 @@ export async function updateAssessment(
   ]);
 
   const user = await getCurrentUser();
-  await recordAudit(
-    id,
-    user,
-    "updated",
-    statusChanged ? `Status: ${existing!.status} → ${d.status}` : null,
-  );
+  await recordAudit(id, user, "updated", changeSummary);
   if (wasApproved) {
     await recordAudit(
       id,
@@ -225,6 +343,24 @@ export async function updateAssessment(
 export async function deleteAssessment(id: string): Promise<FormState> {
   const denied = await denyUnless("editContent");
   if (denied) return denied;
+  // Log the deletion first. Audit rows are orphaned (not cascaded) on delete,
+  // so this entry and the assessment's whole trail survive for review.
+  const a = await db.riskAssessment.findUnique({
+    where: { id },
+    include: {
+      area: { select: { name: true } },
+      role: { select: { name: true } },
+      activity: { select: { name: true } },
+    },
+  });
+  if (a) {
+    await recordAudit(
+      id,
+      await getCurrentUser(),
+      "deleted",
+      `${a.reference} · ${assessmentTitle(a)}`,
+    );
+  }
   await db.riskAssessment.delete({ where: { id } });
   revalidateAssessments(id);
   redirect("/assessments");

@@ -214,15 +214,16 @@ model ReviewRequest {
 // Append-only activity / change log for an assessment (created, edited,
 // approved, reviewed, status changed…) — the audit trail.
 model AuditLog {
-  id           String         @id @default(cuid())
-  assessmentId String
-  assessment   RiskAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  userId       String?
-  user         User?          @relation("AuditActor", fields: [userId], references: [id], onDelete: SetNull)
-  userName     String?
-  action       String
-  detail       String?
-  createdAt    DateTime       @default(now())
+  id            String          @id @default(cuid())
+  assessmentId  String?
+  assessment    RiskAssessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+  assessmentRef String? // denormalised so the trail stays readable if the assessment is deleted
+  userId        String?
+  user          User?           @relation("AuditActor", fields: [userId], references: [id], onDelete: SetNull)
+  userName      String?
+  action        String
+  detail        String?
+  createdAt     DateTime        @default(now())
 
   @@index([assessmentId])
   @@index([createdAt])

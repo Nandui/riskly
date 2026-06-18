@@ -127,7 +127,7 @@ export function AssessmentForm({
   };
 
   const serialized = useMemo(
-    () => JSON.stringify(hazards.map(({ key, ...rest }) => rest)),
+    () => JSON.stringify(hazards.map(({ key, ...rest }) => ({ id: key, ...rest }))),
     [hazards],
   );
 

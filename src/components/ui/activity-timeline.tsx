@@ -8,6 +8,7 @@ import {
   MessageSquarePlus,
   CheckCheck,
   ListPlus,
+  Trash2,
   Dot,
   type LucideIcon,
 } from "lucide-react";
@@ -23,6 +24,7 @@ const ACTION_META: Record<string, { label: string; Icon: LucideIcon }> = {
   review_logged: { label: "Review logged", Icon: CircleCheck },
   review_requested: { label: "Review requested", Icon: MessageSquarePlus },
   review_request_resolved: { label: "Review request resolved", Icon: CheckCheck },
+  deleted: { label: "Deleted", Icon: Trash2 },
 };
 
 export interface ActivityItem {
