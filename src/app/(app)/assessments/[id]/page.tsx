@@ -67,7 +67,13 @@ export default async function AssessmentDetailPage({
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">
             {title}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">{classification}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {classification} · Assessed by{" "}
+            <span className="font-medium text-ink-soft">
+              {a.assessorName || "—"}
+            </span>{" "}
+            · {formatDate(a.assessmentDate)}
+          </p>
           {(a.owner || a.department) && (
             <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               {a.owner && (
@@ -82,6 +88,11 @@ export default async function AssessmentDetailPage({
                   {a.department.name}
                 </span>
               )}
+            </p>
+          )}
+          {a.description && (
+            <p className="mt-2 max-w-prose text-sm text-ink-soft">
+              {a.description}
             </p>
           )}
         </div>
