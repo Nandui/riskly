@@ -2,6 +2,12 @@
 
 import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  Target,
+  CalendarDays,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import { Field, Input, Textarea, Select } from "@/components/ui/form";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { HazardEditor, type HazardDraft } from "./hazard-editor";
@@ -30,6 +36,37 @@ export interface AssessmentDefaults {
   hazards: HazardDraft[];
   ownerId: string;
   departmentId: string;
+}
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  subtitle,
+  tone = "accent",
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  tone?: "accent" | "danger";
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span
+        className={cn(
+          "flex size-8 shrink-0 items-center justify-center rounded-lg",
+          tone === "danger"
+            ? "bg-critical-bg text-critical"
+            : "bg-accent text-primary",
+        )}
+      >
+        <Icon className="size-4" />
+      </span>
+      <div>
+        <h2 className="text-base font-semibold text-ink">{title}</h2>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+    </div>
+  );
 }
 
 export function AssessmentForm({
@@ -119,9 +156,11 @@ export function AssessmentForm({
       <input type="hidden" name="subjectType" value={subjectType} />
       <input type="hidden" name="subjectId" value={subjectId} />
       <section className={cardClass}>
-        <h2 className="text-sm font-semibold text-ink">
-          What is this assessment for?
-        </h2>
+        <SectionHeader
+          icon={Target}
+          title="Scope & coverage"
+          subtitle="What is this assessment for?"
+        />
 
         <Field label="Centre" required error={fe.centerId}>
           <Select
@@ -141,7 +180,7 @@ export function AssessmentForm({
           <label className="mb-1.5 block text-sm font-medium text-ink-soft">
             This assessment covers a…
           </label>
-          <div className="inline-flex rounded-lg border border-line bg-surface p-0.5">
+          <div className="inline-flex gap-1 rounded-lg bg-surface-2 p-1">
             {SUBJECT_TYPES.map((t) => {
               const active = subjectType === t.value;
               return (
@@ -198,7 +237,11 @@ export function AssessmentForm({
       </section>
 
       <section className={cardClass}>
-        <h2 className="text-sm font-semibold text-ink">Assessment record</h2>
+        <SectionHeader
+          icon={CalendarDays}
+          title="Assessment record"
+          subtitle="Ownership, dates and review cadence"
+        />
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Status">
             <Select name="status" defaultValue={defaults.status}>
@@ -255,17 +298,14 @@ export function AssessmentForm({
       </section>
 
       <section className="space-y-4">
-        <div className="flex items-end justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-ink">
-              Hazards &amp; risk rating
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Set the likelihood and consequence for each hazard — overall risk
-              is calculated automatically.
-            </p>
-          </div>
-          <span className="text-xs tnum text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionHeader
+            icon={TriangleAlert}
+            tone="danger"
+            title="Hazards & risk rating"
+            subtitle="Set likelihood and severity — overall risk is calculated automatically"
+          />
+          <span className="rounded-md bg-surface-2 px-2.5 py-1 font-mono text-xs font-semibold tnum text-muted-foreground">
             {hazards.length} {hazards.length === 1 ? "hazard" : "hazards"}
           </span>
         </div>
@@ -281,13 +321,17 @@ export function AssessmentForm({
         />
       </section>
 
-      <div className="sticky bottom-0 -mx-4 flex items-center gap-3 border-t border-line bg-bg/85 px-4 py-4 backdrop-blur sm:mx-0 sm:rounded-b-[var(--radius-card)] sm:px-0">
+      <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t border-line bg-bg/85 px-4 py-4 backdrop-blur sm:mx-0 sm:rounded-b-[var(--radius-card)] sm:px-0">
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : submitLabel}
         </Button>
         <Link href={cancelHref} className={buttonClasses({ variant: "ghost" })}>
           Cancel
         </Link>
+        <p className="ml-auto hidden text-xs text-muted-foreground sm:block">
+          Overall risk is recalculated from each hazard&apos;s likelihood ×
+          severity.
+        </p>
       </div>
     </form>
   );

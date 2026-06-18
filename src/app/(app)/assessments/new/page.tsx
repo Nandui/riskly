@@ -52,7 +52,7 @@ export default async function NewAssessmentPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <div>
         <Link
           href="/assessments"

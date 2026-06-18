@@ -1,15 +1,15 @@
 "use client";
 
 import { Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Field } from "@/components/ui/form";
-import { RiskGauge } from "@/components/ui/risk-gauge";
 import { RISK_CATEGORIES } from "@/lib/constants";
 import {
   riskScore,
+  bandMeta,
   likelihoodLabel,
   severityLabel,
   SEVERITY_DESCRIPTIONS,
+  type BandMeta,
 } from "@/lib/risk";
 import { cn } from "@/lib/utils";
 
@@ -86,14 +86,47 @@ export function HazardEditor({
         />
       ))}
 
-      <Button
+      <button
         type="button"
-        variant="secondary"
         onClick={() => onChange([...hazards, newHazard()])}
-        className="w-full border-dashed"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-card)] border-[1.5px] border-dashed border-line-strong bg-surface text-sm font-semibold text-primary transition-colors hover:bg-surface-2"
       >
         <Plus className="size-4" /> Add hazard
-      </Button>
+      </button>
+    </div>
+  );
+}
+
+function DotRow({
+  label,
+  value,
+  meta,
+}: {
+  label: string;
+  value: number;
+  meta: BandMeta;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className={cn(
+          "w-[4.5rem] text-[0.625rem] font-bold uppercase tracking-wide",
+          meta.text,
+        )}
+      >
+        {label}
+      </span>
+      <div className="flex gap-1.5">
+        {RATINGS.map((i) => (
+          <span
+            key={i}
+            className={cn(
+              "size-2 rounded-full",
+              i <= value ? meta.dot : "bg-ink/15",
+            )}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -115,55 +148,71 @@ function HazardCard({
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
 }) {
+  const score = riskScore(hazard.likelihood, hazard.severity);
+  const meta = bandMeta(score);
+  const title = hazard.hazard.trim() || `Hazard ${index + 1}`;
+
   const iconBtn =
-    "flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent";
+    "flex size-8 shrink-0 items-center justify-center rounded-lg border transition-colors disabled:opacity-30 disabled:hover:bg-transparent";
 
   return (
     <div
       className={cn(
-        "rounded-[var(--radius-card)] border bg-surface p-4 shadow-xs sm:p-5",
+        "overflow-hidden rounded-[var(--radius-card)] border bg-surface shadow-xs print-break-avoid",
         hasError ? "border-critical-line" : "border-line",
       )}
     >
-      <div className="mb-4 flex items-center justify-between">
-        <span className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <span className="flex size-6 items-center justify-center rounded-md bg-brand-soft text-xs font-bold tnum text-brand">
-            {index + 1}
-          </span>
-          Hazard
+      {/* header */}
+      <div className="flex items-center gap-2.5 border-b border-line bg-surface-2/50 px-4 py-3">
+        <span
+          className={cn(
+            "flex size-7 shrink-0 items-center justify-center rounded-lg font-mono text-xs font-bold tnum",
+            meta.cell,
+          )}
+        >
+          {index + 1}
         </span>
-        <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            className={iconBtn}
-            onClick={() => onMove(-1)}
-            disabled={index === 0}
-            aria-label="Move up"
-          >
-            <ChevronUp className="size-4" />
-          </button>
-          <button
-            type="button"
-            className={iconBtn}
-            onClick={() => onMove(1)}
-            disabled={index === total - 1}
-            aria-label="Move down"
-          >
-            <ChevronDown className="size-4" />
-          </button>
-          <button
-            type="button"
-            className={cn(iconBtn, "hover:bg-critical-bg hover:text-critical")}
-            onClick={onRemove}
-            aria-label="Remove hazard"
-          >
-            <Trash2 className="size-4" />
-          </button>
-        </div>
+        <h3 className="min-w-0 flex-1 truncate font-semibold text-ink">
+          {title}
+        </h3>
+        <button
+          type="button"
+          className={cn(
+            iconBtn,
+            "border-line-strong text-muted-foreground hover:bg-surface hover:text-ink",
+          )}
+          onClick={() => onMove(-1)}
+          disabled={index === 0}
+          aria-label="Move up"
+        >
+          <ChevronUp className="size-4" />
+        </button>
+        <button
+          type="button"
+          className={cn(
+            iconBtn,
+            "border-line-strong text-muted-foreground hover:bg-surface hover:text-ink",
+          )}
+          onClick={() => onMove(1)}
+          disabled={index === total - 1}
+          aria-label="Move down"
+        >
+          <ChevronDown className="size-4" />
+        </button>
+        <button
+          type="button"
+          className={cn(iconBtn, "border-critical-line text-critical hover:bg-critical-bg")}
+          onClick={onRemove}
+          aria-label="Remove hazard"
+        >
+          <Trash2 className="size-4" />
+        </button>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <div className="space-y-3">
+      {/* body */}
+      <div className="grid gap-6 p-4 lg:grid-cols-[1fr_340px]">
+        {/* left: descriptive */}
+        <div className="space-y-3.5">
           <Field label="Hazard" required>
             <Input
               value={hazard.hazard}
@@ -194,11 +243,21 @@ function HazardCard({
               placeholder="What is the outcome / injury?"
             />
           </Field>
+          <Field label="Current controls" hint="One control per line.">
+            <Textarea
+              value={hazard.currentControls}
+              onChange={(e) => onUpdate({ currentControls: e.target.value })}
+              rows={3}
+              placeholder="What is already in place to reduce the risk?"
+            />
+          </Field>
         </div>
 
-        <div className="space-y-3">
-          <div className="space-y-3 rounded-lg border border-line bg-surface-2/50 p-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {/* right: risk rating */}
+        <div className="space-y-3.5">
+          <div className="rounded-xl border border-line bg-surface-2/50 p-4">
+            <p className="eyebrow mb-3">Risk rating</p>
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Likelihood">
                 <Select
                   value={String(hazard.likelihood)}
@@ -213,7 +272,7 @@ function HazardCard({
                   ))}
                 </Select>
               </Field>
-              <Field label="Consequence severity">
+              <Field label="Severity">
                 <Select
                   value={String(hazard.severity)}
                   onChange={(e) =>
@@ -228,19 +287,30 @@ function HazardCard({
                 </Select>
               </Field>
             </div>
-            <p className="text-xs leading-relaxed text-muted-foreground">
+            <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
               {SEVERITY_DESCRIPTIONS[hazard.severity - 1]}
             </p>
-            <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
+          </div>
+
+          {/* live overall risk */}
+          <div className={cn("rounded-xl p-4", meta.cell)}>
+            <div className="flex items-center gap-3.5">
+              <span className="font-mono text-4xl font-bold leading-none tnum">
+                {score}
+              </span>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Overall risk
+                <p className="text-[0.625rem] font-semibold uppercase tracking-wider opacity-80">
+                  Overall risk · L×S
                 </p>
-                <p className="text-[0.7rem] text-faint">Likelihood × severity</p>
+                <p className="text-lg font-bold leading-tight">{meta.label}</p>
               </div>
-              <RiskGauge score={riskScore(hazard.likelihood, hazard.severity)} />
+            </div>
+            <div className="mt-3.5 space-y-1.5">
+              <DotRow label="Likelihood" value={hazard.likelihood} meta={meta} />
+              <DotRow label="Severity" value={hazard.severity} meta={meta} />
             </div>
           </div>
+
           <Field label="Risk category">
             <Select
               value={hazard.riskCategory}
@@ -254,17 +324,6 @@ function HazardCard({
             </Select>
           </Field>
         </div>
-      </div>
-
-      <div className="mt-3">
-        <Field label="Current controls">
-          <Textarea
-            value={hazard.currentControls}
-            onChange={(e) => onUpdate({ currentControls: e.target.value })}
-            rows={3}
-            placeholder="Measures already in place that the rating reflects"
-          />
-        </Field>
       </div>
     </div>
   );
