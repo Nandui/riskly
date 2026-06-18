@@ -84,6 +84,7 @@ export function AssessmentForm({
   departments,
   defaults,
   cancelHref,
+  takenAreaIds,
 }: {
   action: (prev: FormState, fd: FormData) => Promise<FormState>;
   submitLabel: string;
@@ -95,6 +96,7 @@ export function AssessmentForm({
   departments: Option[];
   defaults: AssessmentDefaults;
   cancelHref: string;
+  takenAreaIds: string[];
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(
     action,
@@ -251,11 +253,16 @@ export function AssessmentForm({
                 ? "Choose a centre first"
                 : `Select ${subjectLabel.toLowerCase()}…`}
             </option>
-            {subjectOptions.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
+            {subjectOptions.map((o) => {
+              const taken =
+                subjectType === "Area" && takenAreaIds.includes(o.id);
+              return (
+                <option key={o.id} value={o.id} disabled={taken}>
+                  {o.name}
+                  {taken ? " — already assessed" : ""}
+                </option>
+              );
+            })}
           </Select>
         </Field>
 

@@ -75,6 +75,7 @@ export default async function NewAssessmentPage() {
           name: u.name ?? u.email ?? "Unknown user",
         }))}
         departments={form.departments}
+        takenAreaIds={form.assessedAreaIds}
         defaults={defaults}
         cancelHref="/assessments"
       />

@@ -10,7 +10,11 @@ import {
 } from "@/lib/validation";
 import { fieldErrorsFromZod, emptyToNull, type FormState } from "@/lib/form";
 import { computeNextReviewDate, toDateInputValue } from "@/lib/utils";
-import { nextReference, assessmentTitle } from "@/lib/data/assessments";
+import {
+  nextReference,
+  assessmentTitle,
+  findAreaAssessment,
+} from "@/lib/data/assessments";
 import { denyUnless, getCurrentUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 
@@ -207,6 +211,18 @@ export async function createAssessment(
   const subject = await resolveSubject(d);
   if (!subject.ok) return { ok: false, error: subject.error };
 
+  // One assessment per area: block a duplicate for an already-assessed area.
+  if (subject.areaId) {
+    const existing = await findAreaAssessment(subject.areaId);
+    if (existing) {
+      return {
+        ok: false,
+        error: `An assessment already exists for this area (${existing.reference}). Edit that one instead of creating a duplicate.`,
+        fieldErrors: { subjectId: "This area already has an assessment." },
+      };
+    }
+  }
+
   const assessmentDate = new Date(d.assessmentDate);
   const nextReviewDate = computeNextReviewDate(
     assessmentDate,
@@ -259,6 +275,18 @@ export async function updateAssessment(
   const d = parsed.data;
   const subject = await resolveSubject(d);
   if (!subject.ok) return { ok: false, error: subject.error };
+
+  // One assessment per area: block moving onto an area another assessment has.
+  if (subject.areaId) {
+    const clash = await findAreaAssessment(subject.areaId, id);
+    if (clash) {
+      return {
+        ok: false,
+        error: `Another assessment already covers this area (${clash.reference}).`,
+        fieldErrors: { subjectId: "This area already has an assessment." },
+      };
+    }
+  }
 
   const existing = await db.riskAssessment.findUnique({
     where: { id },

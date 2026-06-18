@@ -85,6 +85,9 @@ export default async function EditAssessmentPage({
           name: u.name ?? u.email ?? "Unknown user",
         }))}
         departments={form.departments}
+        takenAreaIds={form.assessedAreaIds.filter(
+          (id) => id !== (a.areaId ?? ""),
+        )}
         defaults={defaults}
         cancelHref={`/assessments/${a.id}`}
       />

@@ -153,40 +153,51 @@ export type AssessmentDetail = NonNullable<
 
 // Centres + their areas + org roles/activities, for the assessment form selects.
 export async function getAssessmentFormData() {
-  const [centers, roles, activities, departments, users] = await Promise.all([
-    db.center.findMany({
-      where: { isActive: true },
-      orderBy: { name: "asc" },
-      select: {
-        id: true,
-        name: true,
-        areas: {
-          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-          select: { id: true, name: true },
+  const [centers, roles, activities, departments, users, assessedAreas] =
+    await Promise.all([
+      db.center.findMany({
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          areas: {
+            orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+            select: { id: true, name: true },
+          },
         },
-      },
-    }),
-    db.role.findMany({
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true },
-    }),
-    db.activity.findMany({
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true },
-    }),
-    db.department.findMany({
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true },
-    }),
-    db.user.findMany({
-      where: { isActive: true },
-      orderBy: [{ name: "asc" }, { email: "asc" }],
-      select: { id: true, name: true, email: true },
-    }),
-  ]);
+      }),
+      db.role.findMany({
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: { id: true, name: true },
+      }),
+      db.activity.findMany({
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: { id: true, name: true },
+      }),
+      db.department.findMany({
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: { id: true, name: true },
+      }),
+      db.user.findMany({
+        where: { isActive: true },
+        orderBy: [{ name: "asc" }, { email: "asc" }],
+        select: { id: true, name: true, email: true },
+      }),
+      // Areas that already have an assessment — one assessment per area.
+      db.riskAssessment.findMany({
+        where: { areaId: { not: null } },
+        select: { areaId: true },
+        distinct: ["areaId"],
+      }),
+    ]);
 
   const areasByCenter: Record<string, { id: string; name: string }[]> = {};
   for (const c of centers) areasByCenter[c.id] = c.areas;
+
+  const assessedAreaIds = assessedAreas
+    .map((r) => r.areaId)
+    .filter((id): id is string => Boolean(id));
 
   return {
     centers: centers.map((c) => ({ id: c.id, name: c.name })),
@@ -195,7 +206,17 @@ export async function getAssessmentFormData() {
     activities,
     departments,
     users,
+    assessedAreaIds,
   };
+}
+
+// Areas are 1:1 with assessments — find the assessment (if any) already
+// covering an area, optionally excluding one (used when editing).
+export async function findAreaAssessment(areaId: string, excludeId?: string) {
+  return db.riskAssessment.findFirst({
+    where: { areaId, ...(excludeId ? { id: { not: excludeId } } : {}) },
+    select: { id: true, reference: true },
+  });
 }
 
 function deriveSiteCode(name: string): string {
