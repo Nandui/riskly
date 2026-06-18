@@ -1,21 +1,25 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   Target,
   CalendarDays,
   TriangleAlert,
+  Sparkles,
+  Loader2,
   type LucideIcon,
 } from "lucide-react";
 import { Field, Input, Textarea, Select } from "@/components/ui/form";
 import { Button, buttonClasses } from "@/components/ui/button";
-import { HazardEditor, type HazardDraft } from "./hazard-editor";
+import { HazardEditor, newHazard, type HazardDraft } from "./hazard-editor";
 import {
   ASSESSMENT_STATUSES,
   REVIEW_FREQUENCY_OPTIONS,
   SUBJECT_TYPES,
 } from "@/lib/constants";
+import { generateAssessmentHazards } from "@/lib/actions/ai-draft";
 import { cn } from "@/lib/utils";
 import type { FormState } from "@/lib/form";
 
@@ -102,6 +106,8 @@ export function AssessmentForm({
   const [subjectType, setSubjectType] = useState(defaults.subjectType || "Area");
   const [subjectId, setSubjectId] = useState(defaults.subjectId);
   const [hazards, setHazards] = useState<HazardDraft[]>(defaults.hazards);
+  const [aiHint, setAiHint] = useState("");
+  const [aiPending, startAi] = useTransition();
 
   const subjectOptions: Option[] =
     subjectType === "Area"
@@ -124,6 +130,33 @@ export function AssessmentForm({
   const onSubjectTypeChange = (t: string) => {
     setSubjectType(t);
     setSubjectId("");
+  };
+
+  const onGenerate = () => {
+    if (!subjectId) {
+      toast.error(`Choose a ${subjectLabel.toLowerCase()} first.`);
+      return;
+    }
+    startAi(async () => {
+      const res = await generateAssessmentHazards({
+        centerId,
+        subjectType: subjectType as "Area" | "Role" | "Activity",
+        subjectId,
+        hint: aiHint,
+      });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      const drafted = res.hazards.map((h) => ({ ...newHazard(), ...h }));
+      setHazards((prev) => [...prev, ...drafted]);
+      setAiHint("");
+      toast.success(
+        `Added ${drafted.length} AI-drafted hazard${
+          drafted.length === 1 ? "" : "s"
+        } — review and edit each before saving.`,
+      );
+    });
   };
 
   const serialized = useMemo(
@@ -309,6 +342,55 @@ export function AssessmentForm({
             {hazards.length} {hazards.length === 1 ? "hazard" : "hazards"}
           </span>
         </div>
+
+        <div className="rounded-[var(--radius-card)] border border-primary/20 bg-accent/40 p-4">
+          <div className="flex items-start gap-3">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Sparkles className="size-4" />
+            </span>
+            <div className="min-w-0 flex-1 space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-ink">Draft hazards with AI</p>
+                <p className="text-xs text-muted-foreground">
+                  Claude reviews the selected {subjectLabel.toLowerCase()} and drafts
+                  the most important hazards, fully rated. Review and edit each one
+                  before saving — it&apos;s a starting point, not a sign-off.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  value={aiHint}
+                  onChange={(e) => setAiHint(e.target.value)}
+                  placeholder="Optional focus, e.g. children's lessons, chemical store…"
+                  disabled={aiPending}
+                  className="sm:flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={onGenerate}
+                  disabled={aiPending || !subjectId}
+                  className="shrink-0"
+                >
+                  {aiPending ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" /> Drafting…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="size-4" /> Generate hazards
+                    </>
+                  )}
+                </Button>
+              </div>
+              {!subjectId && (
+                <p className="text-xs text-muted-foreground">
+                  Pick a {subjectLabel.toLowerCase()} above to enable AI drafting.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
         {hazardErrorIdx.size > 0 && (
           <p className="text-xs font-medium text-critical">
             Some hazards need a description before saving.
