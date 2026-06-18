@@ -123,6 +123,69 @@ export async function listAssessments(filters: AssessmentFilters = {}) {
 
 export type AssessmentRow = Awaited<ReturnType<typeof listAssessments>>[number];
 
+export type SearchHit = AssessmentRow & { headline: string };
+
+// Full-text search across an assessment AND all of its hazards' content
+// (hazard, risk factor, person at risk, consequence, controls, category) plus
+// reference / scope / subject. Ranked by relevance, with a highlighted snippet
+// showing where it matched. The searchable document is built from joins at
+// query time, so there is nothing to keep in sync.
+export async function searchAssessments(
+  query: string,
+  centerId: string | null,
+): Promise<SearchHit[]> {
+  const q = query.trim();
+  if (!q) return [];
+
+  const hits = await db.$queryRaw<
+    { id: string; rank: number; headline: string }[]
+  >`
+    WITH docs AS (
+      SELECT
+        ra."id",
+        ra."updatedAt",
+        ra."centerId",
+        concat_ws(' ',
+          ra."reference", ra."description", ra."assessorName",
+          ar."name", ro."name", ac."name", hz."htext"
+        ) AS doc
+      FROM "RiskAssessment" ra
+      LEFT JOIN "Area" ar ON ra."areaId" = ar."id"
+      LEFT JOIN "Role" ro ON ra."roleId" = ro."id"
+      LEFT JOIN "Activity" ac ON ra."activityId" = ac."id"
+      LEFT JOIN LATERAL (
+        SELECT string_agg(
+          concat_ws(' ', h."hazard", h."riskFactor", h."personAtRisk",
+                    h."consequence", h."currentControls", h."riskCategory"),
+          ' '
+        ) AS htext
+        FROM "Hazard" h WHERE h."assessmentId" = ra."id"
+      ) hz ON TRUE
+    )
+    SELECT
+      "id",
+      ts_rank(to_tsvector('english', doc), websearch_to_tsquery('english', ${q})) AS rank,
+      ts_headline('english', doc, websearch_to_tsquery('english', ${q}),
+        'StartSel=[[hl]], StopSel=[[/hl]], MaxFragments=2, MinWords=3, MaxWords=12, FragmentDelimiter= … ') AS headline
+    FROM docs
+    WHERE to_tsvector('english', doc) @@ websearch_to_tsquery('english', ${q})
+      AND (${centerId}::text IS NULL OR "centerId" = ${centerId})
+    ORDER BY rank DESC, "updatedAt" DESC
+    LIMIT 50
+  `;
+  if (hits.length === 0) return [];
+
+  // Reuse the enriched rows (risk summary, title, centre scope), keep rank order.
+  const rows = await listAssessments({ centerId });
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return hits
+    .map((h) => {
+      const row = byId.get(h.id);
+      return row ? { ...row, headline: h.headline } : null;
+    })
+    .filter((r): r is SearchHit => r !== null);
+}
+
 export async function getAssessmentDetail(id: string) {
   return db.riskAssessment.findUnique({
     where: { id },

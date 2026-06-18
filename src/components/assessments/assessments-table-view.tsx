@@ -28,10 +28,12 @@ export function AssessmentsTableView({
   rows,
   showCenter,
   compact = false,
+  searchable,
 }: {
   rows: AssessmentRow[];
   showCenter: boolean;
   compact?: boolean;
+  searchable?: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -220,7 +222,7 @@ export function AssessmentsTableView({
       <DataTable
         columns={columns}
         data={rows}
-        searchable={!compact}
+        searchable={searchable ?? !compact}
         searchPlaceholder="Search reference or subject…"
         facets={compact ? [] : facets}
         initialColumnVisibility={{
