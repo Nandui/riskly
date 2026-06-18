@@ -41,7 +41,6 @@ export default async function EditAssessmentPage({
     subjectId,
     status: a.status,
     assessorName: a.assessorName ?? "",
-    approvedByName: a.approvedByName ?? "",
     assessmentDate: toDateInputValue(a.assessmentDate),
     reviewFrequencyMonths: a.reviewFrequencyMonths,
     hazards: a.hazards.map((h) => ({

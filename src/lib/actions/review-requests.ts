@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { reviewRequestSchema } from "@/lib/validation";
 import { fieldErrorsFromZod, type FormState } from "@/lib/form";
 import { getCurrentUser, can } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 
 function revalidate(assessmentId: string) {
   revalidatePath(`/assessments/${assessmentId}`);
@@ -34,6 +35,12 @@ export async function requestReview(
       notes: parsed.data.notes,
     },
   });
+  await recordAudit(
+    parsed.data.assessmentId,
+    user,
+    "review_requested",
+    parsed.data.notes,
+  );
   revalidate(parsed.data.assessmentId);
   return { ok: true };
 }
@@ -51,6 +58,12 @@ export async function resolveReviewRequest(
     data: { status: action, resolvedAt: new Date(), resolvedById: user.id },
     select: { assessmentId: true },
   });
+  await recordAudit(
+    req.assessmentId,
+    user,
+    "review_request_resolved",
+    `Request ${action.toLowerCase()}`,
+  );
   revalidate(req.assessmentId);
   return { ok: true };
 }

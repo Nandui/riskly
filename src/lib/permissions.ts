@@ -53,7 +53,7 @@ export const CAPABILITIES: {
   {
     key: "review",
     label: "Review assessments",
-    description: "Log reviews, action requests and change status",
+    description: "Log reviews, approve sign-off, action requests and change status",
   },
   {
     key: "editContent",

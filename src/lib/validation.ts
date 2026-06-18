@@ -59,7 +59,6 @@ export const assessmentSchema = z.object({
     .enum(["Draft", "Active", "UnderReview", "Archived"])
     .default("Draft"),
   assessorName: optionalText(120),
-  approvedByName: optionalText(120),
   assessmentDate: z.string().min(1, "Set an assessment date"),
   reviewFrequencyMonths: z.coerce.number().int().min(1).max(60),
   hazards: z.array(hazardSchema).default([]),

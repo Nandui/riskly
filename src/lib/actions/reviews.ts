@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { reviewLogSchema } from "@/lib/validation";
 import { fieldErrorsFromZod, emptyToNull, type FormState } from "@/lib/form";
 import { computeNextReviewDate } from "@/lib/utils";
-import { denyUnless } from "@/lib/auth";
+import { denyUnless, getCurrentUser } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 
 export async function logReview(
   _prev: FormState,
@@ -63,6 +64,13 @@ export async function logReview(
       },
     }),
   ]);
+
+  await recordAudit(
+    d.assessmentId,
+    await getCurrentUser(),
+    "review_logged",
+    `Outcome: ${d.outcome}${d.newStatus ? ` · status → ${d.newStatus}` : ""}`,
+  );
 
   revalidatePath("/monitoring");
   revalidatePath("/");

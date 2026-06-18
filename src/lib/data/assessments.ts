@@ -142,6 +142,7 @@ export async function getAssessmentDetail(id: string) {
           resolvedBy: { select: { name: true, email: true } },
         },
       },
+      auditLogs: { orderBy: { createdAt: "desc" }, take: 50 },
     },
   });
 }

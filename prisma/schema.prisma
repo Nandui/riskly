@@ -89,6 +89,9 @@ model RiskAssessment {
   status                String    @default("Draft") // Draft | Active | UnderReview | Archived
   assessorName          String?
   approvedByName        String?
+  approvedById          String?
+  approvedBy            User?     @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedAt            DateTime?
   assessmentDate        DateTime  @default(now())
   reviewFrequencyMonths Int       @default(12)
   lastReviewedDate      DateTime?
@@ -100,6 +103,7 @@ model RiskAssessment {
   hazards        Hazard[]
   reviewLogs     ReviewLog[]
   reviewRequests ReviewRequest[]
+  auditLogs      AuditLog[]
   assignees      User[]          @relation("Assignees")
 
   @@index([centerId])
@@ -162,8 +166,10 @@ model User {
   updatedAt    DateTime @updatedAt
 
   assignedAssessments    RiskAssessment[] @relation("Assignees")
+  approvedAssessments    RiskAssessment[] @relation("ApprovedBy")
   reviewRequestsMade     ReviewRequest[]  @relation("RequestedBy")
   reviewRequestsResolved ReviewRequest[]  @relation("ResolvedBy")
+  auditLogs              AuditLog[]       @relation("AuditActor")
 
   @@index([role])
 }
@@ -184,4 +190,21 @@ model ReviewRequest {
 
   @@index([assessmentId])
   @@index([status])
+}
+
+// Append-only activity / change log for an assessment (created, edited,
+// approved, reviewed, status changed…) — the audit trail.
+model AuditLog {
+  id           String         @id @default(cuid())
+  assessmentId String
+  assessment   RiskAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?          @relation("AuditActor", fields: [userId], references: [id], onDelete: SetNull)
+  userName     String?
+  action       String
+  detail       String?
+  createdAt    DateTime       @default(now())
+
+  @@index([assessmentId])
+  @@index([createdAt])
 }

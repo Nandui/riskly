@@ -25,7 +25,6 @@ export interface AssessmentDefaults {
   subjectId: string;
   status: string;
   assessorName: string;
-  approvedByName: string;
   assessmentDate: string;
   reviewFrequencyMonths: number;
   hazards: HazardDraft[];
@@ -242,12 +241,6 @@ export function AssessmentForm({
           </Field>
           <Field label="Assessed by" error={fe.assessorName}>
             <Input name="assessorName" defaultValue={defaults.assessorName} />
-          </Field>
-          <Field label="Verified / approved by" error={fe.approvedByName}>
-            <Input
-              name="approvedByName"
-              defaultValue={defaults.approvedByName}
-            />
           </Field>
         </div>
 

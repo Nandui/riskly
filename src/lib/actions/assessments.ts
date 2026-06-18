@@ -7,7 +7,8 @@ import { assessmentSchema, type AssessmentInput } from "@/lib/validation";
 import { fieldErrorsFromZod, emptyToNull, type FormState } from "@/lib/form";
 import { computeNextReviewDate } from "@/lib/utils";
 import { nextReference } from "@/lib/data/assessments";
-import { denyUnless } from "@/lib/auth";
+import { denyUnless, getCurrentUser } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 
 function revalidateAssessments(id?: string) {
   revalidatePath("/assessments");
@@ -43,7 +44,6 @@ function parseAssessmentForm(formData: FormData) {
     subjectId: formData.get("subjectId"),
     status: formData.get("status") || "Draft",
     assessorName: formData.get("assessorName"),
-    approvedByName: formData.get("approvedByName"),
     assessmentDate: formData.get("assessmentDate"),
     reviewFrequencyMonths: formData.get("reviewFrequencyMonths"),
     hazards,
@@ -133,7 +133,6 @@ export async function createAssessment(
       activityId: subject.activityId,
       status: d.status,
       assessorName: emptyToNull(d.assessorName),
-      approvedByName: emptyToNull(d.approvedByName),
       assessmentDate,
       reviewFrequencyMonths: d.reviewFrequencyMonths,
       lastReviewedDate: d.status === "Draft" ? null : assessmentDate,
@@ -142,6 +141,8 @@ export async function createAssessment(
       assignees: { connect: d.assigneeIds.map((id) => ({ id })) },
     },
   });
+
+  await recordAudit(created.id, await getCurrentUser(), "created");
 
   revalidateAssessments(created.id);
   redirect(`/assessments/${created.id}`);
@@ -169,11 +170,14 @@ export async function updateAssessment(
 
   const existing = await db.riskAssessment.findUnique({
     where: { id },
-    select: { lastReviewedDate: true },
+    select: { lastReviewedDate: true, status: true, approvedByName: true },
   });
   const assessmentDate = new Date(d.assessmentDate);
   const base = existing?.lastReviewedDate ?? assessmentDate;
   const nextReviewDate = computeNextReviewDate(base, d.reviewFrequencyMonths);
+  // Editing the content invalidates any prior sign-off.
+  const wasApproved = Boolean(existing?.approvedByName);
+  const statusChanged = existing != null && existing.status !== d.status;
 
   await db.$transaction([
     db.hazard.deleteMany({ where: { assessmentId: id } }),
@@ -188,15 +192,33 @@ export async function updateAssessment(
         activityId: subject.activityId,
         status: d.status,
         assessorName: emptyToNull(d.assessorName),
-        approvedByName: emptyToNull(d.approvedByName),
         assessmentDate,
         reviewFrequencyMonths: d.reviewFrequencyMonths,
         nextReviewDate,
+        ...(wasApproved
+          ? { approvedByName: null, approvedById: null, approvedAt: null }
+          : {}),
         hazards: { create: hazardCreateData(d.hazards) },
         assignees: { set: d.assigneeIds.map((id) => ({ id })) },
       },
     }),
   ]);
+
+  const user = await getCurrentUser();
+  await recordAudit(
+    id,
+    user,
+    "updated",
+    statusChanged ? `Status: ${existing!.status} → ${d.status}` : null,
+  );
+  if (wasApproved) {
+    await recordAudit(
+      id,
+      user,
+      "approval_revoked",
+      "Reset because the assessment was edited",
+    );
+  }
 
   revalidateAssessments(id);
   redirect(`/assessments/${id}`);

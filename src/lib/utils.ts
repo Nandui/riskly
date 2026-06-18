@@ -27,6 +27,11 @@ export function formatDate(value: Date | string | null | undefined): string {
   return d ? format(d, "d MMM yyyy") : "—";
 }
 
+export function formatDateTime(value: Date | string | null | undefined): string {
+  const d = toDate(value);
+  return d ? format(d, "d MMM yyyy, HH:mm") : "—";
+}
+
 export function toDateInputValue(
   value: Date | string | null | undefined,
 ): string {

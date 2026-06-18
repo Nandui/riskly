@@ -4,12 +4,25 @@ import {
   RefreshCw,
   History,
   ShieldCheck,
+  FilePlus2,
+  Pencil,
+  Upload,
+  Undo2,
+  CircleCheck,
+  MessageSquarePlus,
+  CheckCheck,
+  Dot,
+  type LucideIcon,
 } from "lucide-react";
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { CategoryBadge } from "@/components/ui/badge";
 import { ReviewChip } from "@/components/ui/review-chip";
+import {
+  ApproveButton,
+  WithdrawApprovalButton,
+} from "@/components/assessments/approval-button";
 import { summarizeAssessment, type AssessmentDetail } from "@/lib/data/assessments";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
 import { riskScore } from "@/lib/risk";
 import { REVIEW_FREQUENCY_OPTIONS, REVIEW_OUTCOMES } from "@/lib/constants";
 
@@ -55,10 +68,26 @@ function Block({ label, value }: { label: string; value: string | null }) {
   );
 }
 
+const ACTION_META: Record<string, { label: string; Icon: LucideIcon }> = {
+  created: { label: "Created", Icon: FilePlus2 },
+  updated: { label: "Edited", Icon: Pencil },
+  imported: { label: "Imported", Icon: Upload },
+  approved: { label: "Approved", Icon: ShieldCheck },
+  approval_revoked: { label: "Approval withdrawn", Icon: Undo2 },
+  review_logged: { label: "Review logged", Icon: CircleCheck },
+  review_requested: { label: "Review requested", Icon: MessageSquarePlus },
+  review_request_resolved: {
+    label: "Review request resolved",
+    Icon: CheckCheck,
+  },
+};
+
 export function AssessmentView({
   assessment: a,
+  canApprove,
 }: {
   assessment: AssessmentDetail;
+  canApprove: boolean;
 }) {
   const summary = summarizeAssessment(a);
 
@@ -76,9 +105,6 @@ export function AssessmentView({
           <dl className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Fact icon={UserCheck} label="Assessed by">
               {a.assessorName || "—"}
-            </Fact>
-            <Fact icon={ShieldCheck} label="Verified / approved by">
-              {a.approvedByName || "—"}
             </Fact>
             <Fact icon={CalendarDays} label="Assessment date">
               {formatDate(a.assessmentDate)}
@@ -104,6 +130,31 @@ export function AssessmentView({
             <p className="mt-1 text-xs text-muted">
               {formatDate(a.nextReviewDate)}
             </p>
+          </div>
+          <div className="border-t border-line pt-3">
+            <p className="eyebrow mb-1.5">Approval</p>
+            {a.approvedByName ? (
+              <div>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand-soft px-2.5 py-0.5 text-xs font-medium text-brand-strong">
+                  <ShieldCheck className="size-3.5" /> Approved
+                </span>
+                <p className="mt-1.5 text-sm font-medium text-ink">
+                  {a.approvedByName}
+                </p>
+                <p className="text-xs text-muted">{formatDate(a.approvedAt)}</p>
+                {canApprove && (
+                  <div className="no-print mt-2">
+                    <WithdrawApprovalButton id={a.id} />
+                  </div>
+                )}
+              </div>
+            ) : canApprove ? (
+              <div className="no-print">
+                <ApproveButton id={a.id} />
+              </div>
+            ) : (
+              <p className="text-sm text-muted">Not yet approved</p>
+            )}
           </div>
           <div className="flex gap-5 border-t border-line pt-3 text-sm">
             <div>
@@ -194,6 +245,40 @@ export function AssessmentView({
                 </span>
               </li>
             ))}
+          </ul>
+        </section>
+      )}
+
+      {a.auditLogs.length > 0 && (
+        <section className="space-y-3 print-break-avoid">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <History className="size-4 text-muted" /> Activity
+          </h2>
+          <ul className="space-y-3 rounded-[var(--radius-card)] border border-line bg-surface p-4">
+            {a.auditLogs.map((e) => {
+              const meta = ACTION_META[e.action] ?? {
+                label: e.action,
+                Icon: Dot,
+              };
+              return (
+                <li key={e.id} className="flex items-start gap-3 text-sm">
+                  <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted">
+                    <meta.Icon className="size-3.5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-ink">
+                      <span className="font-medium">{meta.label}</span>
+                      {e.detail && (
+                        <span className="text-muted"> — {e.detail}</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {e.userName ?? "System"} · {formatDateTime(e.createdAt)}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}

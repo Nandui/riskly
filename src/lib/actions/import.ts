@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { denyUnless } from "@/lib/auth";
+import { denyUnless, getCurrentUser } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 import { hazardSchema } from "@/lib/validation";
 import { emptyToNull } from "@/lib/form";
 import { computeNextReviewDate } from "@/lib/utils";
@@ -164,6 +165,13 @@ export async function importAssessment(
     });
     assessmentId = created.id;
   }
+
+  await recordAudit(
+    assessmentId,
+    await getCurrentUser(),
+    "imported",
+    `${d.hazards.length} hazard${d.hazards.length === 1 ? "" : "s"} imported`,
+  );
 
   revalidatePath("/assessments");
   revalidatePath("/monitoring");

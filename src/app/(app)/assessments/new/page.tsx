@@ -44,7 +44,6 @@ export default async function NewAssessmentPage() {
     subjectId: "",
     status: "Draft",
     assessorName: "",
-    approvedByName: "",
     assessmentDate: toDateInputValue(new Date()),
     reviewFrequencyMonths: 12,
     hazards: [],
