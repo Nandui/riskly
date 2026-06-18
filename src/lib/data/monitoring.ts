@@ -32,7 +32,10 @@ export async function getDashboard(centerId: string | null) {
   const reviewsDue = active.filter((a) => a.summary.review.key === "due").length;
 
   const attention = active
-    .filter((a) => a.summary.review.key !== "ok")
+    .filter(
+      (a) =>
+        a.summary.review.key === "overdue" || a.summary.review.key === "due",
+    )
     .sort((x, y) => x.summary.review.days - y.summary.review.days)
     .slice(0, 6);
 
@@ -86,7 +89,11 @@ export async function getReviewQueue(
 ): Promise<ReviewQueueItem[]> {
   const rows = await listAssessments({ centerId });
   return rows
-    .filter((a) => a.status !== "Archived" && a.summary.review.key !== "ok")
+    .filter(
+      (a) =>
+        a.status !== "Archived" &&
+        (a.summary.review.key === "overdue" || a.summary.review.key === "due"),
+    )
     .sort((x, y) => x.summary.review.days - y.summary.review.days);
 }
 

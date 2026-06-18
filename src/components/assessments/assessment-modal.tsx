@@ -119,9 +119,11 @@ export function AssessmentModal({
                 </Fact>
                 <Fact label="Next review">
                   <ReviewChip review={data.review} />
-                  <span className="mt-1 block text-xs font-normal text-muted-foreground">
-                    {data.nextReviewDate}
-                  </span>
+                  {data.review.key !== "none" && (
+                    <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                      {data.nextReviewDate}
+                    </span>
+                  )}
                 </Fact>
                 <Fact label="Assessed by">
                   {data.assessorName || "—"}

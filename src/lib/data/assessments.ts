@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { riskBand, riskScore, isHighRisk, type RiskBand } from "@/lib/risk";
-import { getReviewStatus, type ReviewStatus } from "@/lib/utils";
+import { reviewStatusFor, type ReviewStatus } from "@/lib/utils";
 
 // An assessment is named after its subject (the area/role/activity it covers).
 export function assessmentTitle(a: {
@@ -28,6 +28,7 @@ export interface AssessmentSummary {
 }
 
 export function summarizeAssessment(a: {
+  status: string;
   hazards: HazardRatings[];
   nextReviewDate: Date | string;
 }): AssessmentSummary {
@@ -52,7 +53,7 @@ export function summarizeAssessment(a: {
     overallScore,
     headlineBand: a.hazards.length ? riskBand(overallScore) : null,
     highRiskCount,
-    review: getReviewStatus(a.nextReviewDate),
+    review: reviewStatusFor(a),
   };
 }
 

@@ -1,4 +1,4 @@
-import { CalendarClock, CalendarCheck, CalendarX } from "lucide-react";
+import { CalendarClock, CalendarCheck, CalendarX, CalendarOff } from "lucide-react";
 import type { ReviewStatus } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,10 @@ const META = {
   ok: {
     cls: "bg-surface-2 text-muted-foreground border-line",
     icon: CalendarCheck,
+  },
+  none: {
+    cls: "bg-surface-2 text-faint border-line",
+    icon: CalendarOff,
   },
 } as const;
 

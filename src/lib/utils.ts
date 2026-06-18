@@ -43,7 +43,7 @@ export function computeNextReviewDate(base: Date, months: number): Date {
   return addMonths(base, months);
 }
 
-export type ReviewUrgency = "overdue" | "due" | "ok";
+export type ReviewUrgency = "overdue" | "due" | "ok" | "none";
 
 export interface ReviewStatus {
   key: ReviewUrgency;
@@ -63,6 +63,18 @@ export function getReviewStatus(
   if (days === 0) return { key: "due", label: "Due today", days };
   if (days <= dueSoonDays) return { key: "due", label: `Due in ${days}d`, days };
   return { key: "ok", label: `Due in ${days}d`, days };
+}
+
+// Status-aware review status. A Draft isn't in force yet, so it has no review
+// schedule — it reads as "Not scheduled" and drops out of the due/overdue
+// counts and the review queue. Everything else uses the date.
+export function reviewStatusFor(
+  a: { status: string; nextReviewDate: Date | string | null | undefined },
+  dueSoonDays = 30,
+): ReviewStatus {
+  if (a.status === "Draft")
+    return { key: "none", label: "Not scheduled", days: Infinity };
+  return getReviewStatus(a.nextReviewDate, dueSoonDays);
 }
 
 export function pluralize(count: number, singular: string, plural?: string) {

@@ -21,7 +21,7 @@ import type { AssessmentDetail } from "@/lib/data/assessments";
 import {
   formatDate,
   formatDateTime,
-  getReviewStatus,
+  reviewStatusFor,
   cn,
 } from "@/lib/utils";
 import {
@@ -82,7 +82,7 @@ export function AssessmentView({
     ? Math.round(hazards.reduce((n, h) => n + h.score, 0) / hazardCount)
     : 0;
   const headlineBand = hazardCount ? riskBand(overallScore) : null;
-  const review = getReviewStatus(a.nextReviewDate);
+  const review = reviewStatusFor(a);
 
   const distribution = BANDS_DESC.map((band) => ({
     band,
@@ -218,12 +218,20 @@ export function AssessmentView({
             <div className="border-t border-line pt-3.5">
               <p className="eyebrow mb-2">Next review</p>
               <ReviewChip review={review} />
-              <p className="mt-1.5 text-sm font-medium text-ink">
-                {formatDate(a.nextReviewDate)}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {frequencyLabel(a.reviewFrequencyMonths)}
-              </p>
+              {review.key === "none" ? (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Scheduled once the assessment is active.
+                </p>
+              ) : (
+                <>
+                  <p className="mt-1.5 text-sm font-medium text-ink">
+                    {formatDate(a.nextReviewDate)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {frequencyLabel(a.reviewFrequencyMonths)}
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
