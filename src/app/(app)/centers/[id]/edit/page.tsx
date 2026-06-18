@@ -27,10 +27,10 @@ export default async function EditCenterPage({
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <Link
-          href="/centers"
+          href="/admin"
           className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-ink"
         >
-          <ArrowLeft className="size-4" /> Centres
+          <ArrowLeft className="size-4" /> Admin
         </Link>
         <PageHeader eyebrow="Edit centre" title={center.name} />
       </div>

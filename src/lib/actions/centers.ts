@@ -25,7 +25,7 @@ async function uniqueSlug(name: string, excludeId?: string): Promise<string> {
 
 function revalidateCenters() {
   revalidateTag("centers", { expire: 0 });
-  revalidatePath("/centers");
+  revalidatePath("/admin");
   revalidatePath("/", "layout");
 }
 
@@ -93,7 +93,7 @@ export async function createCenter(
     },
   });
   revalidateCenters();
-  redirect("/centers");
+  redirect("/admin");
 }
 
 export async function updateCenter(
@@ -148,7 +148,7 @@ export async function updateCenter(
     await renumberCenterAssessments(id, code);
   }
   revalidateCenters();
-  redirect("/centers");
+  redirect("/admin");
 }
 
 export async function setCenterActive(id: string, isActive: boolean) {
@@ -170,5 +170,5 @@ export async function deleteCenter(id: string): Promise<FormState> {
   }
   await db.center.delete({ where: { id } });
   revalidateCenters();
-  redirect("/centers");
+  redirect("/admin");
 }

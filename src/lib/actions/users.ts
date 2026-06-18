@@ -21,7 +21,7 @@ export async function setUserRole(
     return { ok: false, error: "You can't change your own role." };
   }
   await db.user.update({ where: { id: userId }, data: { role } });
-  revalidatePath("/users");
+  revalidatePath("/admin");
   return { ok: true };
 }
 
@@ -35,7 +35,7 @@ export async function setUserActive(
     return { ok: false, error: "You can't deactivate your own account." };
   }
   await db.user.update({ where: { id: userId }, data: { isActive } });
-  revalidatePath("/users");
+  revalidatePath("/admin");
   return { ok: true };
 }
 
@@ -72,7 +72,7 @@ export async function createUser(
       passwordHash: await hashPassword(parsed.data.password),
     },
   });
-  revalidatePath("/users");
+  revalidatePath("/admin");
   return { ok: true };
 }
 

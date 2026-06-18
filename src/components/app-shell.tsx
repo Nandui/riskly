@@ -9,9 +9,7 @@ import {
   ClipboardList,
   CalendarClock,
   BookOpen,
-  Building2,
-  Tags,
-  Users,
+  Wrench,
   Menu,
   X,
   LogOut,
@@ -46,9 +44,7 @@ const NAV: {
   { href: "/assessments", label: "Assessments", icon: ClipboardList, cap: "view" },
   { href: "/monitoring", label: "Monitoring", icon: CalendarClock, cap: "view" },
   { href: "/reference", label: "Reference", icon: BookOpen, cap: "view" },
-  { href: "/library", label: "Library", icon: Tags, cap: "editContent" },
-  { href: "/centers", label: "Centres", icon: Building2, cap: "admin" },
-  { href: "/users", label: "Users", icon: Users, cap: "admin" },
+  { href: "/admin", label: "Admin", icon: Wrench, cap: "admin" },
 ];
 
 function initials(user: ShellUser) {

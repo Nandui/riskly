@@ -8,7 +8,7 @@ import { fieldErrorsFromZod, emptyToNull, type FormState } from "@/lib/form";
 import { denyUnless } from "@/lib/auth";
 
 function revalidateLibrary() {
-  revalidatePath("/library");
+  revalidatePath("/admin");
   revalidatePath("/assessments");
   revalidatePath("/reference");
 }

@@ -140,7 +140,7 @@ export function CenterForm({
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : submitLabel}
         </Button>
-        <Link href="/centers" className={buttonClasses({ variant: "ghost" })}>
+        <Link href="/admin" className={buttonClasses({ variant: "ghost" })}>
           Cancel
         </Link>
       </div>
