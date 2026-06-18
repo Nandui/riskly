@@ -1,13 +1,14 @@
 import type { NextAuthConfig } from "next-auth";
-import Google from "next-auth/providers/google";
 
-// Edge-safe config (no database/adapter) — shared with the middleware.
-// Google reads AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET from the environment.
+// Edge-safe config shared with the proxy gate (src/proxy.ts). Deliberately has
+// NO providers and NO database access — the Credentials provider needs Node
+// (bcrypt + Prisma), so it lives in auth.ts. The proxy only reads the session
+// cookie to decide whether a request is authenticated.
 export default {
-  providers: [Google],
+  providers: [],
   pages: { signIn: "/signin" },
   callbacks: {
-    // Used by the middleware to gate every protected route.
+    // Used by the proxy to gate every protected route.
     authorized({ auth }) {
       return !!auth?.user;
     },

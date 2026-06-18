@@ -84,5 +84,5 @@ src/
 
 ## Notes & roadmap
 
-- **Authentication** — Google sign-in (Auth.js + Prisma adapter), restricted to your Google Workspace domain. Roles: **Admin / Assessor / Reviewer / Contributor / Viewer**, with per-assessment **assignees** and a **review-request** workflow. Set it up via [DEPLOY.md](DEPLOY.md).
+- **Authentication** — built-in **email + password** login (Auth.js Credentials). An Admin creates accounts and assigns roles (**Admin / Assessor / Reviewer / Contributor / Viewer**); the first run prompts you to create the first Admin. Includes per-assessment **assignees** and a **review-request** workflow. Set it up via [DEPLOY.md](DEPLOY.md).
 - Possible next steps: PDF export & e-signatures, photo/file attachments, assessment version history & approval workflow, per-centre user access, and email notifications for assignments / requests / overdue reviews.

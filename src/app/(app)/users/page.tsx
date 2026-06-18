@@ -16,7 +16,7 @@ export default async function UsersPage() {
       <PageHeader
         eyebrow="Administration"
         title="Users"
-        description="Manage who can access Riskly and what each person can do. Staff sign in with their leisureworldcork.com Google account."
+        description="Add people, set each person's role, and reset passwords. Everyone signs in with the email and password you set here."
       />
 
       <UserManager

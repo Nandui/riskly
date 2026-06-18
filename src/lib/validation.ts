@@ -91,3 +91,36 @@ export const reviewLogSchema = z.object({
     .optional(),
 });
 export type ReviewLogInput = z.infer<typeof reviewLogSchema>;
+
+// ---- Authentication & users ----
+
+const passwordField = z
+  .string()
+  .min(8, "Use at least 8 characters")
+  .max(100, "That password is too long");
+
+export const firstAdminSchema = z.object({
+  name: z.string().trim().min(2, "Enter your name").max(120),
+  email: z.string().trim().email("Enter a valid email").max(160),
+  password: passwordField,
+});
+export type FirstAdminInput = z.infer<typeof firstAdminSchema>;
+
+export const userCreateSchema = z.object({
+  name: z.string().trim().min(2, "Enter a name").max(120),
+  email: z.string().trim().email("Enter a valid email").max(160),
+  role: z.enum(["Viewer", "Contributor", "Reviewer", "Assessor", "Admin"]),
+  password: passwordField,
+});
+export type UserCreateInput = z.infer<typeof userCreateSchema>;
+
+export const passwordChangeSchema = z.object({
+  currentPassword: z.string().min(1, "Enter your current password"),
+  newPassword: passwordField,
+});
+export type PasswordChangeInput = z.infer<typeof passwordChangeSchema>;
+
+export const passwordResetSchema = z.object({
+  userId: z.string().min(1),
+  password: passwordField,
+});

@@ -54,41 +54,35 @@ npm run db:seed
 ```
 (then delete the demo records from the app when you're ready for real data.)
 
-## Authentication (Google sign-in)
+## Authentication (email + password)
 
-Riskly gates access with Google sign-in (Auth.js). Roles: **Admin · Assessor ·
-Reviewer · Contributor · Viewer**. Sign-in is restricted to the
-`leisureworldcork.com` Google Workspace domain.
+Riskly has its own built-in login — no third-party provider to configure.
+Roles: **Admin · Assessor · Reviewer · Contributor · Viewer**.
 
-### 1. Create a Google OAuth client
-1. In **Google Cloud Console** → create/select a project.
-2. **APIs & Services → OAuth consent screen** → choose **Internal** (Workspace)
-   → set an app name and support email.
-3. **APIs & Services → Credentials → Create credentials → OAuth client ID →
-   Web application**. Add:
-   - **Authorized JavaScript origins:** `https://riskly-leisureworld.vercel.app`
-     and `http://localhost:3000`
-   - **Authorized redirect URIs:**
-     `https://riskly-leisureworld.vercel.app/api/auth/callback/google` and
-     `http://localhost:3000/api/auth/callback/google`
-4. Copy the **Client ID** and **Client secret**.
-
-### 2. Add the auth environment variables (Vercel → Settings → Environment Variables)
+### 1. Set the session secret (Vercel → Settings → Environment Variables)
 | Variable | Value |
 | --- | --- |
 | `AUTH_SECRET` | a random secret — run `npx auth secret`, or any 32-byte base64 string |
-| `AUTH_GOOGLE_ID` | the OAuth **Client ID** |
-| `AUTH_GOOGLE_SECRET` | the OAuth **Client secret** |
-| `AUTH_ALLOWED_DOMAINS` | `leisureworldcork.com` |
-| `AUTH_ADMIN_EMAILS` | your `@leisureworldcork.com` email (becomes Admin, always allowed in) |
 
-Redeploy, then visit the site and sign in — your account lands as **Admin**.
-Manage everyone else under **Users**.
+That's the only variable authentication needs. **Redeploy** after adding it so
+it takes effect.
 
-### 3. Turn off Vercel Deployment Protection
-Now that the app gates access itself, let staff reach the sign-in page:
-**Project → Settings → Deployment Protection → Vercel Authentication →
-Disabled** (or restrict it to Preview deployments only).
+### 2. Create the first admin
+The first time you open the deployed app, the sign-in page shows a **one-time
+setup** form. Enter your name, email and a password to create the first
+**Admin** account — you're signed straight in. The setup form disappears once
+any user exists.
+
+### 3. Add everyone else
+As an Admin, open **Users → Add a user** (name, email, role, temporary
+password) and share the password with them. They can change it on their own
+**Account** page (sidebar → gear icon). You can also reset anyone's password or
+change their role from **Users**.
+
+### 4. Turn off Vercel Deployment Protection
+So staff reach the app's own sign-in page: **Project → Settings → Deployment
+Protection → Vercel Authentication → Disabled** (or restrict it to Preview
+deployments only).
 
 ## Local development
 

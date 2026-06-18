@@ -15,6 +15,7 @@ import {
   X,
   ShieldAlert,
   LogOut,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -200,6 +201,15 @@ export function AppShell({
                 {user.role}
               </p>
             </div>
+            <Link
+              href="/account"
+              onClick={() => setOpen(false)}
+              aria-label="Account settings"
+              title="Account settings"
+              className="flex size-8 items-center justify-center rounded-md text-sidebar-muted transition-colors hover:bg-sidebar-2 hover:text-white"
+            >
+              <Settings className="size-4" />
+            </Link>
             <form action={signOutAction}>
               <button
                 type="submit"
