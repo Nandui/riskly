@@ -11,10 +11,11 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  const [user, { centers, selectedId }] = await Promise.all([
+    getCurrentUser(),
+    getCenterContext(),
+  ]);
   if (!user) redirect("/signin");
-
-  const { centers, selectedId } = await getCenterContext();
 
   return (
     <AppShell

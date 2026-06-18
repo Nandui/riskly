@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { centerSchema } from "@/lib/validation";
@@ -24,6 +24,7 @@ async function uniqueSlug(name: string, excludeId?: string): Promise<string> {
 }
 
 function revalidateCenters() {
+  revalidateTag("centers", { expire: 0 });
   revalidatePath("/centers");
   revalidatePath("/", "layout");
 }
