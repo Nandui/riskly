@@ -59,10 +59,8 @@ function initials(user: ShellUser) {
 function Wordmark() {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="flex size-9 items-center justify-center rounded-lg bg-white shadow-xs">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.svg" alt="Riskly" className="size-7" />
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo.svg" alt="Riskly" className="size-9 shrink-0" />
       <div className="leading-none">
         <span className="block font-display text-lg font-semibold tracking-tight text-white">
           Riskly
