@@ -32,3 +32,37 @@ export function can(
   if (!user) return false;
   return (ROLE_RANK[user.role] ?? 0) >= CAP_RANK[capability];
 }
+
+// Ordered capability metadata (increasing privilege) — the single source for
+// the role permissions matrix on the Users page.
+export const CAPABILITIES: {
+  key: Capability;
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: "view",
+    label: "View everything",
+    description: "Dashboard, assessments, reference and monitoring",
+  },
+  {
+    key: "requestReview",
+    label: "Request reviews",
+    description: "Raise a review request with notes",
+  },
+  {
+    key: "review",
+    label: "Review assessments",
+    description: "Log reviews, action requests and change status",
+  },
+  {
+    key: "editContent",
+    label: "Manage assessments",
+    description: "Create, edit and delete assessments and hazards; manage the Library",
+  },
+  {
+    key: "admin",
+    label: "Administer",
+    description: "Manage centres, users and assignments",
+  },
+];
