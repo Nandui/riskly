@@ -164,14 +164,6 @@ function HazardCard({
     >
       {/* header */}
       <div className="flex items-center gap-2.5 border-b border-line bg-surface-2/50 px-4 py-3">
-        <span
-          className={cn(
-            "flex size-7 shrink-0 items-center justify-center rounded-lg font-mono text-xs font-bold tnum",
-            meta.cell,
-          )}
-        >
-          {index + 1}
-        </span>
         <h3 className="min-w-0 flex-1 truncate font-semibold text-ink">
           {title}
         </h3>
