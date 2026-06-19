@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   ClipboardList,
   CalendarClock,
-  BookOpen,
   Wrench,
   Menu,
   X,
@@ -43,7 +42,6 @@ const NAV: {
   { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, cap: "view" },
   { href: "/assessments", label: "Assessments", icon: ClipboardList, cap: "view" },
   { href: "/monitoring", label: "Monitoring", icon: CalendarClock, cap: "view" },
-  { href: "/reference", label: "Reference", icon: BookOpen, cap: "view" },
   { href: "/admin", label: "Admin", icon: Wrench, cap: "admin" },
 ];
 

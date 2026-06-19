@@ -9,7 +9,6 @@ import type { FormState } from "@/lib/form";
 function revalidate(id: string) {
   revalidatePath(`/assessments/${id}`);
   revalidatePath("/assessments");
-  revalidatePath("/reference");
   revalidatePath("/monitoring");
   revalidatePath("/");
 }

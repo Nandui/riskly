@@ -22,7 +22,6 @@ function revalidateAssessments(id?: string) {
   revalidatePath("/assessments");
   if (id) revalidatePath(`/assessments/${id}`);
   revalidatePath("/monitoring");
-  revalidatePath("/reference");
   revalidatePath("/");
 }
 

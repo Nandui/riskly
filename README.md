@@ -61,7 +61,7 @@ prisma/
   schema.prisma          # Center, Area, Role, Activity, RiskAssessment, Hazard, ReviewLog
   seed.ts                # demo data
 src/
-  app/                   # routes: dashboard, assessments, monitoring, reference, centers, library
+  app/                   # routes: dashboard, assessments, monitoring, centers, library
   components/            # app shell, risk matrix, forms, tables, ui primitives
   lib/
     risk.ts              # the 5×5 risk engine — scoring, bands, matrix (single source of truth)

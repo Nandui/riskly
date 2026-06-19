@@ -10,7 +10,6 @@ import { denyUnless } from "@/lib/auth";
 function revalidateLibrary() {
   revalidatePath("/admin");
   revalidatePath("/assessments");
-  revalidatePath("/reference");
 }
 
 function parseEntity(formData: FormData) {

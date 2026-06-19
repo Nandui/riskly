@@ -43,7 +43,7 @@ export const CAPABILITIES: {
   {
     key: "view",
     label: "View everything",
-    description: "Dashboard, assessments, reference and monitoring",
+    description: "Dashboard, assessments and monitoring",
   },
   {
     key: "requestReview",

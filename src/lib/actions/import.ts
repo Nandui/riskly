@@ -178,7 +178,6 @@ export async function importAssessment(
 
   revalidatePath("/assessments");
   revalidatePath("/monitoring");
-  revalidatePath("/reference");
   revalidatePath("/");
 
   return {

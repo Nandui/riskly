@@ -75,7 +75,6 @@ export async function logReview(
   revalidatePath("/monitoring");
   revalidatePath("/");
   revalidatePath("/assessments");
-  revalidatePath("/reference");
   revalidatePath(`/assessments/${d.assessmentId}`);
   return { ok: true };
 }
