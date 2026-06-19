@@ -34,12 +34,23 @@ export class AiDraftError extends Error {}
 
 export type DraftSubjectType = "Area" | "Role" | "Activity";
 
+export interface ExistingHazard {
+  hazard: string;
+  consequence?: string | null;
+}
+
 export interface DraftSubject {
   subjectType: DraftSubjectType;
   subjectName: string;
   subjectDescription?: string | null;
   centerName: string;
   hint?: string | null;
+  // Overall purpose / scope notes for the whole assessment.
+  scope?: string | null;
+  // Hazards already recorded on the assessment. When present, the model adds
+  // complementary risks instead of starting from scratch — and avoids
+  // duplicating these.
+  existingHazards?: ExistingHazard[];
 }
 
 // The shape we hand back — already aligned to the hazard form fields.
@@ -94,9 +105,8 @@ const hazardSchema = z.object({
 const outputSchema = z.object({
   hazards: z
     .array(hazardSchema)
-    .min(1)
     .describe(
-      `The ${TARGET_HAZARDS}+ most important risks for the subject, most significant first. The same hazard source may appear in multiple entries for distinct risks.`,
+      "The drafted hazards, most significant first. The same hazard source may appear in multiple entries for distinct risks. May be empty when an existing assessment already covers every significant risk.",
     ),
 });
 
@@ -108,7 +118,7 @@ function numberedScale(labels: readonly string[], descriptions?: readonly string
     .join("\n");
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(topUp: boolean): string {
   return [
     "You are a senior health & safety risk assessor who specialises in leisure, sports and aquatic centres in Ireland. You produce practical, regulation-aware risk assessments consistent with the Safety, Health and Welfare at Work Act 2005 and HSA guidance.",
     "",
@@ -131,7 +141,9 @@ function buildSystemPrompt(): string {
     "- currentControls: [\"Qualified lifeguards on poolside at the required ratios\", \"Constant scanning and zoning\", \"Depth markings and signage\", \"Rescue equipment and emergency procedures in place\"]",
     "",
     "Rules:",
-    `- Produce at least ${TARGET_HAZARDS} entries (target ${TARGET_HAZARDS}–${TARGET_HAZARDS + 2}), ordered most-significant first. Cover the genuinely important risks — do not pad with trivia or near-duplicates.`,
+    topUp
+      ? "- You are ADDING to an existing assessment that already lists some hazards (given below). Draft only NEW, genuinely significant hazards that are NOT already covered. Never restate, rephrase or duplicate an existing entry. Quality over quantity: add as many as are truly missing and no more — returning only a few, or an empty list when the assessment is already comprehensive, is correct and expected."
+      : `- Produce at least ${TARGET_HAZARDS} entries (target ${TARGET_HAZARDS}–${TARGET_HAZARDS + 2}), ordered most-significant first. Cover the genuinely important risks — do not pad with trivia or near-duplicates.`,
     "- Every field must be specific to the subject, not generic boilerplate.",
     "- Rate Likelihood (1–5) and Severity (1–5) realistically, ASSUMING the current controls you listed are already in place (i.e. the residual risk). Use these scales exactly:",
     "",
@@ -147,6 +159,7 @@ function buildSystemPrompt(): string {
 }
 
 function buildUserPrompt(s: DraftSubject): string {
+  const subject = s.subjectType.toLowerCase();
   const lines = [
     `Centre: ${s.centerName}`,
     `This risk assessment is for the ${s.subjectType}: "${s.subjectName}"`,
@@ -154,11 +167,34 @@ function buildUserPrompt(s: DraftSubject): string {
   if (s.subjectDescription && s.subjectDescription.trim()) {
     lines.push(`${s.subjectType} description: ${s.subjectDescription.trim()}`);
   }
+  if (s.scope && s.scope.trim()) {
+    lines.push(`Overall purpose / scope of this assessment: ${s.scope.trim()}`);
+  }
   if (s.hint && s.hint.trim()) {
     lines.push(`Additional focus from the assessor: ${s.hint.trim()}`);
   }
-  lines.push("", `Draft the most important hazards for this ${s.subjectType.toLowerCase()}.`);
+
+  const existing = (s.existingHazards ?? []).filter((h) => h.hazard.trim());
+  if (existing.length) {
+    lines.push(
+      "",
+      `This assessment ALREADY records the following ${existing.length} hazard(s). Do NOT repeat or rephrase them — only add significant risks for this ${subject} that they do not already cover:`,
+      ...existing.map((h, i) => {
+        const consequence = h.consequence?.trim();
+        return `${i + 1}. ${h.hazard.trim()}${consequence ? ` → ${consequence}` : ""}`;
+      }),
+      "",
+      `Draft the additional hazards. Return an empty list if nothing significant is missing.`,
+    );
+  } else {
+    lines.push("", `Draft the most important hazards for this ${subject}.`);
+  }
   return lines.join("\n");
+}
+
+// Normalised key for duplicate detection: same hazard source + consequence.
+function dedupKey(hazard: string, consequence: string): string {
+  return `${hazard} ${consequence}`.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard[]> {
@@ -173,16 +209,19 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
   // give Google models headroom; DeepSeek/others cap lower, so stay within ~8k.
   const maxOutputTokens = model.startsWith("google/") ? 16000 : 8000;
 
+  const existing = (subject.existingHazards ?? []).filter((h) => h.hazard.trim());
+  const topUp = existing.length > 0;
+
   try {
     const { object } = await generateObject({
       model,
       schema: outputSchema,
-      system: buildSystemPrompt(),
+      system: buildSystemPrompt(topUp),
       prompt: buildUserPrompt(subject),
       maxOutputTokens,
     });
 
-    return object.hazards.slice(0, MAX_HAZARDS).map((h) => ({
+    const mapped = object.hazards.map((h) => ({
       hazard: h.hazard.trim(),
       riskFactor: h.riskFactor.trim(),
       personAtRisk: h.personAtRisk.trim(),
@@ -195,6 +234,22 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
       severity: clampRating(h.severity),
       riskCategory: CATEGORY_VALUES.includes(h.riskCategory) ? h.riskCategory : "Physical",
     }));
+
+    // Belt-and-braces: drop anything that repeats an already-recorded hazard or
+    // an earlier entry in this batch, then cap the total.
+    const seen = new Set(
+      existing.map((h) => dedupKey(h.hazard, h.consequence ?? "")),
+    );
+    const deduped: DraftedHazard[] = [];
+    for (const h of mapped) {
+      if (!h.hazard) continue;
+      const key = dedupKey(h.hazard, h.consequence);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(h);
+      if (deduped.length >= MAX_HAZARDS) break;
+    }
+    return deduped;
   } catch (err) {
     if (err instanceof AiDraftError) throw err;
     if (NoObjectGeneratedError.isInstance(err)) {

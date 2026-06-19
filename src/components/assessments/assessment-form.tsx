@@ -107,6 +107,7 @@ export function AssessmentForm({
   const [centerId, setCenterId] = useState(defaults.centerId);
   const [subjectType, setSubjectType] = useState(defaults.subjectType || "Area");
   const [subjectId, setSubjectId] = useState(defaults.subjectId);
+  const [description, setDescription] = useState(defaults.description);
   const [hazards, setHazards] = useState<HazardDraft[]>(defaults.hazards);
   const [aiHint, setAiHint] = useState("");
   const [aiPending, startAi] = useTransition();
@@ -120,6 +121,8 @@ export function AssessmentForm({
 
   const subjectLabel =
     SUBJECT_TYPES.find((t) => t.value === subjectType)?.label ?? "Subject";
+
+  const hasExistingHazards = hazards.some((h) => h.hazard.trim());
 
   const onCenterChange = (id: string) => {
     setCenterId(id);
@@ -145,9 +148,21 @@ export function AssessmentForm({
         subjectType: subjectType as "Area" | "Role" | "Activity",
         subjectId,
         hint: aiHint,
+        scope: description,
+        existingHazards: hazards
+          .filter((h) => h.hazard.trim())
+          .map((h) => ({ hazard: h.hazard, consequence: h.consequence })),
       });
       if (!res.ok) {
         toast.error(res.error);
+        return;
+      }
+      if (res.hazards.length === 0) {
+        toast.info(
+          hasExistingHazards
+            ? "No new hazards to add — nothing significant beyond what's already listed."
+            : "The AI didn't return any hazards. Please try again.",
+        );
         return;
       }
       const drafted = res.hazards.map((h) => ({ ...newHazard(), ...h }));
@@ -269,7 +284,8 @@ export function AssessmentForm({
         <Field label="Scope / description" error={fe.description}>
           <Textarea
             name="description"
-            defaultValue={defaults.description}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             rows={2}
             placeholder="Optional notes on what this assessment covers"
           />
@@ -357,11 +373,17 @@ export function AssessmentForm({
             </span>
             <div className="min-w-0 flex-1 space-y-3">
               <div>
-                <p className="text-sm font-semibold text-ink">Draft hazards with AI</p>
+                <p className="text-sm font-semibold text-ink">
+                  {hasExistingHazards
+                    ? "Add more hazards with AI"
+                    : "Draft hazards with AI"}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  Claude reviews the selected {subjectLabel.toLowerCase()} and drafts
-                  the most important hazards, fully rated. Review and edit each one
-                  before saving — it&apos;s a starting point, not a sign-off.
+                  {hasExistingHazards
+                    ? `Reviews this ${subjectLabel.toLowerCase()}, its purpose and the hazards already listed, then drafts further significant risks that aren't covered yet — without duplicating your existing ones.`
+                    : `Reviews the selected ${subjectLabel.toLowerCase()} and drafts the most important hazards, fully rated.`}{" "}
+                  Review and edit each one before saving — it&apos;s a starting
+                  point, not a sign-off.
                 </p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -384,7 +406,8 @@ export function AssessmentForm({
                     </>
                   ) : (
                     <>
-                      <Sparkles className="size-4" /> Generate hazards
+                      <Sparkles className="size-4" />{" "}
+                      {hasExistingHazards ? "Add hazards" : "Generate hazards"}
                     </>
                   )}
                 </Button>

@@ -14,6 +14,10 @@ export interface GenerateHazardsInput {
   subjectType: DraftSubjectType;
   subjectId: string;
   hint?: string;
+  // Overall purpose / scope of the assessment.
+  scope?: string;
+  // Hazards already on the assessment, so the model avoids duplicating them.
+  existingHazards?: { hazard: string; consequence?: string }[];
 }
 
 export type GenerateHazardsResult =
@@ -70,6 +74,16 @@ export async function generateAssessmentHazards(
   const subject = await resolveSubjectContext(input);
   if ("error" in subject) return { ok: false, error: subject.error };
 
+  // Sanitise the already-recorded hazards we pass back into the prompt: trim,
+  // drop blanks, cap field lengths and the overall count to keep it bounded.
+  const existingHazards = (input.existingHazards ?? [])
+    .map((h) => ({
+      hazard: (h.hazard ?? "").trim().slice(0, 300),
+      consequence: ((h.consequence ?? "").trim().slice(0, 800)) || null,
+    }))
+    .filter((h) => h.hazard)
+    .slice(0, 40);
+
   try {
     const hazards = await draftHazards({
       subjectType: input.subjectType,
@@ -77,6 +91,8 @@ export async function generateAssessmentHazards(
       subjectDescription: subject.description,
       centerName: center.name,
       hint: input.hint?.trim() || null,
+      scope: input.scope?.trim() || null,
+      existingHazards,
     });
     return { ok: true, hazards };
   } catch (err) {
