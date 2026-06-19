@@ -16,6 +16,7 @@ import { DeleteHazardButton } from "@/components/assessments/delete-hazard-butto
 import { ActivityLogButton } from "@/components/assessments/activity-log-modal";
 import { RequestHazardReviewButton } from "@/components/assessments/request-hazard-review-modal";
 import { PERSONS_AT_RISK, parsePersons } from "@/lib/persons";
+import { isApproved } from "@/lib/approval";
 import type { AssessmentDetail } from "@/lib/data/assessments";
 import {
   formatDate,
@@ -84,6 +85,9 @@ export function AssessmentView({
     : 0;
   const headlineBand = hazardCount ? riskBand(overallScore) : null;
   const review = reviewStatusFor(a);
+  // When the assessment is approved/in force, editing its hazards re-opens it
+  // for review and clears the sign-off — a change worth confirming first.
+  const inForce = isApproved(a);
 
   const distribution = BANDS_DESC.map((band) => ({
     band,
@@ -287,7 +291,9 @@ export function AssessmentView({
             </span>
             <div className="no-print ml-auto flex items-center gap-2">
               <ActivityLogButton items={auditItems} />
-              {canEdit && <AddHazardButton assessmentId={a.id} />}
+              {canEdit && (
+                <AddHazardButton assessmentId={a.id} inForce={inForce} />
+              )}
             </div>
           </div>
 
@@ -310,6 +316,7 @@ export function AssessmentView({
                   assessmentId={a.id}
                   canRequest={canRequest}
                   canEdit={canEdit}
+                  inForce={inForce}
                 />
               ))}
             </div>
@@ -449,6 +456,7 @@ function HazardRecord({
   assessmentRef,
   canRequest,
   canEdit,
+  inForce,
 }: {
   h: HazardComputed;
   n: number;
@@ -456,6 +464,7 @@ function HazardRecord({
   assessmentRef: string;
   canRequest: boolean;
   canEdit: boolean;
+  inForce: boolean;
 }) {
   const meta = BAND_META[h.band];
   const consequences = splitLines(h.consequence);
@@ -494,11 +503,12 @@ function HazardRecord({
             <h3 className="truncate font-semibold text-ink">{h.hazard}</h3>
           </div>
           <CategoryBadge category={h.riskCategory} />
-          {canEdit && <EditHazardButton hazard={h} />}
+          {canEdit && <EditHazardButton hazard={h} inForce={inForce} />}
           {canEdit && (
             <DeleteHazardButton
               hazardId={h.id}
               hazardName={h.hazard || `Hazard ${n}`}
+              inForce={inForce}
             />
           )}
           {canRequest && (

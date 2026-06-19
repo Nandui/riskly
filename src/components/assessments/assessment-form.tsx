@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Field, Input, Textarea, Select } from "@/components/ui/form";
 import { Button, buttonClasses } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { HazardEditor, newHazard, type HazardDraft } from "./hazard-editor";
 import {
   ASSESSMENT_STATUSES,
@@ -85,6 +86,7 @@ export function AssessmentForm({
   defaults,
   cancelHref,
   takenAreaIds,
+  confirmOnSave = false,
 }: {
   action: (prev: FormState, fd: FormData) => Promise<FormState>;
   submitLabel: string;
@@ -97,12 +99,17 @@ export function AssessmentForm({
   defaults: AssessmentDefaults;
   cancelHref: string;
   takenAreaIds: string[];
+  // When the assessment is already approved, saving clears its sign-off — so
+  // confirm before submitting.
+  confirmOnSave?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(
     action,
     null,
   );
   const fe = state?.fieldErrors ?? {};
+  const formRef = useRef<HTMLFormElement>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const [centerId, setCenterId] = useState(defaults.centerId);
   const [subjectType, setSubjectType] = useState(defaults.subjectType || "Area");
@@ -201,7 +208,7 @@ export function AssessmentForm({
     "space-y-5 rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-xs sm:p-6";
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form ref={formRef} action={formAction} className="space-y-6">
       {state?.error && (
         <div className="rounded-lg border border-critical-line bg-critical-bg px-4 py-3 text-sm font-medium text-critical">
           {state.error}
@@ -458,9 +465,21 @@ export function AssessmentForm({
       </section>
 
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t border-line bg-bg/85 px-4 py-4 backdrop-blur sm:mx-0 sm:rounded-b-[var(--radius-card)] sm:px-0">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : submitLabel}
-        </Button>
+        {confirmOnSave ? (
+          <Button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              if (formRef.current?.reportValidity()) setConfirmOpen(true);
+            }}
+          >
+            {pending ? "Saving…" : submitLabel}
+          </Button>
+        ) : (
+          <Button type="submit" disabled={pending}>
+            {pending ? "Saving…" : submitLabel}
+          </Button>
+        )}
         <Link href={cancelHref} className={buttonClasses({ variant: "ghost" })}>
           Cancel
         </Link>
@@ -469,6 +488,22 @@ export function AssessmentForm({
           severity.
         </p>
       </div>
+
+      {confirmOnSave && (
+        <ConfirmDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title="Re-open this approved assessment?"
+          description="Saving your changes sends the assessment back to Under review and clears the current Owner/CEO sign-off."
+          confirmLabel={submitLabel}
+          pendingLabel="Saving…"
+          pending={pending}
+          onConfirm={() => {
+            setConfirmOpen(false);
+            formRef.current?.requestSubmit();
+          }}
+        />
+      )}
     </form>
   );
 }

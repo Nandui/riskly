@@ -17,9 +17,11 @@ import { deleteHazard } from "@/lib/actions/assessments";
 export function DeleteHazardButton({
   hazardId,
   hazardName,
+  inForce,
 }: {
   hazardId: string;
   hazardName: string;
+  inForce: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -58,8 +60,9 @@ export function DeleteHazardButton({
                   will be removed.{" "}
                 </>
               )}
-              This sends the assessment back to Under review and clears any
-              approval. It can&apos;t be undone.
+              {inForce
+                ? "This sends the assessment back to Under review and clears its approval. It can’t be undone."
+                : "This can’t be undone."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

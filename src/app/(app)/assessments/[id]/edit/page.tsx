@@ -9,6 +9,7 @@ import {
   assessmentTitle,
 } from "@/lib/data/assessments";
 import { updateAssessment } from "@/lib/actions/assessments";
+import { isApproved } from "@/lib/approval";
 import { toDateInputValue } from "@/lib/utils";
 import { requireCapability } from "@/lib/auth";
 
@@ -92,6 +93,7 @@ export default async function EditAssessmentPage({
         )}
         defaults={defaults}
         cancelHref={`/assessments/${a.id}`}
+        confirmOnSave={isApproved(a)}
       />
     </div>
   );

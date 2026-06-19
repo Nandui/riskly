@@ -12,10 +12,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Textarea } from "@/components/ui/form";
 import { grantApproval, withdrawApproval } from "@/lib/actions/approvals";
 import { cn } from "@/lib/utils";
-import type { FormState } from "@/lib/form";
 
 type Kind = "owner" | "ceo";
 
@@ -74,12 +74,19 @@ function ApprovalSlot({
   data: SlotData;
 }) {
   const [pending, start] = useTransition();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const approved = Boolean(data.name);
 
-  const run = (action: () => Promise<FormState>) =>
+  // Approving puts the assessment in force (Active), so confirm it first.
+  const approve = () =>
     start(async () => {
-      const res = await action();
-      if (res && !res.ok) toast.error(res.error ?? "Something went wrong.");
+      const res = await grantApproval(assessmentId, kind);
+      if (res && !res.ok) {
+        toast.error(res.error ?? "Something went wrong.");
+        return;
+      }
+      toast.success(`${label} approval recorded.`);
+      setConfirmOpen(false);
     });
 
   return (
@@ -120,15 +127,27 @@ function ApprovalSlot({
           )}
         </div>
       ) : data.canManage ? (
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => run(() => grantApproval(assessmentId, kind))}
-          className="no-print mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
-        >
-          <ShieldCheck className="size-3.5" />
-          {pending ? "Approving…" : `Approve as ${label}`}
-        </button>
+        <>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => setConfirmOpen(true)}
+            className="no-print mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
+          >
+            <ShieldCheck className="size-3.5" />
+            {pending ? "Approving…" : `Approve as ${label}`}
+          </button>
+          <ConfirmDialog
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
+            title={`Record your ${label} approval?`}
+            description="This puts the assessment in force — its status becomes Active."
+            confirmLabel={`Approve as ${label}`}
+            pendingLabel="Approving…"
+            pending={pending}
+            onConfirm={approve}
+          />
+        </>
       ) : (
         <p className="mt-1 text-xs text-muted-foreground">
           Awaiting {label} sign-off.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Pencil } from "lucide-react";
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Field, Input, Textarea, Select } from "@/components/ui/form";
 import { PersonAtRiskPicker } from "./person-at-risk-picker";
 import { updateHazard } from "@/lib/actions/assessments";
@@ -39,7 +40,13 @@ export interface EditableHazard {
   riskCategory: string;
 }
 
-export function EditHazardButton({ hazard }: { hazard: EditableHazard }) {
+export function EditHazardButton({
+  hazard,
+  inForce,
+}: {
+  hazard: EditableHazard;
+  inForce: boolean;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -56,7 +63,11 @@ export function EditHazardButton({ hazard }: { hazard: EditableHazard }) {
         <DialogContent className="flex max-h-[88vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
           {/* Remount the form per-open so it resets to the hazard's values. */}
           {open && (
-            <EditHazardForm hazard={hazard} onDone={() => setOpen(false)} />
+            <EditHazardForm
+              hazard={hazard}
+              inForce={inForce}
+              onDone={() => setOpen(false)}
+            />
           )}
         </DialogContent>
       </Dialog>
@@ -66,15 +77,19 @@ export function EditHazardButton({ hazard }: { hazard: EditableHazard }) {
 
 function EditHazardForm({
   hazard,
+  inForce,
   onDone,
 }: {
   hazard: EditableHazard;
+  inForce: boolean;
   onDone: () => void;
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(
     updateHazard.bind(null, hazard.id),
     null,
   );
+  const formRef = useRef<HTMLFormElement>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [likelihood, setLikelihood] = useState(hazard.likelihood);
   const [severity, setSeverity] = useState(hazard.severity);
   const [personAtRisk, setPersonAtRisk] = useState(hazard.personAtRisk ?? "");
@@ -91,12 +106,17 @@ function EditHazardForm({
       <DialogHeader className="border-b border-line p-5 pr-12 text-left">
         <DialogTitle>Edit hazard</DialogTitle>
         <DialogDescription>
-          Saving sends the assessment back to Under review and clears any
-          approval.
+          {inForce
+            ? "This assessment is approved — saving re-opens it for review and clears the current sign-off."
+            : "Update this hazard’s details and risk rating."}
         </DialogDescription>
       </DialogHeader>
 
-      <form action={formAction} className="flex min-h-0 flex-1 flex-col">
+      <form
+        ref={formRef}
+        action={formAction}
+        className="flex min-h-0 flex-1 flex-col"
+      >
         <div className="flex-1 space-y-3.5 overflow-y-auto p-5">
           {state && !state.ok && state.error && (
             <p className="text-sm font-medium text-critical">{state.error}</p>
@@ -198,11 +218,39 @@ function EditHazardForm({
           <Button type="button" variant="ghost" onClick={onDone}>
             Cancel
           </Button>
-          <Button type="submit" disabled={pending}>
-            {pending ? "Saving…" : "Save changes"}
-          </Button>
+          {inForce ? (
+            <Button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                if (formRef.current?.reportValidity()) setConfirmOpen(true);
+              }}
+            >
+              {pending ? "Saving…" : "Save changes"}
+            </Button>
+          ) : (
+            <Button type="submit" disabled={pending}>
+              {pending ? "Saving…" : "Save changes"}
+            </Button>
+          )}
         </DialogFooter>
       </form>
+
+      {inForce && (
+        <ConfirmDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title="Re-open this approved assessment?"
+          description="Saving this hazard sends the assessment back to Under review and clears the current Owner/CEO sign-off."
+          confirmLabel="Save changes"
+          pendingLabel="Saving…"
+          pending={pending}
+          onConfirm={() => {
+            setConfirmOpen(false);
+            formRef.current?.requestSubmit();
+          }}
+        />
+      )}
     </>
   );
 }
