@@ -10,7 +10,12 @@
 // AI_GATEWAY_API_KEY or, on a Vercel deployment, the OIDC token automatically.
 // ------------------------------------------------------------------
 
-import { generateObject, APICallError, NoObjectGeneratedError } from "ai";
+import {
+  generateObject,
+  APICallError,
+  NoObjectGeneratedError,
+  type RepairTextFunction,
+} from "ai";
 import { z } from "zod";
 import {
   LIKELIHOOD_LABELS,
@@ -227,6 +232,20 @@ function aiStatusMessage(status: number | undefined, model: string): string {
   return "The AI Gateway couldn't complete the request — check the gateway authentication and that a provider key is configured, then try again.";
 }
 
+// Some gateway models (DeepSeek especially) wrap the JSON in markdown fences or
+// prefix it with reasoning, which trips strict parsing. Strip the fences and
+// keep only the outermost JSON object before the SDK re-parses.
+const repairJsonText: RepairTextFunction = async ({ text }) => {
+  const trimmed = text.trim();
+  let t = trimmed;
+  const fenced = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) t = fenced[1].trim();
+  const first = t.indexOf("{");
+  const last = t.lastIndexOf("}");
+  if (first !== -1 && last > first) t = t.slice(first, last + 1);
+  return t && t !== trimmed ? t : null;
+};
+
 export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard[]> {
   if (!process.env.AI_GATEWAY_API_KEY && !process.env.VERCEL_OIDC_TOKEN) {
     throw new AiDraftError(
@@ -249,6 +268,7 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
       system: buildSystemPrompt(topUp),
       prompt: buildUserPrompt(subject),
       maxOutputTokens,
+      experimental_repairText: repairJsonText,
     });
 
     const mapped = object.hazards.map((h) => ({
@@ -283,8 +303,18 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
   } catch (err) {
     if (err instanceof AiDraftError) throw err;
     if (NoObjectGeneratedError.isInstance(err)) {
+      console.error(
+        "[ai-draft] no object generated | finishReason:",
+        err.finishReason,
+        "| text:",
+        err.text?.slice(0, 600),
+      );
+      // A 'length' finish means the model ran out of output budget mid-JSON.
+      const truncated = err.finishReason === "length";
       throw new AiDraftError(
-        "The model couldn't produce a valid set of hazards. Try again, or switch RISKLY_AI_MODEL to another model.",
+        truncated
+          ? "The model's response was cut off before it finished. Try again, or switch RISKLY_AI_MODEL to another model."
+          : "The model couldn't produce a valid set of hazards — this can be intermittent, so try again. If it persists, switch RISKLY_AI_MODEL to another model.",
       );
     }
     if (isGatewayError(err)) {
