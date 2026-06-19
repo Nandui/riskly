@@ -105,7 +105,7 @@ const hazardSchema = z.object({
     .union([z.array(z.string()), z.string()])
     .nullish()
     .describe(
-      "Concrete controls a well-run centre would typically already have in place, as a list of short strings.",
+      "Concrete controls a well-run centre would typically already have in place. Return a JSON array of separate short strings — ONE measure per item, never several merged into a single comma-joined string.",
     ),
   likelihood: z
     .coerce.number()
@@ -165,6 +165,7 @@ function buildSystemPrompt(want: number | null): string {
     "Rules:",
     countRule,
     "- Every field must be specific to the subject, not generic boilerplate.",
+    "- Return currentControls as an array of separate items — each a distinct measure on its own. Never merge several controls into one comma-joined string; the output renders one control per line.",
     "- Rate Likelihood (1–5) and Severity (1–5) realistically, ASSUMING the current controls you listed are already in place (i.e. the residual risk). Use these scales exactly:",
     "",
     "  Likelihood:",
@@ -218,18 +219,56 @@ function buildUserPrompt(
   return lines.join("\n");
 }
 
-// Controls may arrive as an array, a single string, or a separated list —
-// normalise to one control per line.
+// Strip a leading bullet glyph, dash or list number from a single control.
+function cleanControl(s: string): string {
+  return s
+    .trim()
+    .replace(/^[-*•·▪◦‣⁃–—]+\s*/, "")
+    .replace(/^\d+[.)]\s*/, "")
+    .trim();
+}
+
+// Split one run-on string into separate controls. Models that ignore the array
+// format pack every measure into a single string separated by newlines, "; ",
+// inline bullets ("• ", "- ", "* "), numbering ("1. ", "2) "), or just commas.
+// Prefer structural delimiters; only fall back to commas when nothing else
+// separates the items.
+function splitControlBlob(raw: string): string[] {
+  let s = raw.trim();
+  if (!s) return [];
+  // Turn inline bullets / numbering into line breaks first.
+  s = s
+    .replace(/\s*[•·▪◦‣⁃]\s*/g, "\n")
+    .replace(/\s+[-*]\s+/g, "\n")
+    .replace(/\s+\d+[.)]\s+/g, "\n");
+  let parts = s.split(/\r?\n|;/).map((p) => p.trim()).filter(Boolean);
+  if (parts.length <= 1) {
+    const byComma = s.split(/,\s+/).map((p) => p.trim()).filter(Boolean);
+    if (byComma.length >= 2) parts = byComma;
+  }
+  return parts;
+}
+
+// Normalise controls to one per line for the form/report, whatever shape the
+// model used. A genuine multi-item array is trusted as-is (a comma inside an
+// item belongs to that one control); a single string — or a one-item array
+// holding a run-on blob — is split into its individual measures.
 function toControlLines(
   controls: string[] | string | null | undefined,
 ): string {
-  const arr = Array.isArray(controls)
-    ? controls
-    : String(controls ?? "").split(/\r?\n|;/);
-  return arr
-    .map((c) => c.trim())
-    .filter(Boolean)
-    .join("\n");
+  let pieces: string[];
+  if (Array.isArray(controls) && controls.length >= 2) {
+    pieces = controls.flatMap((c) =>
+      String(c ?? "")
+        .split(/\r?\n|;/)
+        .map((p) => p.trim())
+        .filter(Boolean),
+    );
+  } else {
+    const single = Array.isArray(controls) ? controls[0] : controls;
+    pieces = splitControlBlob(String(single ?? ""));
+  }
+  return pieces.map(cleanControl).filter(Boolean).join("\n");
 }
 
 // Normalised key for duplicate detection: same hazard source + consequence.
