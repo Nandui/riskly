@@ -197,6 +197,36 @@ function dedupKey(hazard: string, consequence: string): string {
   return `${hazard} ${consequence}`.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+// String model ids resolve through the Vercel AI Gateway, which reports auth /
+// quota / unknown-model problems as a GatewayError (name "Gateway…") — NOT an
+// APICallError, so these otherwise slip through to the generic catch. The SDK
+// sets `.name` to a stable literal, so match on it without a direct dependency.
+function isGatewayError(
+  err: unknown,
+): err is { name: string; statusCode?: number } {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    typeof (err as { name?: unknown }).name === "string" &&
+    (err as { name: string }).name.includes("Gateway")
+  );
+}
+
+// Map an HTTP status from the gateway/provider to an actionable message.
+function aiStatusMessage(status: number | undefined, model: string): string {
+  if (status === 401)
+    return "The AI Gateway rejected the credentials (401) — set a valid AI_GATEWAY_API_KEY, or deploy on Vercel where the gateway authenticates automatically.";
+  if (status === 403)
+    return "The AI Gateway denied the request (403) — the key or deployment isn't authorised for this provider/model. Check your AI Gateway access and that a provider key (e.g. Google AI Studio) is configured.";
+  if (status === 404)
+    return `Model "${model}" isn't available on your AI Gateway. Set RISKLY_AI_MODEL to a model you've enabled.`;
+  if (status === 429)
+    return "The AI Gateway is rate-limited right now. Wait a moment and try again.";
+  if (status !== undefined && status >= 500)
+    return "The AI provider is unavailable right now. Please try again shortly.";
+  return "The AI Gateway couldn't complete the request — check the gateway authentication and that a provider key is configured, then try again.";
+}
+
 export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard[]> {
   if (!process.env.AI_GATEWAY_API_KEY && !process.env.VERCEL_OIDC_TOKEN) {
     throw new AiDraftError(
@@ -257,19 +287,13 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
         "The model couldn't produce a valid set of hazards. Try again, or switch RISKLY_AI_MODEL to another model.",
       );
     }
+    if (isGatewayError(err)) {
+      console.error("[ai-draft] gateway error", err.name, err.statusCode);
+      throw new AiDraftError(aiStatusMessage(err.statusCode, model));
+    }
     if (APICallError.isInstance(err)) {
-      const status = err.statusCode;
-      if (status === 401 || status === 403) {
-        throw new AiDraftError(
-          "The AI Gateway rejected the request — check the gateway auth and that the provider key is configured.",
-        );
-      }
-      if (status === 404) {
-        throw new AiDraftError(
-          `Model "${model}" isn't available on your AI Gateway. Set RISKLY_AI_MODEL to a model you've enabled.`,
-        );
-      }
-      throw new AiDraftError("The AI service is unavailable right now. Please try again.");
+      console.error("[ai-draft] api error", err.statusCode);
+      throw new AiDraftError(aiStatusMessage(err.statusCode, model));
     }
     console.error("[ai-draft] generateObject failed", err);
     throw new AiDraftError("AI drafting failed unexpectedly. Please try again.");
