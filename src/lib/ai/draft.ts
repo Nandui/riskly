@@ -26,10 +26,10 @@ import {
 import { RISK_CATEGORIES } from "@/lib/constants";
 import { normalizePersonsAtRisk, PERSONS_AT_RISK } from "@/lib/persons";
 
-// DeepSeek V3.1 via the AI Gateway — capable structured output at low cost.
-// Override with any model id enabled on your AI Gateway via RISKLY_AI_MODEL,
-// e.g. "google/gemini-2.5-flash".
-const DEFAULT_MODEL = "deepseek/deepseek-v3.1";
+// Default model via the Vercel AI Gateway. Override with any model id that's
+// enabled (and billed) on your gateway via RISKLY_AI_MODEL, e.g.
+// "google/gemini-2.5-flash".
+const DEFAULT_MODEL = "google/gemma-4-26b-a4b-it";
 const TARGET_HAZARDS = 10;
 const MAX_HAZARDS = 16;
 
@@ -325,6 +325,15 @@ function isTransient(err: unknown): boolean {
 // Translate a thrown error into a user-safe AiDraftError.
 function toAiDraftError(err: unknown, model: string): AiDraftError {
   if (err instanceof AiDraftError) return err;
+  if (
+    err instanceof Error &&
+    (err.name === "TimeoutError" || err.name === "AbortError")
+  ) {
+    console.error("[ai-draft] request timed out");
+    return new AiDraftError(
+      "The model took too long to respond. Please try again, or set RISKLY_AI_MODEL to a faster model.",
+    );
+  }
   if (NoObjectGeneratedError.isInstance(err)) {
     console.error(
       "[ai-draft] no object generated | finishReason:",
@@ -363,7 +372,9 @@ async function generateRound(
   const system = buildSystemPrompt(want);
   const prompt = buildUserPrompt(subject, avoid, want);
   let lastErr: unknown;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  // Two attempts (one retry on a transient flake). Each call is time-boxed so a
+  // hung request can't run the serverless function out of time and crash.
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const { object } = await generateObject({
         model,
@@ -371,6 +382,7 @@ async function generateRound(
         system,
         prompt,
         maxOutputTokens,
+        abortSignal: AbortSignal.timeout(30_000),
         experimental_repairText: repairJsonText,
       });
       return mapRawHazards(object.hazards);
@@ -390,9 +402,9 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
   }
 
   const model = process.env.RISKLY_AI_MODEL || DEFAULT_MODEL;
-  // Gemini models reason before answering and can eat the output budget, so
-  // give Google models headroom; DeepSeek/others cap lower, so stay within ~8k.
-  const maxOutputTokens = model.startsWith("google/") ? 16000 : 8000;
+  // Gemini reasons before answering and needs output headroom; other models
+  // (Gemma, DeepSeek, …) cap lower, so stay within ~8k to avoid 400s.
+  const maxOutputTokens = model.includes("gemini") ? 16000 : 8000;
 
   const existing = (subject.existingHazards ?? []).filter((h) => h.hazard.trim());
   const topUp = existing.length > 0;

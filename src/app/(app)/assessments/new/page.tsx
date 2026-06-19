@@ -11,6 +11,8 @@ import { toDateInputValue } from "@/lib/utils";
 import { requireCapability } from "@/lib/auth";
 
 export const metadata = { title: "New assessment" };
+// AI hazard drafting runs as a server action from this route — give it room.
+export const maxDuration = 60;
 
 export default async function NewAssessmentPage() {
   await requireCapability("editContent");
