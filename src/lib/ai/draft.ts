@@ -20,10 +20,10 @@ import {
 } from "@/lib/risk";
 import { RISK_CATEGORIES } from "@/lib/constants";
 
-// Fast, cheap, reliable structured output, and available on Google AI Studio.
-// Override with any model id from your AI Gateway via RISKLY_AI_MODEL, e.g.
-// "deepseek/deepseek-v3.1" or "google/gemini-3.5-flash".
-const DEFAULT_MODEL = "google/gemini-2.5-flash";
+// DeepSeek V3.1 via the AI Gateway — capable structured output at low cost.
+// Override with any model id enabled on your AI Gateway via RISKLY_AI_MODEL,
+// e.g. "google/gemini-2.5-flash".
+const DEFAULT_MODEL = "deepseek/deepseek-v3.1";
 const TARGET_HAZARDS = 10;
 const MAX_HAZARDS = 16;
 
