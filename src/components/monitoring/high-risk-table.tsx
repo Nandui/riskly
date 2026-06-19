@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/data-table";
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { CategoryBadge } from "@/components/ui/badge";
-import { AssessmentModal } from "@/components/assessments/assessment-modal";
 import type { RiskBand } from "@/lib/risk";
 
 export interface HighRiskRow {
@@ -34,7 +33,7 @@ export function HighRiskTable({
   rows: HighRiskRow[];
   showCenter: boolean;
 }) {
-  const [openId, setOpenId] = useState<string | null>(null);
+  const router = useRouter();
 
   const columns: ColumnDef<HighRiskRow>[] = [
     {
@@ -132,23 +131,15 @@ export function HighRiskTable({
   ];
 
   return (
-    <>
-      <DataTable
-        columns={columns}
-        data={rows}
-        searchable
-        searchPlaceholder="Search hazards…"
-        facets={facets}
-        onRowClick={(r) => setOpenId(r.assessmentId)}
-        pageSize={15}
-        emptyState="No hazards match your filters."
-      />
-      <AssessmentModal
-        id={openId}
-        onOpenChange={(open) => {
-          if (!open) setOpenId(null);
-        }}
-      />
-    </>
+    <DataTable
+      columns={columns}
+      data={rows}
+      searchable
+      searchPlaceholder="Search hazards…"
+      facets={facets}
+      onRowClick={(r) => router.push(`/assessments/${r.assessmentId}`)}
+      pageSize={15}
+      emptyState="No hazards match your filters."
+    />
   );
 }

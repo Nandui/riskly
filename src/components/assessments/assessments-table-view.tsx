@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { MapPin, UserRound, Activity, ChevronRight } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
@@ -12,7 +12,6 @@ import {
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { StatusBadge } from "@/components/ui/badge";
 import { ReviewChip } from "@/components/ui/review-chip";
-import { AssessmentModal } from "@/components/assessments/assessment-modal";
 import type { AssessmentRow } from "@/lib/data/assessments";
 import { ASSESSMENT_STATUSES } from "@/lib/constants";
 import { RISK_BANDS, BAND_META } from "@/lib/risk";
@@ -35,7 +34,7 @@ export function AssessmentsTableView({
   compact?: boolean;
   searchable?: boolean;
 }) {
-  const [openId, setOpenId] = useState<string | null>(null);
+  const router = useRouter();
 
   const columns: ColumnDef<AssessmentRow>[] = [
     {
@@ -218,28 +217,20 @@ export function AssessmentsTableView({
   ];
 
   return (
-    <>
-      <DataTable
-        columns={columns}
-        data={rows}
-        searchable={searchable ?? !compact}
-        searchPlaceholder="Search reference or subject…"
-        facets={compact ? [] : facets}
-        initialColumnVisibility={{
-          band: false,
-          subjectType: false,
-          ...(compact ? { department: false } : {}),
-        }}
-        onRowClick={(r) => setOpenId(r.id)}
-        pageSize={compact ? 6 : 15}
-        emptyState="No assessments match your filters."
-      />
-      <AssessmentModal
-        id={openId}
-        onOpenChange={(open) => {
-          if (!open) setOpenId(null);
-        }}
-      />
-    </>
+    <DataTable
+      columns={columns}
+      data={rows}
+      searchable={searchable ?? !compact}
+      searchPlaceholder="Search reference or subject…"
+      facets={compact ? [] : facets}
+      initialColumnVisibility={{
+        band: false,
+        subjectType: false,
+        ...(compact ? { department: false } : {}),
+      }}
+      onRowClick={(r) => router.push(`/assessments/${r.id}`)}
+      pageSize={compact ? 6 : 15}
+      emptyState="No assessments match your filters."
+    />
   );
 }
