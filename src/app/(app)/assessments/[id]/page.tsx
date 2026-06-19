@@ -36,12 +36,12 @@ export default async function AssessmentDetailPage({
   const title = assessmentTitle(a);
   const classification = `${a.center.name} · ${a.subjectType} assessment`;
   const canEdit = can(user, "editContent");
-  // Owner sign-off is for the assessment's owner; CEO sign-off for a CEO.
-  // Admins can grant either.
-  const isAdmin = can(user, "admin");
-  const canApproveOwner =
-    isAdmin || (!!user && !!a.ownerId && user.id === a.ownerId);
-  const canApproveCeo = isAdmin || user?.role === "CEO";
+  // Owner sign-off is the owner's own attestation; the CEO sign-off must be a
+  // different person (separation of duties) — a CEO or Admin who isn't the
+  // owner. So the owner can never grant the CEO approval on their own work.
+  const isOwner = !!user && !!a.ownerId && user.id === a.ownerId;
+  const canApproveOwner = isOwner;
+  const canApproveCeo = !isOwner && (user?.role === "CEO" || can(user, "admin"));
 
   const requests = a.reviewRequests.map((r) => ({
     id: r.id,

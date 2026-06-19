@@ -16,17 +16,18 @@ function revalidate(id: string) {
 type Kind = "owner" | "ceo";
 const KIND_LABEL: Record<Kind, string> = { owner: "Owner", ceo: "CEO" };
 
-// Owner sign-off is granted by the assessment's owner; CEO sign-off by a CEO.
-// Admins can grant either.
+// Owner sign-off is the owner's own attestation; CEO sign-off must be a
+// *different* person (separation of duties) — a CEO, or an Admin acting as
+// exec, who is not the owner.
 function mayApprove(
   user: { id: string; role: string } | null | undefined,
   kind: Kind,
   ownerId: string | null,
 ): boolean {
   if (!user) return false;
-  if (can(user, "admin")) return true;
-  if (kind === "owner") return ownerId != null && user.id === ownerId;
-  return user.role === "CEO";
+  const isOwner = ownerId != null && user.id === ownerId;
+  if (kind === "owner") return isOwner;
+  return !isOwner && (user.role === "CEO" || can(user, "admin"));
 }
 
 // Grant the Owner or CEO sign-off. Either approval puts the assessment in force
