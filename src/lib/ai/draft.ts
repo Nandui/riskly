@@ -136,12 +136,11 @@ function numberedScale(labels: readonly string[], descriptions?: readonly string
     .join("\n");
 }
 
-function buildSystemPrompt(topUp: boolean, count: number | null): string {
-  const countRule = count
-    ? `- Produce exactly ${count} ${topUp ? "NEW hazard" : "hazard"}${count === 1 ? "" : "s"} — the ${count} most significant${topUp ? " that are NOT already covered (never duplicate an existing entry)" : ""}, ordered most-significant first.`
-    : topUp
-      ? "- You are ADDING to an existing assessment that already lists some hazards (given below). Draft only NEW, genuinely significant hazards that are NOT already covered. Never restate, rephrase or duplicate an existing entry. Quality over quantity: add as many as are truly missing and no more — returning only a few, or an empty list when the assessment is already comprehensive, is correct and expected."
-      : `- Produce at least ${TARGET_HAZARDS} entries (target ${TARGET_HAZARDS}–${TARGET_HAZARDS + 2}), ordered most-significant first. Cover the genuinely important risks — do not pad with trivia or near-duplicates.`;
+function buildSystemPrompt(want: number | null): string {
+  const countRule =
+    want != null
+      ? `- Produce ${want} hazard${want === 1 ? "" : "s"} — the most significant, each a genuinely distinct risk, ordered most-significant first. Do not pad with near-duplicates.`
+      : "- Add as many genuinely new, significant hazards as the assessment is missing. It is fine to return only a few, or an empty list, if it is already comprehensive.";
   return [
     "You are a senior health & safety risk assessor who specialises in leisure, sports and aquatic centres in Ireland. You produce practical, regulation-aware risk assessments consistent with the Safety, Health and Welfare at Work Act 2005 and HSA guidance.",
     "",
@@ -179,7 +178,11 @@ function buildSystemPrompt(topUp: boolean, count: number | null): string {
   ].join("\n");
 }
 
-function buildUserPrompt(s: DraftSubject, count: number | null): string {
+function buildUserPrompt(
+  s: DraftSubject,
+  avoid: ExistingHazard[],
+  want: number | null,
+): string {
   const subject = s.subjectType.toLowerCase();
   const lines = [
     `Centre: ${s.centerName}`,
@@ -195,28 +198,23 @@ function buildUserPrompt(s: DraftSubject, count: number | null): string {
     lines.push(`Additional focus from the assessor: ${s.hint.trim()}`);
   }
 
-  const existing = (s.existingHazards ?? []).filter((h) => h.hazard.trim());
-  if (existing.length) {
+  const avoidList = avoid.filter((h) => h.hazard.trim());
+  if (avoidList.length) {
     lines.push(
       "",
-      `This assessment ALREADY records the following ${existing.length} hazard(s). Do NOT repeat or rephrase them — only add significant risks for this ${subject} that they do not already cover:`,
-      ...existing.map((h, i) => {
+      `These ${avoidList.length} hazard(s) are ALREADY covered. Generate hazards that are genuinely DIFFERENT — do NOT repeat, rephrase, or lightly reword any of them, and do NOT copy this list back:`,
+      ...avoidList.map((h, i) => {
         const consequence = h.consequence?.trim();
         return `${i + 1}. ${h.hazard.trim()}${consequence ? ` → ${consequence}` : ""}`;
       }),
-      "",
-      count
-        ? `Draft ${count} additional hazard${count === 1 ? "" : "s"} not in the list above, most significant first.`
-        : `Draft the additional hazards. Return an empty list if nothing significant is missing.`,
-    );
-  } else {
-    lines.push(
-      "",
-      count
-        ? `Draft the ${count} most important hazard${count === 1 ? "" : "s"} for this ${subject}.`
-        : `Draft the most important hazards for this ${subject}.`,
     );
   }
+  lines.push(
+    "",
+    want != null
+      ? `Draft ${want} ${avoidList.length ? "further " : ""}hazard${want === 1 ? "" : "s"} for this ${subject}${avoidList.length ? " that are NOT in the list above" : ""}, most significant first.`
+      : `Draft the further significant hazards for this ${subject} that aren't already covered. Return an empty list if nothing significant is missing.`,
+  );
   return lines.join("\n");
 }
 
@@ -293,6 +291,97 @@ const repairJsonText: RepairTextFunction = async ({ text }) => {
   return t !== original ? t : null;
 };
 
+// Normalise one round's raw output to the hazard form fields.
+function mapRawHazards(
+  raw: z.infer<typeof outputSchema>["hazards"],
+): DraftedHazard[] {
+  return raw.map((h) => ({
+    hazard: h.hazard.trim(),
+    riskFactor: (h.riskFactor ?? "").trim(),
+    personAtRisk: normalizePersonsAtRisk(h.personAtRisk),
+    consequence: (h.consequence ?? "").trim(),
+    currentControls: toControlLines(h.currentControls),
+    likelihood: clampRating(h.likelihood),
+    severity: clampRating(h.severity),
+    riskCategory:
+      h.riskCategory && CATEGORY_VALUES.includes(h.riskCategory)
+        ? h.riskCategory
+        : "Physical",
+  }));
+}
+
+// Worth retrying: a flaky structured-output miss, rate limiting, or a provider
+// 5xx. Auth/quota/unknown-model (401/403/404) are not — fail those fast.
+function isTransient(err: unknown): boolean {
+  if (NoObjectGeneratedError.isInstance(err)) return true;
+  const status = isGatewayError(err)
+    ? err.statusCode
+    : APICallError.isInstance(err)
+      ? err.statusCode
+      : undefined;
+  return status === 429 || (status !== undefined && status >= 500);
+}
+
+// Translate a thrown error into a user-safe AiDraftError.
+function toAiDraftError(err: unknown, model: string): AiDraftError {
+  if (err instanceof AiDraftError) return err;
+  if (NoObjectGeneratedError.isInstance(err)) {
+    console.error(
+      "[ai-draft] no object generated | finishReason:",
+      err.finishReason,
+      "| cause:",
+      err.cause instanceof Error ? err.cause.message : err.cause,
+      "| text:",
+      err.text?.slice(0, 600),
+    );
+    return new AiDraftError(
+      err.finishReason === "length"
+        ? "The model's response was cut off before it finished. Try again, or switch RISKLY_AI_MODEL to another model."
+        : "The model couldn't produce a valid set of hazards — this can be intermittent, so try again. If it persists, switch RISKLY_AI_MODEL to another model.",
+    );
+  }
+  if (isGatewayError(err)) {
+    console.error("[ai-draft] gateway error", err.name, err.statusCode);
+    return new AiDraftError(aiStatusMessage(err.statusCode, model));
+  }
+  if (APICallError.isInstance(err)) {
+    console.error("[ai-draft] api error", err.statusCode);
+    return new AiDraftError(aiStatusMessage(err.statusCode, model));
+  }
+  console.error("[ai-draft] generateObject failed", err);
+  return new AiDraftError("AI drafting failed unexpectedly. Please try again.");
+}
+
+// One generation round, retried a couple of times on transient failures.
+async function generateRound(
+  model: string,
+  maxOutputTokens: number,
+  subject: DraftSubject,
+  avoid: ExistingHazard[],
+  want: number | null,
+): Promise<DraftedHazard[]> {
+  const system = buildSystemPrompt(want);
+  const prompt = buildUserPrompt(subject, avoid, want);
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const { object } = await generateObject({
+        model,
+        schema: outputSchema,
+        system,
+        prompt,
+        maxOutputTokens,
+        experimental_repairText: repairJsonText,
+      });
+      return mapRawHazards(object.hazards);
+    } catch (err) {
+      lastErr = err;
+      if (!isTransient(err)) throw err;
+    }
+  }
+  throw lastErr;
+}
+
 export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard[]> {
   if (!process.env.AI_GATEWAY_API_KEY && !process.env.VERCEL_OIDC_TOKEN) {
     throw new AiDraftError(
@@ -307,79 +396,62 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
 
   const existing = (subject.existingHazards ?? []).filter((h) => h.hazard.trim());
   const topUp = existing.length > 0;
-  const targetCount =
+  const explicitCount =
     subject.count && subject.count > 0
       ? Math.min(MAX_HAZARDS, Math.round(subject.count))
       : null;
+  // Fresh assessments aim for ~10; a top-up with no count is "as needed".
+  const target = explicitCount ?? (topUp ? null : TARGET_HAZARDS);
 
-  try {
-    const { object } = await generateObject({
-      model,
-      schema: outputSchema,
-      system: buildSystemPrompt(topUp, targetCount),
-      prompt: buildUserPrompt(subject, targetCount),
-      maxOutputTokens,
-      experimental_repairText: repairJsonText,
-    });
-
-    const mapped = object.hazards.map((h) => ({
-      hazard: h.hazard.trim(),
-      riskFactor: (h.riskFactor ?? "").trim(),
-      personAtRisk: normalizePersonsAtRisk(h.personAtRisk),
-      consequence: (h.consequence ?? "").trim(),
-      currentControls: toControlLines(h.currentControls),
-      likelihood: clampRating(h.likelihood),
-      severity: clampRating(h.severity),
-      riskCategory:
-        h.riskCategory && CATEGORY_VALUES.includes(h.riskCategory)
-          ? h.riskCategory
-          : "Physical",
-    }));
-
-    // Belt-and-braces: drop anything that repeats an already-recorded hazard or
-    // an earlier entry in this batch, then cap at the requested count (or MAX).
-    const cap = targetCount ?? MAX_HAZARDS;
-    const seen = new Set(
-      existing.map((h) => dedupKey(h.hazard, h.consequence ?? "")),
-    );
-    const deduped: DraftedHazard[] = [];
-    for (const h of mapped) {
-      if (!h.hazard) continue;
+  const seen = new Set(
+    existing.map((h) => dedupKey(h.hazard, h.consequence ?? "")),
+  );
+  const addNew = (into: DraftedHazard[], from: DraftedHazard[], cap: number) => {
+    for (const h of from) {
+      if (!h.hazard || into.length >= cap) continue;
       const key = dedupKey(h.hazard, h.consequence);
       if (seen.has(key)) continue;
       seen.add(key);
-      deduped.push(h);
-      if (deduped.length >= cap) break;
+      into.push(h);
     }
-    return deduped;
-  } catch (err) {
-    if (err instanceof AiDraftError) throw err;
-    if (NoObjectGeneratedError.isInstance(err)) {
-      console.error(
-        "[ai-draft] no object generated | finishReason:",
-        err.finishReason,
-        "| cause:",
-        err.cause instanceof Error ? err.cause.message : err.cause,
-        "| text:",
-        err.text?.slice(0, 600),
-      );
-      // A 'length' finish means the model ran out of output budget mid-JSON.
-      const truncated = err.finishReason === "length";
-      throw new AiDraftError(
-        truncated
-          ? "The model's response was cut off before it finished. Try again, or switch RISKLY_AI_MODEL to another model."
-          : "The model couldn't produce a valid set of hazards — this can be intermittent, so try again. If it persists, switch RISKLY_AI_MODEL to another model.",
-      );
+  };
+
+  // "As needed" (top-up with no explicit count): a single round, keep whatever
+  // is genuinely new.
+  if (target === null) {
+    let mapped: DraftedHazard[];
+    try {
+      mapped = await generateRound(model, maxOutputTokens, subject, existing, null);
+    } catch (err) {
+      throw toAiDraftError(err, model);
     }
-    if (isGatewayError(err)) {
-      console.error("[ai-draft] gateway error", err.name, err.statusCode);
-      throw new AiDraftError(aiStatusMessage(err.statusCode, model));
-    }
-    if (APICallError.isInstance(err)) {
-      console.error("[ai-draft] api error", err.statusCode);
-      throw new AiDraftError(aiStatusMessage(err.statusCode, model));
-    }
-    console.error("[ai-draft] generateObject failed", err);
-    throw new AiDraftError("AI drafting failed unexpectedly. Please try again.");
+    const out: DraftedHazard[] = [];
+    addNew(out, mapped, MAX_HAZARDS);
+    return out;
   }
+
+  // Targeted: weaker models tend to echo the "already covered" list back, which
+  // dedup then strips — leaving too few. So accumulate over a few rounds,
+  // feeding back everything covered so far (existing + collected) and over-
+  // asking slightly, until we hit the target or a round adds nothing new.
+  const collected: DraftedHazard[] = [];
+  const MAX_ROUNDS = 3;
+  for (let round = 0; round < MAX_ROUNDS && collected.length < target; round++) {
+    const want = Math.min(MAX_HAZARDS, target - collected.length + 2);
+    const avoid: ExistingHazard[] = [
+      ...existing,
+      ...collected.map((h) => ({ hazard: h.hazard, consequence: h.consequence })),
+    ];
+    let mapped: DraftedHazard[];
+    try {
+      mapped = await generateRound(model, maxOutputTokens, subject, avoid, want);
+    } catch (err) {
+      if (collected.length === 0) throw toAiDraftError(err, model);
+      break; // keep what we already have rather than failing the whole draft
+    }
+    const before = collected.length;
+    addNew(collected, mapped, target);
+    if (collected.length === before) break; // nothing new — genuinely exhausted
+  }
+  return collected.slice(0, target);
 }
