@@ -150,23 +150,30 @@ export function AssessmentView({
               </p>
             </div>
 
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 space-y-2.5">
               {distribution
                 .filter((d) => d.count > 0)
                 .map(({ band, count }) => {
                   const meta = BAND_META[band];
                   return (
-                    <div
-                      key={band}
-                      className={cn(
-                        "flex items-center justify-between rounded-lg px-3 py-2",
-                        meta.cell,
-                      )}
-                    >
-                      <span className="text-xs font-bold uppercase tracking-wider">
+                    <div key={band} className="flex items-center gap-2.5">
+                      <span
+                        className={cn(
+                          "w-20 shrink-0 text-[0.625rem] font-bold uppercase tracking-wider",
+                          meta.text,
+                        )}
+                      >
                         {meta.label}
                       </span>
-                      <span className="font-mono text-sm font-bold tnum">
+                      <div className="flex flex-1 flex-wrap items-center gap-1">
+                        {Array.from({ length: count }).map((_, i) => (
+                          <span
+                            key={i}
+                            className={cn("size-1.5 rounded-full", meta.dot)}
+                          />
+                        ))}
+                      </div>
+                      <span className="font-mono text-xs font-semibold tnum text-ink-soft">
                         {count}
                       </span>
                     </div>
