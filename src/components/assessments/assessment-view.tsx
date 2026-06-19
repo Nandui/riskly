@@ -131,30 +131,23 @@ export function AssessmentView({
           {/* Overall residual risk */}
           <div className="rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-xs">
             <p className="eyebrow mb-3">Overall residual risk</p>
-            <div className="flex items-center gap-3">
-              <div
-                className={cn(
-                  "flex size-12 items-center justify-center rounded-xl font-mono text-lg font-bold tnum",
-                  headlineBand
-                    ? BAND_META[headlineBand].cell
-                    : "bg-surface-2 text-faint",
-                )}
-              >
+            <div
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 rounded-xl px-4 py-5 text-center",
+                headlineBand
+                  ? BAND_META[headlineBand].cell
+                  : "bg-surface-2 text-faint",
+              )}
+            >
+              <div className="font-mono text-4xl font-bold leading-none tnum">
                 {hazardCount ? overallScore : "—"}
               </div>
-              <div>
-                <p
-                  className={cn(
-                    "text-base font-semibold leading-tight",
-                    headlineBand ? BAND_META[headlineBand].text : "text-ink",
-                  )}
-                >
-                  {headlineBand ? BAND_META[headlineBand].label : "—"}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {hazardCount} {hazardCount === 1 ? "hazard" : "hazards"}
-                </p>
+              <div className="text-sm font-bold uppercase tracking-wider">
+                {headlineBand ? BAND_META[headlineBand].label : "—"}
               </div>
+              <p className="text-xs font-medium opacity-75">
+                {hazardCount} {hazardCount === 1 ? "hazard" : "hazards"}
+              </p>
             </div>
 
             <div className="mt-4 space-y-2.5">
