@@ -150,29 +150,25 @@ export function AssessmentView({
               </p>
             </div>
 
-            <div className="mt-4 space-y-2.5">
+            <div className="mt-4 space-y-2">
               {distribution
                 .filter((d) => d.count > 0)
                 .map(({ band, count }) => {
                   const meta = BAND_META[band];
-                  const pct = hazardCount ? (count / hazardCount) * 100 : 0;
                   return (
-                    <div key={band}>
-                      <div className="mb-1 flex items-center justify-between text-xs font-medium text-ink-soft">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span
-                            className={cn("size-2 rounded-sm", meta.dot)}
-                          />
-                          {meta.label}
-                        </span>
-                        <span className="font-mono tnum text-ink">{count}</span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
-                        <div
-                          className={cn("h-full rounded-full", meta.dot)}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
+                    <div
+                      key={band}
+                      className={cn(
+                        "flex items-center justify-between rounded-lg px-3 py-2",
+                        meta.cell,
+                      )}
+                    >
+                      <span className="text-xs font-bold uppercase tracking-wider">
+                        {meta.label}
+                      </span>
+                      <span className="font-mono text-sm font-bold tnum">
+                        {count}
+                      </span>
                     </div>
                   );
                 })}
