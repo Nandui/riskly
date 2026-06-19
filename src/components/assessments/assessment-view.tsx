@@ -16,6 +16,7 @@ import {
 } from "@/components/assessments/approval-button";
 import { AddHazardButton } from "@/components/assessments/add-hazard-modal";
 import { EditHazardButton } from "@/components/assessments/edit-hazard-modal";
+import { DeleteHazardButton } from "@/components/assessments/delete-hazard-button";
 import { ActivityLogButton } from "@/components/assessments/activity-log-modal";
 import { RequestHazardReviewButton } from "@/components/assessments/request-hazard-review-modal";
 import { PERSONS_AT_RISK, parsePersons } from "@/lib/persons";
@@ -507,6 +508,12 @@ function HazardRecord({
           </div>
           <CategoryBadge category={h.riskCategory} />
           {canEdit && <EditHazardButton hazard={h} />}
+          {canEdit && (
+            <DeleteHazardButton
+              hazardId={h.id}
+              hazardName={h.hazard || `Hazard ${n}`}
+            />
+          )}
           {canRequest && (
             <RequestHazardReviewButton
               assessmentId={assessmentId}

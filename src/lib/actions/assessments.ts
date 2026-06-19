@@ -574,3 +574,53 @@ export async function updateHazard(
   revalidateAssessments(assessmentId);
   return { ok: true };
 }
+
+// Remove a single hazard from the assessment page. Another material change:
+// sends the assessment back to Under review and clears any sign-off. The seq is
+// never reused, so the hazard's number is retired. Logged as `hazard_removed`.
+export async function deleteHazard(hazardId: string): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
+
+  const existing = await db.hazard.findUnique({
+    where: { id: hazardId },
+    select: {
+      hazard: true,
+      assessmentId: true,
+      assessment: { select: { status: true, approvedByName: true } },
+    },
+  });
+  if (!existing) return { ok: false, error: "Hazard not found." };
+
+  const assessmentId = existing.assessmentId;
+  const wasApproved = Boolean(existing.assessment.approvedByName);
+  const toReview = existing.assessment.status !== "Archived";
+
+  await db.hazard.delete({ where: { id: hazardId } });
+
+  if (toReview || wasApproved) {
+    await db.riskAssessment.update({
+      where: { id: assessmentId },
+      data: {
+        ...(toReview ? { status: "UnderReview" } : {}),
+        ...(wasApproved
+          ? { approvedByName: null, approvedById: null, approvedAt: null }
+          : {}),
+      },
+    });
+  }
+
+  const user = await getCurrentUser();
+  await recordAudit(assessmentId, user, "hazard_removed", existing.hazard);
+  if (wasApproved) {
+    await recordAudit(
+      assessmentId,
+      user,
+      "approval_revoked",
+      "Reset because a hazard was removed",
+    );
+  }
+
+  revalidateAssessments(assessmentId);
+  return { ok: true };
+}

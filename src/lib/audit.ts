@@ -6,6 +6,7 @@ export type AuditAction =
   | "updated"
   | "hazard_added"
   | "hazard_updated"
+  | "hazard_removed"
   | "imported"
   | "approved"
   | "approval_revoked"
