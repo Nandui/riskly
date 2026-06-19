@@ -492,14 +492,6 @@ function HazardRecord({
       {/* content */}
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-2.5 border-b border-line bg-surface-2/50 px-4 py-2.5">
-          <span
-            className={cn(
-              "flex size-6 shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold tnum",
-              meta.cell,
-            )}
-          >
-            {n}
-          </span>
           <div className="min-w-0 flex-1">
             <p className="font-mono text-[0.625rem] font-medium tracking-wide text-faint">
               {reference}
