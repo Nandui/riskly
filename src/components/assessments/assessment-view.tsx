@@ -155,6 +155,10 @@ export function AssessmentView({
                 .filter((d) => d.count > 0)
                 .map(({ band, count }) => {
                   const meta = BAND_META[band];
+                  const filled = Math.max(
+                    1,
+                    Math.round((count / hazardCount) * 10),
+                  );
                   return (
                     <div key={band} className="flex items-center gap-2.5">
                       <span
@@ -165,17 +169,17 @@ export function AssessmentView({
                       >
                         {meta.label}
                       </span>
-                      <div className="flex flex-1 flex-wrap items-center gap-1">
-                        {Array.from({ length: count }).map((_, i) => (
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: 10 }).map((_, i) => (
                           <span
                             key={i}
-                            className={cn("size-1.5 rounded-full", meta.dot)}
+                            className={cn(
+                              "size-1.5 rounded-full",
+                              i < filled ? meta.dot : "bg-ink/15",
+                            )}
                           />
                         ))}
                       </div>
-                      <span className="font-mono text-xs font-semibold tnum text-ink-soft">
-                        {count}
-                      </span>
                     </div>
                   );
                 })}
