@@ -2,6 +2,7 @@
 
 import { Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { Input, Textarea, Select, Field } from "@/components/ui/form";
+import { PersonAtRiskPicker } from "./person-at-risk-picker";
 import { RISK_CATEGORIES } from "@/lib/constants";
 import {
   riskScore,
@@ -221,10 +222,9 @@ function HazardCard({
             />
           </Field>
           <Field label="Person at risk">
-            <Input
+            <PersonAtRiskPicker
               value={hazard.personAtRisk}
-              onChange={(e) => onUpdate({ personAtRisk: e.target.value })}
-              placeholder="Staff / Customers / Visitors / Contractors"
+              onChange={(v) => onUpdate({ personAtRisk: v })}
             />
           </Field>
           <Field label="Consequence">

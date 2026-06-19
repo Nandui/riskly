@@ -17,6 +17,7 @@ import {
 import { AddHazardButton } from "@/components/assessments/add-hazard-modal";
 import { ActivityLogButton } from "@/components/assessments/activity-log-modal";
 import { RequestHazardReviewButton } from "@/components/assessments/request-hazard-review-modal";
+import { PERSONS_AT_RISK, parsePersons } from "@/lib/persons";
 import type { AssessmentDetail } from "@/lib/data/assessments";
 import {
   formatDate,
@@ -91,9 +92,9 @@ export function AssessmentView({
   const categories = Array.from(
     new Set(hazards.map((h) => h.riskCategory)),
   ).sort();
-  const persons = Array.from(
-    new Set(hazards.map((h) => h.personAtRisk).filter(Boolean) as string[]),
-  ).sort();
+  const persons = PERSONS_AT_RISK.filter((p) =>
+    hazards.some((h) => parsePersons(h.personAtRisk).includes(p)),
+  );
 
   const [riskFilter, setRiskFilter] = useState("");
   const [catFilter, setCatFilter] = useState("");
@@ -105,7 +106,8 @@ export function AssessmentView({
       (h) =>
         (!riskFilter || h.band === riskFilter) &&
         (!catFilter || h.riskCategory === catFilter) &&
-        (!personFilter || h.personAtRisk === personFilter),
+        (!personFilter ||
+          parsePersons(h.personAtRisk).some((p) => p === personFilter)),
     );
     if (sort === "riskDesc") return [...list].sort((x, y) => y.score - x.score);
     if (sort === "riskAsc") return [...list].sort((x, y) => x.score - y.score);
@@ -466,6 +468,7 @@ function HazardRecord({
   const meta = BAND_META[h.band];
   const consequences = splitLines(h.consequence);
   const controls = splitLines(h.currentControls);
+  const people = parsePersons(h.personAtRisk);
   const reference = `${assessmentRef}-HZ-${String(n).padStart(3, "0")}`;
 
   return (
@@ -515,9 +518,20 @@ function HazardRecord({
             </p>
           </RecordField>
           <RecordField label="Person at risk">
-            <p className="text-sm leading-relaxed text-ink-soft">
-              {h.personAtRisk || <span className="text-faint">—</span>}
-            </p>
+            {people.length ? (
+              <div className="flex flex-wrap gap-1">
+                {people.map((p) => (
+                  <span
+                    key={p}
+                    className="rounded-full border border-line bg-surface-2 px-2 py-0.5 text-xs font-medium text-ink-soft"
+                  >
+                    {p}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <span className="text-sm text-faint">—</span>
+            )}
           </RecordField>
           <RecordField label="Consequence">
             {consequences.length ? (

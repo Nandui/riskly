@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizePersonsAtRisk } from "@/lib/persons";
 
 const optionalText = (max = 500) => z.string().trim().max(max).optional();
 const optionalEmail = z
@@ -36,7 +37,14 @@ export const hazardSchema = z.object({
   id: z.string().optional(),
   hazard: z.string().trim().min(2, "Describe the hazard").max(300),
   riskFactor: optionalText(500),
-  personAtRisk: optionalText(300),
+  // Normalised to the standard categories (Staff, Customers, Children,
+  // Contractors, Visitors) on save, whatever was typed/imported/drafted.
+  personAtRisk: z
+    .string()
+    .trim()
+    .max(300)
+    .optional()
+    .transform((v) => normalizePersonsAtRisk(v)),
   consequence: optionalText(500),
   currentControls: optionalText(2000),
   likelihood: z.coerce.number().int().min(1).max(5),

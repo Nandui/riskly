@@ -24,6 +24,7 @@ import {
   clampRating,
 } from "@/lib/risk";
 import { RISK_CATEGORIES } from "@/lib/constants";
+import { normalizePersonsAtRisk, PERSONS_AT_RISK } from "@/lib/persons";
 
 // DeepSeek V3.1 via the AI Gateway — capable structured output at low cost.
 // Override with any model id enabled on your AI Gateway via RISKLY_AI_MODEL,
@@ -91,7 +92,9 @@ const hazardSchema = z.object({
   personAtRisk: z
     .string()
     .nullish()
-    .describe("Who is at risk, e.g. 'Customers, Children, Staff'."),
+    .describe(
+      `Who is at risk — one or more of exactly: ${PERSONS_AT_RISK.join(", ")} (comma-separated, no others).`,
+    ),
   consequence: z
     .string()
     .nullish()
@@ -148,7 +151,7 @@ function buildSystemPrompt(topUp: boolean, count: number | null): string {
     "- HAZARD = the source: the thing or condition with the potential to cause harm, written as a noun. Examples: \"Pool water\", \"Wet changing-room floor\", \"Pool chemicals (chlorine / acid)\", \"Electrical equipment near water\", \"Free weights\". The hazard is NOT the event — do not write \"Slips on a wet floor\"; the hazard is \"Wet floor\".",
     "- RISK FACTOR = the why: the conditions or causes that make harm likely (e.g. non-swimmers and weak swimmers, a momentary lapse in supervision, a sudden medical episode, deep water).",
     "- CONSEQUENCE = the risk realised: the specific harmful event and its outcome (e.g. \"Drowning — fatal or hypoxic brain injury\").",
-    "- PERSON AT RISK = who is harmed (e.g. Staff, Customers, Children, Contractors, Members of the public).",
+    `- PERSON AT RISK = who is harmed — choose only from these exact categories: ${PERSONS_AT_RISK.join(", ")} (one or more, comma-separated).`,
     "- CURRENT CONTROLS = the concrete measures a well-run centre would typically already have in place.",
     "",
     "The SAME hazard source can appear in more than one entry when it presents genuinely distinct significant risks — e.g. \"Pool water\" → drowning, and \"Pool water\" → shallow-end impact / diving injury. Cover the real distinct risks rather than padding with many superficial hazard sources.",
@@ -322,7 +325,7 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
     const mapped = object.hazards.map((h) => ({
       hazard: h.hazard.trim(),
       riskFactor: (h.riskFactor ?? "").trim(),
-      personAtRisk: (h.personAtRisk ?? "").trim(),
+      personAtRisk: normalizePersonsAtRisk(h.personAtRisk),
       consequence: (h.consequence ?? "").trim(),
       currentControls: toControlLines(h.currentControls),
       likelihood: clampRating(h.likelihood),

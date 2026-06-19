@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Field, Input, Textarea, Select } from "@/components/ui/form";
+import { PersonAtRiskPicker } from "./person-at-risk-picker";
 import { addHazard } from "@/lib/actions/assessments";
 import { RISK_CATEGORIES } from "@/lib/constants";
 import {
@@ -62,6 +63,7 @@ function AddHazardForm({
   );
   const [likelihood, setLikelihood] = useState(2);
   const [severity, setSeverity] = useState(3);
+  const [personAtRisk, setPersonAtRisk] = useState("");
   const fe = state?.fieldErrors ?? {};
   const score = riskScore(likelihood, severity);
   const meta = bandMeta(score);
@@ -102,10 +104,8 @@ function AddHazardForm({
             />
           </Field>
           <Field label="Person at risk">
-            <Input
-              name="personAtRisk"
-              placeholder="Staff / Customers / Visitors / Contractors"
-            />
+            <input type="hidden" name="personAtRisk" value={personAtRisk} />
+            <PersonAtRiskPicker value={personAtRisk} onChange={setPersonAtRisk} />
           </Field>
           <Field label="Consequence">
             <Textarea

@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { addMonths, subDays, subMonths } from "date-fns";
+import { normalizePersonsAtRisk } from "../src/lib/persons";
 
 const db = new PrismaClient();
 const now = new Date();
@@ -73,7 +74,7 @@ async function makeAssessment(opts: {
           seq: i + 1,
           hazard: h.hazard,
           riskFactor: h.riskFactor,
-          personAtRisk: h.personAtRisk,
+          personAtRisk: normalizePersonsAtRisk(h.personAtRisk) || null,
           consequence: h.consequence,
           currentControls: h.currentControls,
           likelihood: h.likelihood,
@@ -167,7 +168,7 @@ async function main() {
   const acCash = await activity("Cash & front of house", "Reception and cash handling", 5);
   const acClass = await activity("Group exercise class", "Instructor-led classes", 6);
 
-  const ALL = "Staff / Customers / Visitors / Contractors";
+  const ALL = "Staff, Customers, Children, Contractors, Visitors";
 
   // 1. Bishopstown — Pitches (mirrors the client's real assessment) — due soon
   await makeAssessment({
