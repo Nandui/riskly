@@ -36,7 +36,7 @@ async function makeAssessment(opts: {
   activityId?: string;
   status: "Draft" | "Active" | "UnderReview" | "Archived";
   assessorName?: string;
-  approvedByName?: string;
+  ceoApprovedByName?: string;
   monthsAgo: number;
   extraDaysAgo?: number;
   reviewFrequencyMonths: number;
@@ -62,7 +62,7 @@ async function makeAssessment(opts: {
       activityId: opts.activityId,
       status: opts.status,
       assessorName: opts.assessorName,
-      approvedByName: opts.approvedByName,
+      ceoApprovedByName: opts.ceoApprovedByName,
       assessmentDate,
       reviewFrequencyMonths: opts.reviewFrequencyMonths,
       lastReviewedDate: reviewedDate,
@@ -178,7 +178,7 @@ async function main() {
     areaId: bPitches.id,
     status: "Active",
     assessorName: "Fernando Serina",
-    approvedByName: "Site Manager",
+    ceoApprovedByName: "Site Manager",
     monthsAgo: 11,
     extraDaysAgo: 9,
     reviewFrequencyMonths: 12,
@@ -346,7 +346,7 @@ async function main() {
     activityId: acPoolSup.id,
     status: "Active",
     assessorName: "Sarah Whitcombe",
-    approvedByName: "Site Manager",
+    ceoApprovedByName: "Site Manager",
     monthsAgo: 13,
     reviewFrequencyMonths: 12,
     reviewed: { outcome: "Updated", reviewerName: "Sarah Whitcombe" },

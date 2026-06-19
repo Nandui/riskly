@@ -121,7 +121,7 @@ export type FirstAdminInput = z.infer<typeof firstAdminSchema>;
 export const userCreateSchema = z.object({
   name: z.string().trim().min(2, "Enter a name").max(120),
   email: z.string().trim().email("Enter a valid email").max(160),
-  role: z.enum(["Viewer", "Contributor", "Reviewer", "Assessor", "Admin"]),
+  role: z.enum(["Viewer", "Contributor", "Reviewer", "CEO", "Assessor", "Admin"]),
   password: passwordField,
 });
 export type UserCreateInput = z.infer<typeof userCreateSchema>;

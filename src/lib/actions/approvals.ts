@@ -13,73 +13,120 @@ function revalidate(id: string) {
   revalidatePath("/");
 }
 
-// Sign-off: anyone who can review can approve. Records the approver + time and
-// moves a Draft/Under-review assessment to Active (in force) — an approved
-// assessment is no longer a draft or under review.
-export async function approveAssessment(id: string): Promise<FormState> {
-  const user = await getCurrentUser();
-  if (!user || !can(user, "review")) {
-    return { ok: false, error: "You don't have permission to approve." };
-  }
-  const name = user.name ?? user.email ?? "Unknown";
+type Kind = "owner" | "ceo";
+const KIND_LABEL: Record<Kind, string> = { owner: "Owner", ceo: "CEO" };
 
-  const current = await db.riskAssessment.findUnique({
+// Owner sign-off is granted by the assessment's owner; CEO sign-off by a CEO.
+// Admins can grant either.
+function mayApprove(
+  user: { id: string; role: string } | null | undefined,
+  kind: Kind,
+  ownerId: string | null,
+): boolean {
+  if (!user) return false;
+  if (can(user, "admin")) return true;
+  if (kind === "owner") return ownerId != null && user.id === ownerId;
+  return user.role === "CEO";
+}
+
+// Grant the Owner or CEO sign-off. Either approval puts the assessment in force
+// (Active), per the agreed model.
+export async function grantApproval(id: string, kind: Kind): Promise<FormState> {
+  const user = await getCurrentUser();
+  const a = await db.riskAssessment.findUnique({
     where: { id },
-    select: { status: true },
+    select: { status: true, ownerId: true },
   });
-  const toActive =
-    current != null && current.status !== "Active" && current.status !== "Archived";
+  if (!a) return { ok: false, error: "Assessment not found." };
+  if (!mayApprove(user, kind, a.ownerId)) {
+    return {
+      ok: false,
+      error: `You don't have permission to grant the ${KIND_LABEL[kind]} approval.`,
+    };
+  }
+
+  const name = user!.name ?? user!.email ?? "Unknown";
+  const toActive = a.status !== "Active" && a.status !== "Archived";
+  const data =
+    kind === "owner"
+      ? {
+          ownerApprovedByName: name,
+          ownerApprovedById: user!.id,
+          ownerApprovedAt: new Date(),
+        }
+      : {
+          ceoApprovedByName: name,
+          ceoApprovedById: user!.id,
+          ceoApprovedAt: new Date(),
+        };
 
   await db.riskAssessment.update({
     where: { id },
-    data: {
-      approvedByName: name,
-      approvedById: user.id,
-      approvedAt: new Date(),
-      ...(toActive ? { status: "Active" } : {}),
-    },
+    data: { ...data, ...(toActive ? { status: "Active" } : {}) },
   });
 
   await recordAudit(
     id,
     user,
     "approved",
-    toActive ? `Approved by ${name} · status → Active` : `Approved by ${name}`,
+    `${KIND_LABEL[kind]} approval by ${name}${toActive ? " · status → Active" : ""}`,
   );
   revalidate(id);
   return { ok: true };
 }
 
-export async function revokeApproval(id: string): Promise<FormState> {
+// Withdraw the Owner or CEO sign-off. The assessment stays Active while the
+// other approval remains; once neither is left it goes back to Under review.
+export async function withdrawApproval(
+  id: string,
+  kind: Kind,
+): Promise<FormState> {
   const user = await getCurrentUser();
-  if (!user || !can(user, "review")) {
-    return { ok: false, error: "You don't have permission to do this." };
+  const a = await db.riskAssessment.findUnique({
+    where: { id },
+    select: {
+      status: true,
+      ownerId: true,
+      ownerApprovedByName: true,
+      ceoApprovedByName: true,
+    },
+  });
+  if (!a) return { ok: false, error: "Assessment not found." };
+  if (!mayApprove(user, kind, a.ownerId)) {
+    return {
+      ok: false,
+      error: `You don't have permission to withdraw the ${KIND_LABEL[kind]} approval.`,
+    };
   }
 
-  const current = await db.riskAssessment.findUnique({
-    where: { id },
-    select: { status: true },
-  });
-  // Withdrawing sign-off sends it back to Under review (unless archived).
-  const toReview = current != null && current.status !== "Archived";
+  const data =
+    kind === "owner"
+      ? {
+          ownerApprovedByName: null,
+          ownerApprovedById: null,
+          ownerApprovedAt: null,
+        }
+      : {
+          ceoApprovedByName: null,
+          ceoApprovedById: null,
+          ceoApprovedAt: null,
+        };
+  const otherApproved =
+    kind === "owner"
+      ? Boolean(a.ceoApprovedByName)
+      : Boolean(a.ownerApprovedByName);
+  const toReview = !otherApproved && a.status !== "Archived";
 
   await db.riskAssessment.update({
     where: { id },
-    data: {
-      approvedByName: null,
-      approvedById: null,
-      approvedAt: null,
-      ...(toReview ? { status: "UnderReview" } : {}),
-    },
+    data: { ...data, ...(toReview ? { status: "UnderReview" } : {}) },
   });
 
   await recordAudit(
     id,
     user,
     "approval_revoked",
-    toReview
-      ? "Approval withdrawn · status → Under review"
-      : "Approval withdrawn",
+    `${KIND_LABEL[kind]} approval withdrawn${toReview ? " · status → Under review" : ""}`,
   );
   revalidate(id);
   return { ok: true };

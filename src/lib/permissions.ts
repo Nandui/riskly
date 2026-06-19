@@ -13,6 +13,9 @@ const ROLE_RANK: Record<string, number> = {
   Viewer: 0,
   Contributor: 1,
   Reviewer: 2,
+  // CEO is an executive approver: can view and review/approve, but not edit
+  // content or administer. The CEO-specific sign-off is gated by role name.
+  CEO: 2,
   Assessor: 3,
   Admin: 4,
 };

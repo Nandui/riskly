@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  ShieldCheck,
   ChevronDown,
   Check,
   History,
@@ -10,10 +9,7 @@ import {
 } from "lucide-react";
 import { CategoryBadge } from "@/components/ui/badge";
 import { ReviewChip } from "@/components/ui/review-chip";
-import {
-  ApproveButton,
-  WithdrawApprovalButton,
-} from "@/components/assessments/approval-button";
+import { ApprovalCard } from "@/components/assessments/approval-card";
 import { AddHazardButton } from "@/components/assessments/add-hazard-modal";
 import { EditHazardButton } from "@/components/assessments/edit-hazard-modal";
 import { DeleteHazardButton } from "@/components/assessments/delete-hazard-button";
@@ -62,12 +58,14 @@ type HazardComputed = AssessmentDetail["hazards"][number] & {
 
 export function AssessmentView({
   assessment: a,
-  canApprove,
+  canApproveOwner,
+  canApproveCeo,
   canEdit,
   canRequest,
 }: {
   assessment: AssessmentDetail;
-  canApprove: boolean;
+  canApproveOwner: boolean;
+  canApproveCeo: boolean;
   canEdit: boolean;
   canRequest: boolean;
 }) {
@@ -193,31 +191,20 @@ export function AssessmentView({
           {/* Approval + next review */}
           <div className="space-y-3.5 rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-xs">
             <div>
-              <p className="eyebrow mb-2">Approval</p>
-              {a.approvedByName ? (
-                <div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-low-bg px-2.5 py-0.5 text-xs font-semibold text-low">
-                    <ShieldCheck className="size-3.5" /> Approved
-                  </span>
-                  <p className="mt-2 text-sm font-medium text-ink">
-                    {a.approvedByName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDate(a.approvedAt)}
-                  </p>
-                  {canApprove && (
-                    <div className="no-print mt-2">
-                      <WithdrawApprovalButton id={a.id} />
-                    </div>
-                  )}
-                </div>
-              ) : canApprove ? (
-                <div className="no-print">
-                  <ApproveButton id={a.id} />
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Not yet approved</p>
-              )}
+              <p className="eyebrow mb-2">Approvals</p>
+              <ApprovalCard
+                assessmentId={a.id}
+                owner={{
+                  name: a.ownerApprovedByName,
+                  date: a.ownerApprovedAt ? formatDate(a.ownerApprovedAt) : null,
+                  canManage: canApproveOwner,
+                }}
+                ceo={{
+                  name: a.ceoApprovedByName,
+                  date: a.ceoApprovedAt ? formatDate(a.ceoApprovedAt) : null,
+                  canManage: canApproveCeo,
+                }}
+              />
             </div>
             <div className="border-t border-line pt-3.5">
               <p className="eyebrow mb-2">Next review</p>

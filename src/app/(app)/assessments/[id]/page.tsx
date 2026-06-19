@@ -36,6 +36,12 @@ export default async function AssessmentDetailPage({
   const title = assessmentTitle(a);
   const classification = `${a.center.name} · ${a.subjectType} assessment`;
   const canEdit = can(user, "editContent");
+  // Owner sign-off is for the assessment's owner; CEO sign-off for a CEO.
+  // Admins can grant either.
+  const isAdmin = can(user, "admin");
+  const canApproveOwner =
+    isAdmin || (!!user && !!a.ownerId && user.id === a.ownerId);
+  const canApproveCeo = isAdmin || user?.role === "CEO";
 
   const requests = a.reviewRequests.map((r) => ({
     id: r.id,
@@ -99,7 +105,8 @@ export default async function AssessmentDetailPage({
 
       <AssessmentView
         assessment={a}
-        canApprove={can(user, "review")}
+        canApproveOwner={canApproveOwner}
+        canApproveCeo={canApproveCeo}
         canEdit={canEdit}
         canRequest={can(user, "requestReview")}
       />

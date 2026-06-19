@@ -106,10 +106,14 @@ model RiskAssessment {
   department            Department? @relation(fields: [departmentId], references: [id])
   status                String    @default("Draft") // Draft | Active | UnderReview | Archived
   assessorName          String?
-  approvedByName        String?
-  approvedById          String?
-  approvedBy            User?     @relation("ApprovedBy", fields: [approvedById], references: [id])
-  approvedAt            DateTime?
+  ceoApprovedByName     String?   @map("approvedByName")
+  ceoApprovedById       String?   @map("approvedById")
+  ceoApprovedBy         User?     @relation("CeoApprovedBy", fields: [ceoApprovedById], references: [id])
+  ceoApprovedAt         DateTime? @map("approvedAt")
+  ownerApprovedByName   String?
+  ownerApprovedById     String?
+  ownerApprovedBy       User?     @relation("OwnerApprovedBy", fields: [ownerApprovedById], references: [id])
+  ownerApprovedAt       DateTime?
   assessmentDate        DateTime  @default(now())
   reviewFrequencyMonths Int       @default(12)
   lastReviewedDate      DateTime?
@@ -182,13 +186,14 @@ model User {
   email        String   @unique
   image        String?
   passwordHash String?
-  role         String   @default("Viewer") // Viewer | Contributor | Reviewer | Assessor | Admin
+  role         String   @default("Viewer") // Viewer | Contributor | Reviewer | CEO | Assessor | Admin
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   ownedAssessments       RiskAssessment[] @relation("OwnedBy")
-  approvedAssessments    RiskAssessment[] @relation("ApprovedBy")
+  ceoApprovedAssessments   RiskAssessment[] @relation("CeoApprovedBy")
+  ownerApprovedAssessments RiskAssessment[] @relation("OwnerApprovedBy")
   reviewRequestsMade     ReviewRequest[]  @relation("RequestedBy")
   reviewRequestsResolved ReviewRequest[]  @relation("ResolvedBy")
   auditLogs              AuditLog[]       @relation("AuditActor")

@@ -25,6 +25,7 @@ export const ROLES = [
   { value: "Viewer", label: "Viewer" },
   { value: "Contributor", label: "Contributor" },
   { value: "Reviewer", label: "Reviewer" },
+  { value: "CEO", label: "CEO" },
   { value: "Assessor", label: "Assessor" },
   { value: "Admin", label: "Admin" },
 ] as const;
@@ -49,6 +50,11 @@ export const ROLE_META: Record<
     label: "Reviewer",
     pill: "bg-blue-50 text-blue-700 border border-blue-200",
     description: "Can review assessments, log reviews and action requests.",
+  },
+  CEO: {
+    label: "CEO",
+    pill: "bg-indigo-50 text-indigo-700 border border-indigo-200",
+    description: "Executive sign-off — can view and grant the CEO approval.",
   },
   Assessor: {
     label: "Assessor",
