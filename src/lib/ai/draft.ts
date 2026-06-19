@@ -70,41 +70,48 @@ export interface DraftedHazard {
   riskCategory: string;
 }
 
+// Deliberately lenient: gateway models (DeepSeek especially) often return
+// controls as a single string, ratings as strings, an off-list category, or
+// omit a field. Accept those shapes here and normalise in code — a strict
+// schema just fails the whole draft. Field guidance lives in `.describe`.
 const hazardSchema = z.object({
   hazard: z
     .string()
     .min(1)
-    .max(300)
     .describe(
       "The hazard SOURCE — the thing or condition that can cause harm, written as a noun (e.g. 'Pool water', 'Wet changing-room floor', 'Pool chemicals'). NOT the event (never 'Slips on wet floor').",
     ),
   riskFactor: z
     .string()
-    .max(800)
+    .nullish()
     .describe("The why — the conditions or causes that make the harm likely."),
   personAtRisk: z
     .string()
-    .max(300)
+    .nullish()
     .describe("Who is at risk, e.g. 'Customers, Children, Staff'."),
   consequence: z
     .string()
-    .max(800)
+    .nullish()
     .describe(
       "The risk realised — the specific harmful event and its outcome, e.g. 'Drowning — fatal or hypoxic brain injury'.",
     ),
   currentControls: z
-    .array(z.string())
+    .union([z.array(z.string()), z.string()])
+    .nullish()
     .describe(
-      "Concrete controls a well-run centre would typically already have in place.",
+      "Concrete controls a well-run centre would typically already have in place, as a list of short strings.",
     ),
   likelihood: z
-    .number()
-    .int()
-    .min(1)
-    .max(5)
+    .coerce.number()
+    .catch(2)
     .describe("Residual likelihood 1-5, assuming the listed controls are in place."),
-  severity: z.number().int().min(1).max(5).describe("Consequence severity 1-5."),
-  riskCategory: z.enum(CATEGORY_VALUES).describe("The single best-fit risk category."),
+  severity: z.coerce.number().catch(3).describe("Consequence severity 1-5."),
+  riskCategory: z
+    .string()
+    .nullish()
+    .describe(
+      `The single best-fit risk category — one of: ${CATEGORY_VALUES.join(", ")}.`,
+    ),
 });
 
 const outputSchema = z.object({
@@ -197,6 +204,20 @@ function buildUserPrompt(s: DraftSubject): string {
   return lines.join("\n");
 }
 
+// Controls may arrive as an array, a single string, or a separated list —
+// normalise to one control per line.
+function toControlLines(
+  controls: string[] | string | null | undefined,
+): string {
+  const arr = Array.isArray(controls)
+    ? controls
+    : String(controls ?? "").split(/\r?\n|;/);
+  return arr
+    .map((c) => c.trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
 // Normalised key for duplicate detection: same hazard source + consequence.
 function dedupKey(hazard: string, consequence: string): string {
   return `${hazard} ${consequence}`.toLowerCase().replace(/\s+/g, " ").trim();
@@ -273,16 +294,16 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
 
     const mapped = object.hazards.map((h) => ({
       hazard: h.hazard.trim(),
-      riskFactor: h.riskFactor.trim(),
-      personAtRisk: h.personAtRisk.trim(),
-      consequence: h.consequence.trim(),
-      currentControls: h.currentControls
-        .map((c) => c.trim())
-        .filter(Boolean)
-        .join("\n"),
+      riskFactor: (h.riskFactor ?? "").trim(),
+      personAtRisk: (h.personAtRisk ?? "").trim(),
+      consequence: (h.consequence ?? "").trim(),
+      currentControls: toControlLines(h.currentControls),
       likelihood: clampRating(h.likelihood),
       severity: clampRating(h.severity),
-      riskCategory: CATEGORY_VALUES.includes(h.riskCategory) ? h.riskCategory : "Physical",
+      riskCategory:
+        h.riskCategory && CATEGORY_VALUES.includes(h.riskCategory)
+          ? h.riskCategory
+          : "Physical",
     }));
 
     // Belt-and-braces: drop anything that repeats an already-recorded hazard or
@@ -306,6 +327,8 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
       console.error(
         "[ai-draft] no object generated | finishReason:",
         err.finishReason,
+        "| cause:",
+        err.cause instanceof Error ? err.cause.message : err.cause,
         "| text:",
         err.text?.slice(0, 600),
       );
