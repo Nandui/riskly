@@ -253,18 +253,28 @@ function aiStatusMessage(status: number | undefined, model: string): string {
   return "The AI Gateway couldn't complete the request — check the gateway authentication and that a provider key is configured, then try again.";
 }
 
-// Some gateway models (DeepSeek especially) wrap the JSON in markdown fences or
-// prefix it with reasoning, which trips strict parsing. Strip the fences and
-// keep only the outermost JSON object before the SDK re-parses.
+// Repair the model's raw output before the SDK re-parses it. Gateway models
+// (DeepSeek especially) wrap JSON in markdown fences, add a reasoning preamble,
+// or — most commonly here — drop the `{ "hazards": [ … ] }` wrapper and return
+// a bare array or a comma-separated list of hazard objects. Trim to the JSON
+// payload and re-wrap so it matches the expected schema.
 const repairJsonText: RepairTextFunction = async ({ text }) => {
-  const trimmed = text.trim();
-  let t = trimmed;
+  const original = text.trim();
+  let t = original;
   const fenced = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced) t = fenced[1].trim();
-  const first = t.indexOf("{");
-  const last = t.lastIndexOf("}");
-  if (first !== -1 && last > first) t = t.slice(first, last + 1);
-  return t && t !== trimmed ? t : null;
+
+  const starts = [t.indexOf("{"), t.indexOf("[")].filter((i) => i !== -1);
+  const start = starts.length ? Math.min(...starts) : -1;
+  const end = Math.max(t.lastIndexOf("}"), t.lastIndexOf("]"));
+  if (start === -1 || end <= start) return null;
+  t = t.slice(start, end + 1);
+
+  if (t.startsWith("[")) return `{"hazards":${t}}`;
+  if (t.startsWith("{") && !/^\{\s*"hazards"\s*:/.test(t)) {
+    return `{"hazards":[${t}]}`;
+  }
+  return t !== original ? t : null;
 };
 
 export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard[]> {
