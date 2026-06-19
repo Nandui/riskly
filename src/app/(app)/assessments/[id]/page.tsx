@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, UserRound, Building2 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/badge";
 import { AssessmentView } from "@/components/assessments/assessment-view";
+import { AssessmentReport } from "@/components/assessments/assessment-report";
 import { AssessmentActions } from "@/components/assessments/assessment-actions";
 import { ReviewRequestPanel } from "@/components/assessments/review-request-panel";
 import { getAssessmentDetail, assessmentTitle } from "@/lib/data/assessments";
@@ -54,7 +55,9 @@ export default async function AssessmentDetailPage({
   }));
 
   return (
-    <div className="space-y-6 print-full">
+    <>
+      <AssessmentReport assessment={a} />
+      <div className="space-y-6 screen-only">
       <div className="no-print">
         <Link
           href="/assessments"
@@ -117,6 +120,7 @@ export default async function AssessmentDetailPage({
         canRequest={can(user, "requestReview")}
         canResolve={can(user, "review")}
       />
-    </div>
+      </div>
+    </>
   );
 }

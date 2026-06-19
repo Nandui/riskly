@@ -260,6 +260,11 @@
 /* ------------------------------------------------------------------ *
  * Print — clean, paper-friendly assessment output
  * ------------------------------------------------------------------ */
+/* The formal print report is hidden on screen; shown only when printing. */
+.print-report {
+  display: none;
+}
+
 @media print {
   @page {
     margin: 14mm;
@@ -280,6 +285,24 @@
   }
 
   .print-break-avoid {
+    break-inside: avoid;
+  }
+
+  /* On paper, swap the interactive page for the formal report. */
+  .screen-only {
+    display: none !important;
+  }
+
+  .print-report {
+    display: block !important;
+    font-size: 11px;
+    line-height: 1.35;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .report-hazard,
+  .report-meta tr {
     break-inside: avoid;
   }
 
