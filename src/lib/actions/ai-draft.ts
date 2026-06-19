@@ -18,6 +18,8 @@ export interface GenerateHazardsInput {
   scope?: string;
   // Hazards already on the assessment, so the model avoids duplicating them.
   existingHazards?: { hazard: string; consequence?: string }[];
+  // Optional target number of (new) hazards to draft.
+  count?: number;
 }
 
 export type GenerateHazardsResult =
@@ -93,6 +95,10 @@ export async function generateAssessmentHazards(
       hint: input.hint?.trim() || null,
       scope: input.scope?.trim() || null,
       existingHazards,
+      count:
+        input.count && Number.isFinite(input.count) && input.count > 0
+          ? input.count
+          : null,
     });
     return { ok: true, hazards };
   } catch (err) {

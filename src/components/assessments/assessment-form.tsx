@@ -110,6 +110,7 @@ export function AssessmentForm({
   const [description, setDescription] = useState(defaults.description);
   const [hazards, setHazards] = useState<HazardDraft[]>(defaults.hazards);
   const [aiHint, setAiHint] = useState("");
+  const [aiCount, setAiCount] = useState("");
   const [aiPending, startAi] = useTransition();
 
   const subjectOptions: Option[] =
@@ -142,6 +143,11 @@ export function AssessmentForm({
       toast.error(`Choose a ${subjectLabel.toLowerCase()} first.`);
       return;
     }
+    const parsedCount = Number(aiCount);
+    const count =
+      aiCount.trim() && Number.isFinite(parsedCount) && parsedCount > 0
+        ? Math.min(16, Math.round(parsedCount))
+        : undefined;
     startAi(async () => {
       const res = await generateAssessmentHazards({
         centerId,
@@ -149,6 +155,7 @@ export function AssessmentForm({
         subjectId,
         hint: aiHint,
         scope: description,
+        count,
         existingHazards: hazards
           .filter((h) => h.hazard.trim())
           .map((h) => ({ hazard: h.hazard, consequence: h.consequence })),
@@ -388,6 +395,18 @@ export function AssessmentForm({
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
+                  type="number"
+                  min={1}
+                  max={16}
+                  value={aiCount}
+                  onChange={(e) => setAiCount(e.target.value)}
+                  placeholder="Auto"
+                  disabled={aiPending}
+                  aria-label="How many hazards to draft"
+                  title="How many hazards to draft — leave blank to let AI decide"
+                  className="sm:w-24"
+                />
+                <Input
                   value={aiHint}
                   onChange={(e) => setAiHint(e.target.value)}
                   placeholder="Optional focus, e.g. children's lessons, chemical store…"
@@ -412,6 +431,11 @@ export function AssessmentForm({
                   )}
                 </Button>
               </div>
+              <p className="text-[0.7rem] text-muted-foreground">
+                Set how many to {hasExistingHazards ? "add" : "draft"}, or leave it
+                on <span className="font-medium text-ink-soft">Auto</span> to let
+                AI choose.
+              </p>
               {!subjectId && (
                 <p className="text-xs text-muted-foreground">
                   Pick a {subjectLabel.toLowerCase()} above to enable AI drafting.

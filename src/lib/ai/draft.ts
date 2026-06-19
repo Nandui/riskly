@@ -56,6 +56,9 @@ export interface DraftSubject {
   // complementary risks instead of starting from scratch — and avoids
   // duplicating these.
   existingHazards?: ExistingHazard[];
+  // Optional target number of (new) hazards to draft. Unset lets the model
+  // decide — ~10 for a fresh assessment, "as needed" when topping up.
+  count?: number | null;
 }
 
 // The shape we hand back — already aligned to the hazard form fields.
@@ -130,7 +133,12 @@ function numberedScale(labels: readonly string[], descriptions?: readonly string
     .join("\n");
 }
 
-function buildSystemPrompt(topUp: boolean): string {
+function buildSystemPrompt(topUp: boolean, count: number | null): string {
+  const countRule = count
+    ? `- Produce exactly ${count} ${topUp ? "NEW hazard" : "hazard"}${count === 1 ? "" : "s"} — the ${count} most significant${topUp ? " that are NOT already covered (never duplicate an existing entry)" : ""}, ordered most-significant first.`
+    : topUp
+      ? "- You are ADDING to an existing assessment that already lists some hazards (given below). Draft only NEW, genuinely significant hazards that are NOT already covered. Never restate, rephrase or duplicate an existing entry. Quality over quantity: add as many as are truly missing and no more — returning only a few, or an empty list when the assessment is already comprehensive, is correct and expected."
+      : `- Produce at least ${TARGET_HAZARDS} entries (target ${TARGET_HAZARDS}–${TARGET_HAZARDS + 2}), ordered most-significant first. Cover the genuinely important risks — do not pad with trivia or near-duplicates.`;
   return [
     "You are a senior health & safety risk assessor who specialises in leisure, sports and aquatic centres in Ireland. You produce practical, regulation-aware risk assessments consistent with the Safety, Health and Welfare at Work Act 2005 and HSA guidance.",
     "",
@@ -153,9 +161,7 @@ function buildSystemPrompt(topUp: boolean): string {
     "- currentControls: [\"Qualified lifeguards on poolside at the required ratios\", \"Constant scanning and zoning\", \"Depth markings and signage\", \"Rescue equipment and emergency procedures in place\"]",
     "",
     "Rules:",
-    topUp
-      ? "- You are ADDING to an existing assessment that already lists some hazards (given below). Draft only NEW, genuinely significant hazards that are NOT already covered. Never restate, rephrase or duplicate an existing entry. Quality over quantity: add as many as are truly missing and no more — returning only a few, or an empty list when the assessment is already comprehensive, is correct and expected."
-      : `- Produce at least ${TARGET_HAZARDS} entries (target ${TARGET_HAZARDS}–${TARGET_HAZARDS + 2}), ordered most-significant first. Cover the genuinely important risks — do not pad with trivia or near-duplicates.`,
+    countRule,
     "- Every field must be specific to the subject, not generic boilerplate.",
     "- Rate Likelihood (1–5) and Severity (1–5) realistically, ASSUMING the current controls you listed are already in place (i.e. the residual risk). Use these scales exactly:",
     "",
@@ -170,7 +176,7 @@ function buildSystemPrompt(topUp: boolean): string {
   ].join("\n");
 }
 
-function buildUserPrompt(s: DraftSubject): string {
+function buildUserPrompt(s: DraftSubject, count: number | null): string {
   const subject = s.subjectType.toLowerCase();
   const lines = [
     `Centre: ${s.centerName}`,
@@ -196,10 +202,17 @@ function buildUserPrompt(s: DraftSubject): string {
         return `${i + 1}. ${h.hazard.trim()}${consequence ? ` → ${consequence}` : ""}`;
       }),
       "",
-      `Draft the additional hazards. Return an empty list if nothing significant is missing.`,
+      count
+        ? `Draft ${count} additional hazard${count === 1 ? "" : "s"} not in the list above, most significant first.`
+        : `Draft the additional hazards. Return an empty list if nothing significant is missing.`,
     );
   } else {
-    lines.push("", `Draft the most important hazards for this ${subject}.`);
+    lines.push(
+      "",
+      count
+        ? `Draft the ${count} most important hazard${count === 1 ? "" : "s"} for this ${subject}.`
+        : `Draft the most important hazards for this ${subject}.`,
+    );
   }
   return lines.join("\n");
 }
@@ -291,13 +304,17 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
 
   const existing = (subject.existingHazards ?? []).filter((h) => h.hazard.trim());
   const topUp = existing.length > 0;
+  const targetCount =
+    subject.count && subject.count > 0
+      ? Math.min(MAX_HAZARDS, Math.round(subject.count))
+      : null;
 
   try {
     const { object } = await generateObject({
       model,
       schema: outputSchema,
-      system: buildSystemPrompt(topUp),
-      prompt: buildUserPrompt(subject),
+      system: buildSystemPrompt(topUp, targetCount),
+      prompt: buildUserPrompt(subject, targetCount),
       maxOutputTokens,
       experimental_repairText: repairJsonText,
     });
@@ -317,7 +334,8 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
     }));
 
     // Belt-and-braces: drop anything that repeats an already-recorded hazard or
-    // an earlier entry in this batch, then cap the total.
+    // an earlier entry in this batch, then cap at the requested count (or MAX).
+    const cap = targetCount ?? MAX_HAZARDS;
     const seen = new Set(
       existing.map((h) => dedupKey(h.hazard, h.consequence ?? "")),
     );
@@ -328,7 +346,7 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
       if (seen.has(key)) continue;
       seen.add(key);
       deduped.push(h);
-      if (deduped.length >= MAX_HAZARDS) break;
+      if (deduped.length >= cap) break;
     }
     return deduped;
   } catch (err) {
