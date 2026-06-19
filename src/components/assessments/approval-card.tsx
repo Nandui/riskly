@@ -1,8 +1,18 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { ShieldCheck, UserRound, Crown, Clock, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/form";
 import { grantApproval, withdrawApproval } from "@/lib/actions/approvals";
 import { cn } from "@/lib/utils";
 import type { FormState } from "@/lib/form";
@@ -102,14 +112,11 @@ function ApprovalSlot({
             <p className="text-xs text-muted-foreground">{data.date}</p>
           )}
           {data.canManage && (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => run(() => withdrawApproval(assessmentId, kind))}
-              className="no-print mt-1.5 text-xs font-medium text-muted-foreground underline-offset-2 hover:text-critical hover:underline disabled:opacity-50"
-            >
-              {pending ? "Withdrawing…" : "Withdraw"}
-            </button>
+            <WithdrawButton
+              assessmentId={assessmentId}
+              kind={kind}
+              label={label}
+            />
           )}
         </div>
       ) : data.canManage ? (
@@ -128,5 +135,83 @@ function ApprovalSlot({
         </p>
       )}
     </div>
+  );
+}
+
+// Withdrawing requires a reason, which is recorded in the activity log.
+function WithdrawButton({
+  assessmentId,
+  kind,
+  label,
+}: {
+  assessmentId: string;
+  kind: Kind;
+  label: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [pending, start] = useTransition();
+
+  const confirm = () => {
+    const note = reason.trim();
+    if (!note) return;
+    start(async () => {
+      const res = await withdrawApproval(assessmentId, kind, note);
+      if (res && !res.ok) {
+        toast.error(res.error ?? "Couldn't withdraw the approval.");
+        return;
+      }
+      toast.success(`${label} approval withdrawn.`);
+      setOpen(false);
+      setReason("");
+    });
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="no-print mt-1.5 text-xs font-medium text-muted-foreground underline-offset-2 hover:text-critical hover:underline"
+      >
+        Withdraw
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Withdraw {label} approval?</DialogTitle>
+            <DialogDescription>
+              This re-opens the assessment for review. The reason is recorded in
+              the activity log.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+            autoFocus
+            placeholder="Why is this approval being withdrawn?"
+          />
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setOpen(false)}
+              disabled={pending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={confirm}
+              disabled={pending || !reason.trim()}
+            >
+              {pending ? "Withdrawing…" : "Withdraw approval"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

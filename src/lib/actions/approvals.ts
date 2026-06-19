@@ -81,6 +81,7 @@ export async function grantApproval(id: string, kind: Kind): Promise<FormState> 
 export async function withdrawApproval(
   id: string,
   kind: Kind,
+  reason: string,
 ): Promise<FormState> {
   const user = await getCurrentUser();
   const a = await db.riskAssessment.findUnique({
@@ -98,6 +99,11 @@ export async function withdrawApproval(
       ok: false,
       error: `You don't have permission to withdraw the ${KIND_LABEL[kind]} approval.`,
     };
+  }
+
+  const note = (reason ?? "").trim().slice(0, 500);
+  if (!note) {
+    return { ok: false, error: "Give a reason for withdrawing the approval." };
   }
 
   const data =
@@ -127,7 +133,7 @@ export async function withdrawApproval(
     id,
     user,
     "approval_revoked",
-    `${KIND_LABEL[kind]} approval withdrawn${toReview ? " · status → Under review" : ""}`,
+    `${KIND_LABEL[kind]} approval withdrawn — ${note}${toReview ? " · status → Under review" : ""}`,
   );
   revalidate(id);
   return { ok: true };
