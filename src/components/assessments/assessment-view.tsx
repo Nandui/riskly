@@ -15,6 +15,7 @@ import {
   WithdrawApprovalButton,
 } from "@/components/assessments/approval-button";
 import { AddHazardButton } from "@/components/assessments/add-hazard-modal";
+import { EditHazardButton } from "@/components/assessments/edit-hazard-modal";
 import { ActivityLogButton } from "@/components/assessments/activity-log-modal";
 import { RequestHazardReviewButton } from "@/components/assessments/request-hazard-review-modal";
 import { PERSONS_AT_RISK, parsePersons } from "@/lib/persons";
@@ -320,6 +321,7 @@ export function AssessmentView({
                   assessmentRef={a.reference}
                   assessmentId={a.id}
                   canRequest={canRequest}
+                  canEdit={canEdit}
                 />
               ))}
             </div>
@@ -458,12 +460,14 @@ function HazardRecord({
   assessmentId,
   assessmentRef,
   canRequest,
+  canEdit,
 }: {
   h: HazardComputed;
   n: number;
   assessmentId: string;
   assessmentRef: string;
   canRequest: boolean;
+  canEdit: boolean;
 }) {
   const meta = BAND_META[h.band];
   const consequences = splitLines(h.consequence);
@@ -502,6 +506,7 @@ function HazardRecord({
             <h3 className="truncate font-semibold text-ink">{h.hazard}</h3>
           </div>
           <CategoryBadge category={h.riskCategory} />
+          {canEdit && <EditHazardButton hazard={h} />}
           {canRequest && (
             <RequestHazardReviewButton
               assessmentId={assessmentId}

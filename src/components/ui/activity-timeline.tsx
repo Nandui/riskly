@@ -18,6 +18,7 @@ const ACTION_META: Record<string, { label: string; Icon: LucideIcon }> = {
   created: { label: "Created", Icon: FilePlus2 },
   updated: { label: "Edited", Icon: Pencil },
   hazard_added: { label: "Hazard added", Icon: ListPlus },
+  hazard_updated: { label: "Hazard edited", Icon: Pencil },
   imported: { label: "Imported", Icon: Upload },
   approved: { label: "Approved", Icon: ShieldCheck },
   approval_revoked: { label: "Approval withdrawn", Icon: Undo2 },

@@ -494,3 +494,83 @@ export async function addHazard(
   revalidateAssessments(assessmentId);
   return { ok: true };
 }
+
+// Edit a single hazard in place from the assessment page. Like adding one, this
+// is a material change: it sends the assessment back to Under review and clears
+// any prior sign-off. Logged as `hazard_updated`.
+export async function updateHazard(
+  hazardId: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
+
+  const parsed = hazardSchema.safeParse({
+    hazard: formData.get("hazard"),
+    riskFactor: formData.get("riskFactor"),
+    personAtRisk: formData.get("personAtRisk"),
+    consequence: formData.get("consequence"),
+    currentControls: formData.get("currentControls"),
+    likelihood: formData.get("likelihood"),
+    severity: formData.get("severity"),
+    riskCategory: formData.get("riskCategory"),
+  });
+  if (!parsed.success) {
+    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error) };
+  }
+  const d = parsed.data;
+
+  const existing = await db.hazard.findUnique({
+    where: { id: hazardId },
+    select: {
+      assessmentId: true,
+      assessment: { select: { status: true, approvedByName: true } },
+    },
+  });
+  if (!existing) return { ok: false, error: "Hazard not found." };
+
+  const assessmentId = existing.assessmentId;
+  const wasApproved = Boolean(existing.assessment.approvedByName);
+  const toReview = existing.assessment.status !== "Archived";
+
+  await db.hazard.update({
+    where: { id: hazardId },
+    data: {
+      hazard: d.hazard,
+      riskFactor: emptyToNull(d.riskFactor),
+      personAtRisk: emptyToNull(d.personAtRisk),
+      consequence: emptyToNull(d.consequence),
+      currentControls: emptyToNull(d.currentControls),
+      likelihood: d.likelihood,
+      severity: d.severity,
+      riskCategory: d.riskCategory ?? "Physical",
+    },
+  });
+
+  if (toReview || wasApproved) {
+    await db.riskAssessment.update({
+      where: { id: assessmentId },
+      data: {
+        ...(toReview ? { status: "UnderReview" } : {}),
+        ...(wasApproved
+          ? { approvedByName: null, approvedById: null, approvedAt: null }
+          : {}),
+      },
+    });
+  }
+
+  const user = await getCurrentUser();
+  await recordAudit(assessmentId, user, "hazard_updated", d.hazard);
+  if (wasApproved) {
+    await recordAudit(
+      assessmentId,
+      user,
+      "approval_revoked",
+      "Reset because a hazard was edited",
+    );
+  }
+
+  revalidateAssessments(assessmentId);
+  return { ok: true };
+}
