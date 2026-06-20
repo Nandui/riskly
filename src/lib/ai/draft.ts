@@ -40,7 +40,7 @@ const MAX_HAZARDS = 16;
 // Reliability tuning. The whole call must finish within the route's
 // maxDuration (60s), so everything shares one budget.
 const TOTAL_BUDGET_MS = 55_000; // hard ceiling for the entire draftHazards call
-const ATTEMPT_TIMEOUT_MS = 30_000; // per individual model call
+const ATTEMPT_TIMEOUT_MS = 24_000; // per individual model call (fits ~2 in budget)
 const MIN_ATTEMPT_MS = 6_000; // don't start a new call without at least this left
 const MAX_ATTEMPTS_PER_ROUND = 4;
 
@@ -431,6 +431,12 @@ async function generateRound(
 ): Promise<DraftedHazard[]> {
   const system = buildSystemPrompt(want);
   const prompt = buildUserPrompt(subject, avoid, want);
+  // Gemini 2.5 "thinks" before answering, which adds latency that can blow the
+  // per-call timeout; this task doesn't need it, so turn it off. Forwarded
+  // verbatim by the AI Gateway and ignored by models that don't support it.
+  const providerOptions = model.includes("gemini")
+    ? { google: { thinkingConfig: { thinkingBudget: 0 } } }
+    : undefined;
   let lastGenError: unknown = null;
   let sawInvalid = false;
 
@@ -446,6 +452,7 @@ async function generateRound(
         prompt,
         maxOutputTokens,
         temperature: 0.4,
+        ...(providerOptions ? { providerOptions } : {}),
         abortSignal: AbortSignal.timeout(Math.min(ATTEMPT_TIMEOUT_MS, remaining)),
       });
       text = res.text ?? "";
@@ -454,7 +461,7 @@ async function generateRound(
       lastGenError = err;
       if (!isRetryable(err)) throw err;
       console.error(
-        `[ai-draft] attempt ${attempt + 1}/${MAX_ATTEMPTS_PER_ROUND} call failed (model=${model}): ${errSummary(err)}`,
+        `[ai-draft] model=${model} attempt ${attempt + 1}/${MAX_ATTEMPTS_PER_ROUND} call failed: ${errSummary(err)}`,
       );
       await sleep(backoffMs(attempt), deadline);
       continue;
@@ -467,7 +474,7 @@ async function generateRound(
 
     sawInvalid = true;
     console.error(
-      `[ai-draft] attempt ${attempt + 1}/${MAX_ATTEMPTS_PER_ROUND} no usable hazards (model=${model}, want=${want ?? "auto"}) text[0..200]=${JSON.stringify(text.slice(0, 200))}`,
+      `[ai-draft] model=${model} attempt ${attempt + 1}/${MAX_ATTEMPTS_PER_ROUND} unusable reply (want=${want ?? "auto"}) text[0..200]=${JSON.stringify(text.slice(0, 200))}`,
     );
     await sleep(backoffMs(attempt), deadline);
   }
@@ -507,6 +514,9 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
       : null;
   // Fresh assessments aim for ~10; a top-up with no count is "as needed".
   const target = explicitCount ?? (topUp ? null : TARGET_HAZARDS);
+  console.log(
+    `[ai-draft] model=${model} drafting target=${target ?? "auto"} existing=${existing.length}`,
+  );
 
   const seen = new Set(
     existing.map((h) => dedupKey(h.hazard, h.consequence ?? "")),
