@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, UserRound, Building2 } from "lucide-react";
+import { ArrowLeft, UserRound, Building2, CopyPlus } from "lucide-react";
 import { StatusBadge } from "@/components/ui/badge";
+import { buttonClasses } from "@/components/ui/button";
 import { AssessmentView } from "@/components/assessments/assessment-view";
 import { AssessmentReport } from "@/components/assessments/assessment-report";
 import { AssessmentActions } from "@/components/assessments/assessment-actions";
@@ -123,6 +124,15 @@ export default async function AssessmentDetailPage({
               }))}
               targets={copyTargets}
             />
+          )}
+          {canEdit && (
+            <Link
+              href={`/assessments/new?from=${a.id}`}
+              className={buttonClasses({ variant: "secondary", size: "sm" })}
+              title="Create a new assessment for another subject, copying these hazards"
+            >
+              <CopyPlus className="size-4" /> Duplicate
+            </Link>
           )}
           <AssessmentActions id={a.id} canEdit={canEdit} />
         </div>

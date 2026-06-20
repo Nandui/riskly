@@ -4,7 +4,10 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
 import { AssessmentForm } from "@/components/assessments/assessment-form";
-import { getAssessmentFormData } from "@/lib/data/assessments";
+import {
+  getAssessmentFormData,
+  getAssessmentDetail,
+} from "@/lib/data/assessments";
 import { getCenterContext } from "@/lib/center-context";
 import { createAssessment } from "@/lib/actions/assessments";
 import { toDateInputValue } from "@/lib/utils";
@@ -14,11 +17,19 @@ export const metadata = { title: "New assessment" };
 // AI hazard drafting runs as a server action from this route — give it room.
 export const maxDuration = 60;
 
-export default async function NewAssessmentPage() {
+export default async function NewAssessmentPage({
+  searchParams,
+}: {
+  // `?from={id}` seeds the form from an existing assessment (Duplicate), copying
+  // its hazards, scope and cadence so the user picks a new subject and creates.
+  searchParams: Promise<{ from?: string }>;
+}) {
   await requireCapability("editContent");
-  const [form, { selected }] = await Promise.all([
+  const { from } = await searchParams;
+  const [form, { selected }, source] = await Promise.all([
     getAssessmentFormData(),
     getCenterContext(),
+    from ? getAssessmentDetail(from) : Promise.resolve(null),
   ]);
 
   if (form.centers.length === 0) {
@@ -39,16 +50,33 @@ export default async function NewAssessmentPage() {
     );
   }
 
+  const duplicating = source != null;
+  const hazardCount = source?.hazards.length ?? 0;
+
   const defaults = {
-    description: "",
+    description: source?.description ?? "",
     centerId: selected?.id ?? form.centers[0].id,
-    subjectType: "Area",
+    // Pre-set the subject type to the source's, but leave the subject empty —
+    // it must be a different, unassessed one (one assessment per subject).
+    subjectType: source?.subjectType ?? "Area",
     subjectId: "",
     status: "Draft",
     assessorName: "",
     assessmentDate: toDateInputValue(new Date()),
-    reviewFrequencyMonths: 12,
-    hazards: [],
+    reviewFrequencyMonths: source?.reviewFrequencyMonths ?? 12,
+    hazards: source
+      ? source.hazards.map((h) => ({
+          key: h.id,
+          hazard: h.hazard,
+          riskFactor: h.riskFactor ?? "",
+          personAtRisk: h.personAtRisk ?? "",
+          consequence: h.consequence ?? "",
+          currentControls: h.currentControls ?? "",
+          likelihood: h.likelihood,
+          severity: h.severity,
+          riskCategory: h.riskCategory,
+        }))
+      : [],
     ownerId: "",
     departmentId: "",
   };
@@ -57,17 +85,26 @@ export default async function NewAssessmentPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
         <Link
-          href="/assessments"
+          href={duplicating ? `/assessments/${source!.id}` : "/assessments"}
           className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-ink"
         >
-          <ArrowLeft className="size-4" /> Assessments
+          <ArrowLeft className="size-4" />{" "}
+          {duplicating ? "Back to assessment" : "Assessments"}
         </Link>
-        <PageHeader eyebrow="New assessment" title="Create assessment" />
+        <PageHeader
+          eyebrow={duplicating ? `From ${source!.reference}` : "New assessment"}
+          title={duplicating ? "Duplicate assessment" : "Create assessment"}
+          description={
+            duplicating
+              ? `${hazardCount} hazard${hazardCount === 1 ? "" : "s"} copied — choose a centre and an unassessed ${(source!.subjectType).toLowerCase()} (or switch type), review the hazards, then create.`
+              : undefined
+          }
+        />
       </div>
 
       <AssessmentForm
         action={createAssessment}
-        submitLabel="Create assessment"
+        submitLabel={duplicating ? "Create duplicate" : "Create assessment"}
         centers={form.centers}
         areasByCenter={form.areasByCenter}
         roles={form.roles}
@@ -81,7 +118,7 @@ export default async function NewAssessmentPage() {
         takenRoleIds={form.assessedRoleIds}
         takenActivityIds={form.assessedActivityIds}
         defaults={defaults}
-        cancelHref="/assessments"
+        cancelHref={duplicating ? `/assessments/${source!.id}` : "/assessments"}
       />
     </div>
   );
