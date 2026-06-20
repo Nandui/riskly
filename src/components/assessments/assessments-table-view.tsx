@@ -114,21 +114,21 @@ export function AssessmentsTableView({
         ),
     },
     {
-      id: "highRisk",
-      accessorFn: (r) => r.summary.highRiskCount,
+      id: "hazards",
+      accessorFn: (r) => r.summary.hazardCount,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="High" />
+        <DataTableColumnHeader column={column} title="Hazards" />
       ),
       cell: ({ row }) => {
-        const n = row.original.summary.highRiskCount;
+        const n = row.original.summary.hazardCount;
         return (
           <span
             className={cn(
               "tnum text-sm font-medium",
-              n > 0 ? "text-critical" : "text-faint",
+              n > 0 ? "text-ink-soft" : "text-faint",
             )}
           >
-            {n || "—"}
+            {n}
           </span>
         );
       },
