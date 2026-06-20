@@ -216,7 +216,7 @@ export type AssessmentDetail = NonNullable<
 
 // Centres + their areas + org roles/activities, for the assessment form selects.
 export async function getAssessmentFormData() {
-  const [centers, roles, activities, departments, users, assessedAreas] =
+  const [centers, roles, activities, departments, users, assessedSubjects] =
     await Promise.all([
       db.center.findMany({
         where: { isActive: true },
@@ -247,20 +247,26 @@ export async function getAssessmentFormData() {
         orderBy: [{ name: "asc" }, { email: "asc" }],
         select: { id: true, name: true, email: true },
       }),
-      // Areas that already have an assessment — one assessment per area.
+      // Subjects that already have an assessment — one assessment per area,
+      // role or activity.
       db.riskAssessment.findMany({
-        where: { areaId: { not: null } },
-        select: { areaId: true },
-        distinct: ["areaId"],
+        select: { areaId: true, roleId: true, activityId: true },
       }),
     ]);
 
   const areasByCenter: Record<string, { id: string; name: string }[]> = {};
   for (const c of centers) areasByCenter[c.id] = c.areas;
 
-  const assessedAreaIds = assessedAreas
-    .map((r) => r.areaId)
-    .filter((id): id is string => Boolean(id));
+  // De-duplicate so each subject id appears once (existing data may have more
+  // than one assessment per subject; the form just needs the set of taken ids).
+  const distinctIds = (key: "areaId" | "roleId" | "activityId") =>
+    Array.from(
+      new Set(
+        assessedSubjects
+          .map((r) => r[key])
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
 
   return {
     centers: centers.map((c) => ({ id: c.id, name: c.name })),
@@ -269,15 +275,31 @@ export async function getAssessmentFormData() {
     activities,
     departments,
     users,
-    assessedAreaIds,
+    assessedAreaIds: distinctIds("areaId"),
+    assessedRoleIds: distinctIds("roleId"),
+    assessedActivityIds: distinctIds("activityId"),
   };
 }
 
-// Areas are 1:1 with assessments — find the assessment (if any) already
-// covering an area, optionally excluding one (used when editing).
-export async function findAreaAssessment(areaId: string, excludeId?: string) {
+// Each subject (area, role or activity) is 1:1 with an assessment — find the
+// assessment (if any) already covering a subject, optionally excluding one
+// (used when editing).
+export async function findSubjectAssessment(
+  subjectType: "Area" | "Role" | "Activity",
+  subjectId: string,
+  excludeId?: string,
+) {
+  const field =
+    subjectType === "Area"
+      ? "areaId"
+      : subjectType === "Role"
+        ? "roleId"
+        : "activityId";
   return db.riskAssessment.findFirst({
-    where: { areaId, ...(excludeId ? { id: { not: excludeId } } : {}) },
+    where: {
+      [field]: subjectId,
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
     select: { id: true, reference: true },
   });
 }

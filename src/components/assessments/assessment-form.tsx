@@ -86,6 +86,8 @@ export function AssessmentForm({
   defaults,
   cancelHref,
   takenAreaIds,
+  takenRoleIds,
+  takenActivityIds,
   confirmOnSave = false,
 }: {
   action: (prev: FormState, fd: FormData) => Promise<FormState>;
@@ -98,7 +100,11 @@ export function AssessmentForm({
   departments: Option[];
   defaults: AssessmentDefaults;
   cancelHref: string;
+  // Subject ids that already have an assessment — shown disabled in the picker,
+  // one per type (one assessment per area, role or activity).
   takenAreaIds: string[];
+  takenRoleIds: string[];
+  takenActivityIds: string[];
   // When the assessment is already approved, saving clears its sign-off — so
   // confirm before submitting.
   confirmOnSave?: boolean;
@@ -126,6 +132,14 @@ export function AssessmentForm({
       : subjectType === "Role"
         ? roles
         : activities;
+
+  // Ids of this subject type that already have an assessment.
+  const takenIds =
+    subjectType === "Area"
+      ? takenAreaIds
+      : subjectType === "Role"
+        ? takenRoleIds
+        : takenActivityIds;
 
   const subjectLabel =
     SUBJECT_TYPES.find((t) => t.value === subjectType)?.label ?? "Subject";
@@ -283,8 +297,7 @@ export function AssessmentForm({
                 : `Select ${subjectLabel.toLowerCase()}…`}
             </option>
             {subjectOptions.map((o) => {
-              const taken =
-                subjectType === "Area" && takenAreaIds.includes(o.id);
+              const taken = takenIds.includes(o.id);
               return (
                 <option key={o.id} value={o.id} disabled={taken}>
                   {o.name}

@@ -91,6 +91,12 @@ export default async function EditAssessmentPage({
         takenAreaIds={form.assessedAreaIds.filter(
           (id) => id !== (a.areaId ?? ""),
         )}
+        takenRoleIds={form.assessedRoleIds.filter(
+          (id) => id !== (a.roleId ?? ""),
+        )}
+        takenActivityIds={form.assessedActivityIds.filter(
+          (id) => id !== (a.activityId ?? ""),
+        )}
         defaults={defaults}
         cancelHref={`/assessments/${a.id}`}
         confirmOnSave={isApproved(a)}

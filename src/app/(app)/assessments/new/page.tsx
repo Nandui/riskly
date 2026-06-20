@@ -78,6 +78,8 @@ export default async function NewAssessmentPage() {
         }))}
         departments={form.departments}
         takenAreaIds={form.assessedAreaIds}
+        takenRoleIds={form.assessedRoleIds}
+        takenActivityIds={form.assessedActivityIds}
         defaults={defaults}
         cancelHref="/assessments"
       />
