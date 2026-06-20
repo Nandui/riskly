@@ -77,12 +77,21 @@ export async function updateArea(
 export async function deleteArea(id: string): Promise<FormState> {
   const denied = await denyUnless("editContent");
   if (denied) return denied;
-  const count = await db.riskAssessment.count({ where: { areaId: id } });
-  if (count > 0)
+  const [assessmentCount, incidentCount] = await Promise.all([
+    db.riskAssessment.count({ where: { areaId: id } }),
+    db.incident.count({ where: { areaId: id } }),
+  ]);
+  if (assessmentCount > 0)
     return {
       ok: false,
-      error: `In use by ${count} assessment(s) — reassign them first.`,
+      error: `In use by ${assessmentCount} assessment(s) — reassign them first.`,
     };
+  if (incidentCount > 0)
+    return {
+      ok: false,
+      error: `In use by ${incidentCount} incident(s) — reassign them first.`,
+    };
+  // Sub-areas cascade with the area.
   await db.area.delete({ where: { id } });
   revalidateLibrary();
   return { ok: true };

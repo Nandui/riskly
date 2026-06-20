@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { addMonths, subDays, subMonths } from "date-fns";
+import { addDays, addMonths, subDays, subMonths } from "date-fns";
 import { normalizePersonsAtRisk } from "../src/lib/persons";
 
 const db = new PrismaClient();
@@ -98,6 +98,13 @@ async function makeAssessment(opts: {
 }
 
 async function main() {
+  // Incidents module first (children before parents).
+  await db.followUpAction.deleteMany();
+  await db.injuredParty.deleteMany();
+  await db.witness.deleteMany();
+  await db.incident.deleteMany();
+  await db.subArea.deleteMany();
+
   await db.reviewLog.deleteMany();
   await db.hazard.deleteMany();
   await db.riskAssessment.deleteMany();
@@ -111,6 +118,7 @@ async function main() {
     data: {
       name: "Bishopstown",
       slug: "bishopstown",
+      siteCode: "BT",
       address: "Bishopstown Sports Complex, Cork",
       contactName: "Fernando Serina",
       contactEmail: "bishopstown@example.com",
@@ -123,6 +131,7 @@ async function main() {
     data: {
       name: "Hilltop Sports & Pool",
       slug: "hilltop-sports-pool",
+      siteCode: "HT",
       address: "Beacon Road, Hilltop",
       contactName: "Marcus Yeo",
       contactEmail: "operations@hilltop-sports.example",
@@ -525,6 +534,310 @@ async function main() {
     ],
   });
 
+  // ---- Incidents module: sub-areas + sample incidents -------------------
+  const subArea = async (areaId: string, name: string, sortOrder: number) =>
+    db.subArea.create({ data: { areaId, name, sortOrder } });
+
+  const bPoolDeep = await subArea(bPool.id, "Deep end", 1);
+  const bPoolPlant = await subArea(bPool.id, "Plant room", 2);
+  await subArea(bPool.id, "Shallow end", 3);
+  const bGymFree = await subArea(bGym.id, "Free weights area", 1);
+  await subArea(bChanging.id, "Lockers", 1);
+  const hHallCourt = await subArea(hSportsHall.id, "Court 1", 1);
+  await subArea(hPool.id, "Poolside", 1);
+
+  const incCounter: Record<string, number> = {};
+  const incRef = (code: string) => {
+    incCounter[code] = (incCounter[code] ?? 0) + 1;
+    return `INC-${code}-${String(incCounter[code]).padStart(4, "0")}`;
+  };
+
+  type SeedWitness = { name: string; roleOrRelation: string; statement: string; contactPhone?: string };
+  type SeedInjured = {
+    partyType: string;
+    name: string;
+    injuryNature: string;
+    bodyPartAffected: string;
+    treatment: string;
+    hospitalName?: string;
+    lostTime?: boolean;
+    lostTimeDays?: number;
+  };
+  type SeedAction = {
+    description: string;
+    assignedTo: string;
+    dueInDays: number;
+    status?: "Open" | "InProgress" | "Complete" | "Overdue";
+    completedDaysAgo?: number;
+    completedBy?: string;
+  };
+
+  const makeIncident = async (opts: {
+    centerId: string;
+    code: string;
+    type: string;
+    severity: string;
+    status: string;
+    daysAgo: number;
+    areaId: string;
+    subAreaId?: string;
+    location: string;
+    locationDetail?: string;
+    description: string;
+    immediateAction?: string;
+    reportedBy: string;
+    injured?: SeedInjured[];
+    witnesses?: SeedWitness[];
+    actions?: SeedAction[];
+    closedDaysAgo?: number;
+    closedBy?: string;
+    closureNotes?: string;
+  }) => {
+    const occurredAt = subDays(now, opts.daysAgo);
+    const injured = opts.injured ?? [];
+    const witnesses = opts.witnesses ?? [];
+    const actions = opts.actions ?? [];
+    await db.incident.create({
+      data: {
+        centerId: opts.centerId,
+        reference: incRef(opts.code),
+        type: opts.type,
+        status: opts.status,
+        severity: opts.severity,
+        occurredAt,
+        areaId: opts.areaId,
+        subAreaId: opts.subAreaId ?? null,
+        location: opts.location,
+        locationDetail: opts.locationDetail ?? null,
+        description: opts.description,
+        immediateAction: opts.immediateAction ?? null,
+        reportedBy: opts.reportedBy,
+        witnessCount: witnesses.length,
+        injuredCount: injured.length,
+        closedAt: opts.closedDaysAgo != null ? subDays(now, opts.closedDaysAgo) : null,
+        closedBy: opts.closedBy ?? null,
+        closureNotes: opts.closureNotes ?? null,
+        witnesses: {
+          create: witnesses.map((w) => ({
+            name: w.name,
+            roleOrRelation: w.roleOrRelation,
+            statement: w.statement,
+            statementDate: occurredAt,
+            contactPhone: w.contactPhone ?? null,
+          })),
+        },
+        injuredParties: {
+          create: injured.map((p) => ({
+            partyType: p.partyType,
+            name: p.name,
+            injuryNature: p.injuryNature,
+            bodyPartAffected: p.bodyPartAffected,
+            treatment: p.treatment,
+            hospitalName: p.hospitalName ?? null,
+            gpReferral: p.treatment === "GpReferral",
+            lostTime: p.lostTime ?? false,
+            lostTimeDays: p.lostTime ? (p.lostTimeDays ?? null) : null,
+          })),
+        },
+        followUpActions: {
+          create: actions.map((a) => ({
+            description: a.description,
+            assignedTo: a.assignedTo,
+            dueDate: addDays(now, a.dueInDays),
+            status: a.status ?? "Open",
+            completedAt: a.completedDaysAgo != null ? subDays(now, a.completedDaysAgo) : null,
+            completedBy: a.completedBy ?? null,
+          })),
+        },
+      },
+    });
+  };
+
+  await makeIncident({
+    centerId: bishopstown.id,
+    code: "BT",
+    type: "Accident",
+    severity: "Reportable",
+    status: "UnderInvestigation",
+    daysAgo: 6,
+    areaId: bPool.id,
+    subAreaId: bPoolDeep.id,
+    location: "Pool",
+    locationDetail: "Deep end",
+    description:
+      "A member slipped on the wet tiles at the deep end and fell, striking their head on the pool edge. Lifeguard responded immediately and administered first aid.",
+    immediateAction: "First aid given poolside; member taken to A&E by family as a precaution.",
+    reportedBy: "Fernando Serina",
+    injured: [
+      {
+        partyType: "Member",
+        name: "John Healy",
+        injuryNature: "Suspected concussion, laceration",
+        bodyPartAffected: "Head",
+        treatment: "HospitalAE",
+        hospitalName: "Cork University Hospital",
+        lostTime: false,
+      },
+    ],
+    witnesses: [
+      {
+        name: "Aoife Brennan",
+        roleOrRelation: "Lifeguard",
+        statement:
+          "I saw the member run on the poolside despite signage, slip and fall near the deep end. I responded within seconds.",
+      },
+    ],
+    actions: [
+      {
+        description: "Add additional anti-slip matting along the deep-end walkway.",
+        assignedTo: "Grounds & maintenance",
+        dueInDays: -4,
+        status: "Open",
+      },
+      {
+        description: "Review 'No running' signage placement around the pool.",
+        assignedTo: "Duty manager",
+        dueInDays: 7,
+        status: "InProgress",
+      },
+    ],
+  });
+
+  await makeIncident({
+    centerId: bishopstown.id,
+    code: "BT",
+    type: "NearMiss",
+    severity: "Minor",
+    status: "Open",
+    daysAgo: 3,
+    areaId: bChanging.id,
+    location: "Changing rooms",
+    locationDetail: "Lockers",
+    description:
+      "A locker door was hanging off its hinge and could have struck a child. No one was hurt; the locker was taken out of use.",
+    immediateAction: "Locker cordoned off and reported to maintenance.",
+    reportedBy: "Marcus Yeo",
+    actions: [
+      {
+        description: "Repair or replace the damaged locker door.",
+        assignedTo: "Grounds & maintenance",
+        dueInDays: 2,
+        status: "Open",
+      },
+    ],
+  });
+
+  await makeIncident({
+    centerId: bishopstown.id,
+    code: "BT",
+    type: "PropertyDamage",
+    severity: "Significant",
+    status: "Closed",
+    daysAgo: 24,
+    areaId: bGym.id,
+    subAreaId: bGymFree.id,
+    location: "Gym",
+    locationDetail: "Free weights area",
+    description:
+      "A loaded barbell was dropped, cracking a floor tile in the free-weights area. No injuries.",
+    reportedBy: "Fernando Serina",
+    closedDaysAgo: 5,
+    closedBy: "Fernando Serina",
+    closureNotes: "Tile replaced and platform inspected. Lifting technique briefing delivered to instructors.",
+    actions: [
+      {
+        description: "Replace cracked floor tile and inspect lifting platform.",
+        assignedTo: "Grounds & maintenance",
+        dueInDays: -10,
+        status: "Complete",
+        completedDaysAgo: 6,
+        completedBy: "Grounds & maintenance",
+      },
+    ],
+  });
+
+  await makeIncident({
+    centerId: hilltop.id,
+    code: "HT",
+    type: "Accident",
+    severity: "Significant",
+    status: "Open",
+    daysAgo: 2,
+    areaId: hSportsHall.id,
+    subAreaId: hHallCourt.id,
+    location: "Sports hall",
+    locationDetail: "Court 1",
+    description:
+      "A participant in a five-a-side game went over on their ankle on a slightly damp patch of floor near the entrance to Court 1.",
+    immediateAction: "Ice applied; advised to seek GP review.",
+    reportedBy: "Marcus Yeo",
+    injured: [
+      {
+        partyType: "Member",
+        name: "Liam Costello",
+        injuryNature: "Suspected sprain",
+        bodyPartAffected: "Right ankle",
+        treatment: "GpReferral",
+        lostTime: true,
+        lostTimeDays: 3,
+      },
+    ],
+    actions: [
+      {
+        description: "Investigate source of moisture by the Court 1 entrance.",
+        assignedTo: "Duty manager",
+        dueInDays: 5,
+        status: "Open",
+      },
+    ],
+  });
+
+  await makeIncident({
+    centerId: hilltop.id,
+    code: "HT",
+    type: "ViolenceAggression",
+    severity: "Reportable",
+    status: "Open",
+    daysAgo: 8,
+    areaId: hReception.id,
+    location: "Reception",
+    description:
+      "A member became verbally aggressive towards reception staff over a membership dispute. Police were not called but the member was asked to leave.",
+    immediateAction: "Duty manager attended; member escorted from the premises.",
+    reportedBy: "Marcus Yeo",
+    witnesses: [
+      {
+        name: "Niamh Walsh",
+        roleOrRelation: "Receptionist",
+        statement:
+          "The member raised his voice and leaned over the desk. I felt threatened and called the duty manager.",
+      },
+    ],
+    actions: [
+      {
+        description: "Review lone-working and conflict de-escalation training for reception.",
+        assignedTo: "Duty manager",
+        dueInDays: 14,
+        status: "Open",
+      },
+    ],
+  });
+
+  await makeIncident({
+    centerId: bishopstown.id,
+    code: "BT",
+    type: "HazardousSubstance",
+    severity: "Minor",
+    status: "Draft",
+    daysAgo: 1,
+    areaId: bPool.id,
+    subAreaId: bPoolPlant.id,
+    location: "Pool",
+    locationDetail: "Plant room",
+    description: "Small amount of dosing chemical splashed during a delivery.",
+    reportedBy: "Fernando Serina",
+  });
+
   const counts = await Promise.all([
     db.center.count(),
     db.area.count(),
@@ -532,9 +845,11 @@ async function main() {
     db.activity.count(),
     db.riskAssessment.count(),
     db.hazard.count(),
+    db.incident.count(),
+    db.subArea.count(),
   ]);
   console.log(
-    `Seeded: ${counts[0]} centres, ${counts[1]} areas, ${counts[2]} roles, ${counts[3]} activities, ${counts[4]} assessments, ${counts[5]} hazards.`,
+    `Seeded: ${counts[0]} centres, ${counts[1]} areas, ${counts[2]} roles, ${counts[3]} activities, ${counts[4]} assessments, ${counts[5]} hazards, ${counts[6]} incidents, ${counts[7]} sub-areas.`,
   );
 }
 

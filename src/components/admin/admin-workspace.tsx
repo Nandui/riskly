@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, Users, Tags } from "lucide-react";
+import { Building2, Users, Tags, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
   { key: "centres", label: "Centres", icon: Building2 },
   { key: "users", label: "Users", icon: Users },
   { key: "library", label: "Library", icon: Tags },
+  { key: "locations", label: "Locations", icon: MapPin },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -15,13 +16,20 @@ export function AdminWorkspace({
   centres,
   users,
   library,
+  locations,
 }: {
   centres: React.ReactNode;
   users: React.ReactNode;
   library: React.ReactNode;
+  locations: React.ReactNode;
 }) {
   const [tab, setTab] = useState<TabKey>("centres");
-  const panels: Record<TabKey, React.ReactNode> = { centres, users, library };
+  const panels: Record<TabKey, React.ReactNode> = {
+    centres,
+    users,
+    library,
+    locations,
+  };
 
   return (
     <div className="space-y-6">

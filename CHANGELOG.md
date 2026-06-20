@@ -3,6 +3,32 @@
 All notable changes to Riskly. The project uses alpha versioning; releases are
 tagged `vX.Y.Z-alpha`.
 
+## [Unreleased]
+
+### Incidents module (new)
+
+Riskly is now two modules under one shell. Alongside risk assessments, a new
+**Incidents** module covers incident reporting and the investigation workflow:
+
+- **Report incidents** — accidents, near misses, property damage, aggression,
+  hazardous substances, fire/evacuation and more, with severity (reusing the
+  risk palette), a date/time, and a precise location. Save as a **draft** or
+  submit.
+- **People involved** — record injured parties (injury, body part, treatment,
+  lost time) and witness statements.
+- **Investigation workflow** — Draft → Open → Under investigation → Closed,
+  with **follow-up actions** that track open/in-progress/complete and flip to
+  **overdue** automatically. Closing requires every action complete.
+- **Incident dashboard** — KPIs, "needs attention" (overdue actions + open
+  reportable incidents), trend/type/severity charts and recent incidents.
+- **PDF export** — a clean incident report for insurance or records.
+- **Locations** — incidents reuse each centre's existing **Areas** plus a new
+  **Sub-area** level, managed under **Admin → Locations**.
+- Sidebar grouped into **Risk assessments** and **Incidents** sections.
+- Permissions reuse Riskly's roles: anyone can view; **Contributor+** report &
+  manage; **Reviewer+** investigate & close; **Admin** deletes & manages
+  locations.
+
 ## [0.3.5] — 2026-06-19 (Alpha)
 
 ### AI hazard drafting

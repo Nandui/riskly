@@ -4,13 +4,22 @@ A web app for **documenting, monitoring and referencing health & safety risk ass
 
 One organisation, many centres. Every assessment is built around one subject — an **area**, a **role**, or an **activity** — and is named after it, with all of that subject's hazards inside. Each hazard is rated with a **5×5 risk matrix** (Likelihood × Consequence Severity = Overall Risk) based on current controls.
 
-## What it does
+Riskly is organised as **two modules under one shell**, grouped in the sidebar:
+**Risk assessments** and **Incidents**.
+
+### Risk assessments
 
 - **Document** — create and edit assessments with hazard line-items and controls. Set each hazard's Likelihood and Consequence severity; the Overall Risk score, band and an animated risk gauge update live.
 - **Monitor** — a dashboard and monitoring queue surface overdue / due-soon reviews and high-risk hazards (High / Very High). Log a review to roll the next review date forward and keep an audit trail.
 - **Reference** — a searchable knowledge base, groupable by area, role or activity, with a clean, print-friendly read-only view of every assessment.
 
-Data is scoped to a **current centre** (chosen in the sidebar switcher), with an "All centres" overview.
+### Incidents
+
+- **Report** — log incidents (accident, near miss, property damage, aggression, hazardous substance, fire/evacuation…) with severity, date/time and a precise **Area → Sub-area** location. Save a draft or submit.
+- **Investigate** — record injured parties and witness statements, raise **follow-up actions** (which flip to *overdue* automatically), and move the incident through Draft → Open → Under investigation → Closed.
+- **Oversee** — an incident dashboard with KPIs, a "needs attention" triage zone, trend/type/severity charts, and a PDF incident report for insurance or records.
+
+Both modules share the same centres and users. Data is scoped to a **current centre** (chosen in the sidebar switcher), with an "All centres" overview.
 
 ## Tech stack
 
@@ -73,12 +82,13 @@ src/
 
 ## Domain model
 
-- **Center** — a site. Top-level scope.
-- **Area** — a physical/functional space within a centre (per-centre).
+- **Center** — a site. Top-level scope, shared by both modules.
+- **Area** — a physical/functional space within a centre (per-centre). Now also the basis for incident locations, with an optional **SubArea** child level.
 - **Role** / **Activity** — org-level shared libraries used to classify assessments.
 - **RiskAssessment** — covers one subject (an area, role *or* activity, chosen via `subjectType`) at a centre and is named after it; has a status, assessment date, review frequency and computed next-review date.
 - **Hazard** — a line item matching the client's columns: hazard, risk factor, person at risk, consequence, current controls, Likelihood × Consequence Severity = Overall Risk, and a Risk Category (Physical / Chemical / Biological / Ergonomic / Psychosocial / Environmental).
 - **ReviewLog** — an audit record written each time a review is logged.
+- **Incident** — a reported incident at a centre (reference `INC-XX-NNNN`), with a type, severity, status, location (denormalised from Area/SubArea), and the reporter. Has **Witness**, **InjuredParty** and **FollowUpAction** children.
 
 **Risk bands:** Low 1–4 · Medium 5–9 · High 10–16 · Very High 17–25. The risk colour palette (green → amber → orange → red) is reserved strictly for risk bands.
 
