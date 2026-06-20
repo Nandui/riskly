@@ -214,6 +214,7 @@ model ReviewRequest {
   resolvedAt    DateTime?
   resolvedById  String?
   resolvedBy    User?          @relation("ResolvedBy", fields: [resolvedById], references: [id])
+  resolutionNote String?       // why it was actioned/dismissed, captured on resolve
 
   @@index([assessmentId])
   @@index([status])

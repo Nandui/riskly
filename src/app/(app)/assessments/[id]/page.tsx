@@ -63,6 +63,7 @@ export default async function AssessmentDetailPage({
     requestedBy: r.requestedBy?.name ?? r.requestedBy?.email ?? "Someone",
     resolvedBy: r.resolvedBy?.name ?? r.resolvedBy?.email ?? null,
     resolvedAt: r.resolvedAt ? formatDate(r.resolvedAt) : null,
+    resolutionNote: r.resolutionNote,
   }));
 
   return (

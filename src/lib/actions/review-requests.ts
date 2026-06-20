@@ -48,21 +48,32 @@ export async function requestReview(
 export async function resolveReviewRequest(
   id: string,
   action: "Actioned" | "Dismissed",
+  note: string,
 ): Promise<FormState> {
   const user = await getCurrentUser();
   if (!user || !can(user, "review")) {
     return { ok: false, error: "You don't have permission to do this." };
   }
+  const trimmed = (note ?? "").trim().slice(0, 2000);
+  // A dismissal must say why; an action's note ("what was done") is optional.
+  if (action === "Dismissed" && !trimmed) {
+    return { ok: false, error: "Give a reason for dismissing this request." };
+  }
   const req = await db.reviewRequest.update({
     where: { id },
-    data: { status: action, resolvedAt: new Date(), resolvedById: user.id },
+    data: {
+      status: action,
+      resolvedAt: new Date(),
+      resolvedById: user.id,
+      resolutionNote: trimmed || null,
+    },
     select: { assessmentId: true },
   });
   await recordAudit(
     req.assessmentId,
     user,
     "review_request_resolved",
-    `Request ${action.toLowerCase()}`,
+    `Request ${action.toLowerCase()}${trimmed ? ` — ${trimmed}` : ""}`,
   );
   revalidate(req.assessmentId);
   return { ok: true };

@@ -1,13 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { MessageSquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/form";
-import {
-  requestReview,
-  resolveReviewRequest,
-} from "@/lib/actions/review-requests";
+import { requestReview } from "@/lib/actions/review-requests";
+import { ResolveRequestButtons } from "@/components/resolve-review-request";
 import type { FormState } from "@/lib/form";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +17,7 @@ export interface ReviewRequestItem {
   requestedBy: string;
   resolvedBy: string | null;
   resolvedAt: string | null;
+  resolutionNote: string | null;
 }
 
 const STATUS_PILL: Record<string, string> = {
@@ -89,6 +88,12 @@ export function ReviewRequestPanel({
                     ? ` · ${r.status.toLowerCase()} by ${r.resolvedBy}`
                     : ""}
                 </p>
+                {r.resolutionNote && (
+                  <p className="mt-1.5 rounded-md bg-surface-2/60 px-2.5 py-1.5 text-xs text-ink-soft">
+                    <span className="font-medium text-ink">Resolution:</span>{" "}
+                    {r.resolutionNote}
+                  </p>
+                )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <span
@@ -100,7 +105,7 @@ export function ReviewRequestPanel({
                   {r.status}
                 </span>
                 {r.status === "Open" && canResolve && (
-                  <ResolveButtons id={r.id} />
+                  <ResolveRequestButtons id={r.id} />
                 )}
               </div>
             </li>
@@ -147,33 +152,5 @@ function RequestForm({
         {pending ? "Sending…" : "Send request"}
       </Button>
     </form>
-  );
-}
-
-function ResolveButtons({ id }: { id: string }) {
-  const [pending, startTransition] = useTransition();
-  const resolve = (action: "Actioned" | "Dismissed") =>
-    startTransition(() => {
-      void resolveReviewRequest(id, action);
-    });
-  return (
-    <span className="flex items-center gap-1">
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => resolve("Actioned")}
-        className="rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-      >
-        Action
-      </button>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => resolve("Dismissed")}
-        className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-surface-2 hover:text-ink"
-      >
-        Dismiss
-      </button>
-    </span>
   );
 }
