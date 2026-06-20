@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
@@ -13,15 +13,11 @@ import {
   X,
   LogOut,
   Settings,
-  Search,
-  Plus,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { can, type Capability } from "@/lib/permissions";
 import { CenterSwitcher } from "@/components/center-switcher";
-import { CommandMenu } from "@/components/command-menu";
-import { buttonClasses } from "@/components/ui/button";
 import { signOutAction } from "@/lib/actions/auth";
 import type { CenterSummary } from "@/lib/center-shared";
 
@@ -84,35 +80,16 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const [cmdkOpen, setCmdkOpen] = useState(false);
   const pathname = usePathname();
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 
   const navItems = NAV.filter((item) => can(user, item.cap));
-  const navCommands = navItems.map(({ href, label, icon }) => ({
-    href,
-    label,
-    icon,
-  }));
-  const canCreate = can(user, "editContent");
-
-  // ⌘K / Ctrl+K toggles the command palette from anywhere.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setCmdkOpen((v) => !v);
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
 
   return (
     <div className="min-h-screen md:flex">
-      {/* Mobile top bar */}
+      {/* Mobile top bar — navigation toggle + wordmark only */}
       <header className="no-print sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-surface px-4 md:hidden">
         <button
           type="button"
@@ -129,14 +106,6 @@ export function AppShell({
             Riskly
           </span>
         </span>
-        <button
-          type="button"
-          onClick={() => setCmdkOpen(true)}
-          aria-label="Search"
-          className="ml-auto flex size-9 items-center justify-center rounded-lg text-ink-soft hover:bg-surface-2"
-        >
-          <Search className="size-5" />
-        </button>
       </header>
 
       {/* Mobile overlay */}
@@ -250,30 +219,7 @@ export function AppShell({
       </aside>
 
       {/* Main content */}
-      <main className="flex min-w-0 flex-1 flex-col">
-        {/* Desktop top bar: global search + primary action */}
-        <div className="no-print sticky top-0 z-30 hidden h-14 shrink-0 items-center gap-3 border-b border-line bg-bg/80 px-4 backdrop-blur md:flex lg:px-8">
-          <button
-            type="button"
-            onClick={() => setCmdkOpen(true)}
-            className="group flex h-9 w-full max-w-sm items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-sm text-faint shadow-xs transition-colors hover:text-muted-foreground"
-          >
-            <Search className="size-4" />
-            <span>Search…</span>
-            <kbd className="ml-auto inline-flex items-center gap-0.5 rounded border border-line bg-surface-2 px-1.5 font-mono text-[0.7rem] text-faint">
-              ⌘K
-            </kbd>
-          </button>
-          {canCreate && (
-            <Link
-              href="/assessments/new"
-              className={cn(buttonClasses({ size: "sm" }), "ml-auto")}
-            >
-              <Plus className="size-4" /> New assessment
-            </Link>
-          )}
-        </div>
-
+      <main className="min-w-0 flex-1">
         <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-9">
           <motion.div
             key={pathname}
@@ -285,15 +231,6 @@ export function AppShell({
           </motion.div>
         </div>
       </main>
-
-      <CommandMenu
-        open={cmdkOpen}
-        onOpenChange={setCmdkOpen}
-        nav={navCommands}
-        canCreate={canCreate}
-        centers={centers}
-        selectedId={selectedId}
-      />
     </div>
   );
 }

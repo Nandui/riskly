@@ -130,7 +130,7 @@ export function AssessmentView({
     <div className="space-y-6">
       <div className="grid items-start gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
         {/* ── Control rail ────────────────────────────────────────── */}
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-[4.5rem]">
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
           <h2 className="flex h-8 items-center text-base font-semibold text-ink">
             Risk summary
           </h2>
