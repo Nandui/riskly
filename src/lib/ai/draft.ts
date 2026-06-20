@@ -5,17 +5,20 @@
 // scales — which a human then reviews and edits before saving.
 //
 // Routed through the Vercel AI Gateway (the `ai` SDK with a "creator/model"
-// id), so it uses whichever provider keys (DeepSeek, Google AI Studio, …) are
+// id), so it uses whichever provider keys (Google AI Studio, DeepSeek, …) are
 // configured on the team's gateway. Server-only: auth comes from
 // AI_GATEWAY_API_KEY or, on a Vercel deployment, the OIDC token automatically.
+//
+// Reliability notes: we use `generateText` (plain completion) and parse the
+// JSON ourselves rather than `generateObject`, because small/open models are
+// inconsistent at the provider's structured-output mode — the single biggest
+// source of intermittent "no object generated" failures. We tolerate messy
+// output (fences, preambles, run-on control strings, a bad item here or there),
+// retry transient failures with backoff, and keep the whole call inside a time
+// budget so it never runs the serverless function out of time.
 // ------------------------------------------------------------------
 
-import {
-  generateObject,
-  APICallError,
-  NoObjectGeneratedError,
-  type RepairTextFunction,
-} from "ai";
+import { generateText, APICallError } from "ai";
 import { z } from "zod";
 import {
   LIKELIHOOD_LABELS,
@@ -26,12 +29,20 @@ import {
 import { RISK_CATEGORIES } from "@/lib/constants";
 import { normalizePersonsAtRisk, PERSONS_AT_RISK } from "@/lib/persons";
 
-// Default model via the Vercel AI Gateway. Override with any model id that's
-// enabled (and billed) on your gateway via RISKLY_AI_MODEL, e.g.
-// "google/gemini-2.5-flash".
-const DEFAULT_MODEL = "google/gemma-4-26b-a4b-it";
+// Default model via the Vercel AI Gateway. Gemini 2.5 Flash is fast, cheap and
+// reliable at instruction-following / JSON — far steadier than a small model.
+// Override with any model id enabled (and billed) on your gateway via
+// RISKLY_AI_MODEL, e.g. "google/gemma-4-26b-a4b-it" or "deepseek/deepseek-v3.1".
+const DEFAULT_MODEL = "google/gemini-2.5-flash";
 const TARGET_HAZARDS = 10;
 const MAX_HAZARDS = 16;
+
+// Reliability tuning. The whole call must finish within the route's
+// maxDuration (60s), so everything shares one budget.
+const TOTAL_BUDGET_MS = 55_000; // hard ceiling for the entire draftHazards call
+const ATTEMPT_TIMEOUT_MS = 30_000; // per individual model call
+const MIN_ATTEMPT_MS = 6_000; // don't start a new call without at least this left
+const MAX_ATTEMPTS_PER_ROUND = 4;
 
 const CATEGORY_VALUES = RISK_CATEGORIES.map((c) => c.value) as [string, ...string[]];
 
@@ -74,58 +85,19 @@ export interface DraftedHazard {
   riskCategory: string;
 }
 
-// Deliberately lenient: gateway models (DeepSeek especially) often return
-// controls as a single string, ratings as strings, an off-list category, or
-// omit a field. Accept those shapes here and normalise in code — a strict
-// schema just fails the whole draft. Field guidance lives in `.describe`.
+// Deliberately lenient: models often return controls as a single string,
+// ratings as strings, an off-list category, or omit a field. Accept those
+// shapes and normalise in code; each hazard is parsed on its own, so one bad
+// item is dropped rather than failing the whole batch.
 const hazardSchema = z.object({
-  hazard: z
-    .string()
-    .min(1)
-    .describe(
-      "The hazard SOURCE — the thing or condition that can cause harm, written as a noun (e.g. 'Pool water', 'Wet changing-room floor', 'Pool chemicals'). NOT the event (never 'Slips on wet floor').",
-    ),
-  riskFactor: z
-    .string()
-    .nullish()
-    .describe("The why — the conditions or causes that make the harm likely."),
-  personAtRisk: z
-    .string()
-    .nullish()
-    .describe(
-      `Who is at risk — one or more of exactly: ${PERSONS_AT_RISK.join(", ")} (comma-separated, no others).`,
-    ),
-  consequence: z
-    .string()
-    .nullish()
-    .describe(
-      "The risk realised — the specific harmful event and its outcome, e.g. 'Drowning — fatal or hypoxic brain injury'.",
-    ),
-  currentControls: z
-    .union([z.array(z.string()), z.string()])
-    .nullish()
-    .describe(
-      "Concrete controls a well-run centre would typically already have in place. Return a JSON array of separate short strings — ONE measure per item, never several merged into a single comma-joined string.",
-    ),
-  likelihood: z
-    .coerce.number()
-    .catch(2)
-    .describe("Residual likelihood 1-5, assuming the listed controls are in place."),
-  severity: z.coerce.number().catch(3).describe("Consequence severity 1-5."),
-  riskCategory: z
-    .string()
-    .nullish()
-    .describe(
-      `The single best-fit risk category — one of: ${CATEGORY_VALUES.join(", ")}.`,
-    ),
-});
-
-const outputSchema = z.object({
-  hazards: z
-    .array(hazardSchema)
-    .describe(
-      "The drafted hazards, most significant first. The same hazard source may appear in multiple entries for distinct risks. May be empty when an existing assessment already covers every significant risk.",
-    ),
+  hazard: z.string().min(1),
+  riskFactor: z.string().nullish(),
+  personAtRisk: z.string().nullish(),
+  consequence: z.string().nullish(),
+  currentControls: z.union([z.array(z.string()), z.string()]).nullish(),
+  likelihood: z.coerce.number().catch(2),
+  severity: z.coerce.number().catch(3),
+  riskCategory: z.string().nullish(),
 });
 
 function numberedScale(labels: readonly string[], descriptions?: readonly string[]) {
@@ -155,17 +127,10 @@ function buildSystemPrompt(want: number | null): string {
     "",
     "The SAME hazard source can appear in more than one entry when it presents genuinely distinct significant risks — e.g. \"Pool water\" → drowning, and \"Pool water\" → shallow-end impact / diving injury. Cover the real distinct risks rather than padding with many superficial hazard sources.",
     "",
-    "Worked example (a swimming pool):",
-    "- hazard: \"Pool water\"",
-    "- riskFactor: \"Non-swimmers and weak swimmers; momentary lapse in lifeguard supervision; overcrowding\"",
-    "- consequence: \"Drowning or near-drowning — fatal or serious hypoxic brain injury\"",
-    "- personAtRisk: \"Customers, Children\"",
-    "- currentControls: [\"Qualified lifeguards on poolside at the required ratios\", \"Constant scanning and zoning\", \"Depth markings and signage\", \"Rescue equipment and emergency procedures in place\"]",
-    "",
     "Rules:",
     countRule,
     "- Every field must be specific to the subject, not generic boilerplate.",
-    "- Return currentControls as an array of separate items — each a distinct measure on its own. Never merge several controls into one comma-joined string; the output renders one control per line.",
+    "- currentControls is an array of separate short strings — one distinct measure per item. Never merge several controls into one comma-joined string.",
     "- Rate Likelihood (1–5) and Severity (1–5) realistically, ASSUMING the current controls you listed are already in place (i.e. the residual risk). Use these scales exactly:",
     "",
     "  Likelihood:",
@@ -176,6 +141,10 @@ function buildSystemPrompt(want: number | null): string {
     "",
     `- Choose a riskCategory for each hazard from exactly: ${CATEGORY_VALUES.join(", ")}.`,
     "- Do NOT invent site-specific facts (specific equipment models, named staff, exact dimensions, real incident history). Keep controls standard best-practice that a human can tailor.",
+    "",
+    "OUTPUT FORMAT — respond with ONLY a single JSON object, no markdown fences and no commentary, in exactly this shape:",
+    '{"hazards":[{"hazard":"Pool water","riskFactor":"Non-swimmers; lapse in supervision","consequence":"Drowning — fatal or hypoxic brain injury","personAtRisk":"Customers, Children","currentControls":["Qualified lifeguards at required ratios","Constant scanning and zoning","Depth markings and signage"],"likelihood":2,"severity":5,"riskCategory":"Physical"}]}',
+    "Every hazard object MUST include all eight keys. likelihood and severity are integers 1-5. currentControls is a JSON array of strings. Output nothing except the JSON object.",
   ].join("\n");
 }
 
@@ -215,6 +184,7 @@ function buildUserPrompt(
     want != null
       ? `Draft ${want} ${avoidList.length ? "further " : ""}hazard${want === 1 ? "" : "s"} for this ${subject}${avoidList.length ? " that are NOT in the list above" : ""}, most significant first.`
       : `Draft the further significant hazards for this ${subject} that aren't already covered. Return an empty list if nothing significant is missing.`,
+    "Respond with only the JSON object described in the system message.",
   );
   return lines.join("\n");
 }
@@ -273,13 +243,88 @@ function toControlLines(
 
 // Normalised key for duplicate detection: same hazard source + consequence.
 function dedupKey(hazard: string, consequence: string): string {
-  return `${hazard} ${consequence}`.toLowerCase().replace(/\s+/g, " ").trim();
+  return `${hazard} ${consequence}`.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+// Map one validated raw hazard to the form fields.
+function mapOne(h: z.infer<typeof hazardSchema>): DraftedHazard {
+  return {
+    hazard: h.hazard.trim(),
+    riskFactor: (h.riskFactor ?? "").trim(),
+    personAtRisk: normalizePersonsAtRisk(h.personAtRisk),
+    consequence: (h.consequence ?? "").trim(),
+    currentControls: toControlLines(h.currentControls),
+    likelihood: clampRating(h.likelihood),
+    severity: clampRating(h.severity),
+    riskCategory:
+      h.riskCategory && CATEGORY_VALUES.includes(h.riskCategory)
+        ? h.riskCategory
+        : "Physical",
+  };
+}
+
+// Trim the model's reply down to a JSON payload. Strips markdown fences and any
+// prose preamble, and re-wraps a bare array or a single object into the
+// expected `{ "hazards": [ … ] }` shape. Returns null if there's no JSON at all.
+function repairJson(text: string): string | null {
+  let t = (text ?? "").trim();
+  if (!t) return null;
+  const fenced = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) t = fenced[1].trim();
+  const starts = [t.indexOf("{"), t.indexOf("[")].filter((i) => i !== -1);
+  const start = starts.length ? Math.min(...starts) : -1;
+  const end = Math.max(t.lastIndexOf("}"), t.lastIndexOf("]"));
+  if (start === -1 || end <= start) return null;
+  t = t.slice(start, end + 1);
+  if (t.startsWith("[")) return `{"hazards":${t}}`;
+  if (!/^\{\s*"hazards"\s*:/.test(t)) return `{"hazards":[${t}]}`;
+  return t;
+}
+
+function extractHazardArray(data: unknown): unknown[] | null {
+  if (Array.isArray(data)) return data;
+  if (
+    data &&
+    typeof data === "object" &&
+    Array.isArray((data as { hazards?: unknown }).hazards)
+  ) {
+    return (data as { hazards: unknown[] }).hazards;
+  }
+  return null;
+}
+
+// Parse a model reply into hazards. Tries the repaired payload then the raw
+// text; validates each item on its own, dropping malformed ones. Returns:
+//   - an array (possibly empty) when a hazards array was found and parsed
+//   - null when nothing parseable was found, or every item was malformed
+//     (both mean "retry").
+function parseHazards(text: string): DraftedHazard[] | null {
+  for (const candidate of [repairJson(text), (text ?? "").trim()]) {
+    if (!candidate) continue;
+    let data: unknown;
+    try {
+      data = JSON.parse(candidate);
+    } catch {
+      continue;
+    }
+    const arr = extractHazardArray(data);
+    if (!arr) continue;
+    const good: DraftedHazard[] = [];
+    for (const item of arr) {
+      const parsed = hazardSchema.safeParse(item);
+      if (parsed.success) good.push(mapOne(parsed.data));
+    }
+    // A non-empty array where nothing validated is a malformed response — retry.
+    if (arr.length > 0 && good.length === 0) continue;
+    return good;
+  }
+  return null;
 }
 
 // String model ids resolve through the Vercel AI Gateway, which reports auth /
 // quota / unknown-model problems as a GatewayError (name "Gateway…") — NOT an
-// APICallError, so these otherwise slip through to the generic catch. The SDK
-// sets `.name` to a stable literal, so match on it without a direct dependency.
+// APICallError, so these otherwise slip through. The SDK sets `.name` to a
+// stable literal, so match on it without a direct dependency.
 function isGatewayError(
   err: unknown,
 ): err is { name: string; statusCode?: number } {
@@ -289,6 +334,45 @@ function isGatewayError(
     typeof (err as { name?: unknown }).name === "string" &&
     (err as { name: string }).name.includes("Gateway")
   );
+}
+
+function statusOf(err: unknown): number | undefined {
+  if (isGatewayError(err)) return err.statusCode;
+  if (APICallError.isInstance(err)) return err.statusCode;
+  return undefined;
+}
+
+// Worth another attempt: timeouts, network blips, rate limiting (429), and
+// provider 5xx. Auth / quota / unknown-model / bad-request (401/403/404/400)
+// are configuration problems — fail those fast.
+function isRetryable(err: unknown): boolean {
+  if (
+    err instanceof Error &&
+    (err.name === "TimeoutError" || err.name === "AbortError")
+  ) {
+    return true;
+  }
+  if (err instanceof TypeError) return true; // e.g. "fetch failed" network error
+  const status = statusOf(err);
+  if (status === undefined) return true; // unknown runtime/SDK error — try again
+  if (status === 408 || status === 409 || status === 429) return true;
+  return status >= 500;
+}
+
+function errSummary(err: unknown): string {
+  if (isGatewayError(err)) return `gateway ${err.name} ${err.statusCode ?? ""}`.trim();
+  if (APICallError.isInstance(err)) return `api ${err.statusCode ?? ""}`.trim();
+  if (err instanceof Error) return `${err.name}: ${err.message}`.slice(0, 200);
+  return String(err).slice(0, 200);
+}
+
+function backoffMs(attempt: number): number {
+  return Math.min(500 * 2 ** attempt, 4000) + Math.floor(Math.random() * 300);
+}
+
+async function sleep(ms: number, deadline: number): Promise<void> {
+  const capped = Math.max(0, Math.min(ms, deadline - Date.now()));
+  if (capped > 0) await new Promise((r) => setTimeout(r, capped));
 }
 
 // Map an HTTP status from the gateway/provider to an actionable message.
@@ -306,61 +390,6 @@ function aiStatusMessage(status: number | undefined, model: string): string {
   return "The AI Gateway couldn't complete the request — check the gateway authentication and that a provider key is configured, then try again.";
 }
 
-// Repair the model's raw output before the SDK re-parses it. Gateway models
-// (DeepSeek especially) wrap JSON in markdown fences, add a reasoning preamble,
-// or — most commonly here — drop the `{ "hazards": [ … ] }` wrapper and return
-// a bare array or a comma-separated list of hazard objects. Trim to the JSON
-// payload and re-wrap so it matches the expected schema.
-const repairJsonText: RepairTextFunction = async ({ text }) => {
-  const original = text.trim();
-  let t = original;
-  const fenced = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced) t = fenced[1].trim();
-
-  const starts = [t.indexOf("{"), t.indexOf("[")].filter((i) => i !== -1);
-  const start = starts.length ? Math.min(...starts) : -1;
-  const end = Math.max(t.lastIndexOf("}"), t.lastIndexOf("]"));
-  if (start === -1 || end <= start) return null;
-  t = t.slice(start, end + 1);
-
-  if (t.startsWith("[")) return `{"hazards":${t}}`;
-  if (t.startsWith("{") && !/^\{\s*"hazards"\s*:/.test(t)) {
-    return `{"hazards":[${t}]}`;
-  }
-  return t !== original ? t : null;
-};
-
-// Normalise one round's raw output to the hazard form fields.
-function mapRawHazards(
-  raw: z.infer<typeof outputSchema>["hazards"],
-): DraftedHazard[] {
-  return raw.map((h) => ({
-    hazard: h.hazard.trim(),
-    riskFactor: (h.riskFactor ?? "").trim(),
-    personAtRisk: normalizePersonsAtRisk(h.personAtRisk),
-    consequence: (h.consequence ?? "").trim(),
-    currentControls: toControlLines(h.currentControls),
-    likelihood: clampRating(h.likelihood),
-    severity: clampRating(h.severity),
-    riskCategory:
-      h.riskCategory && CATEGORY_VALUES.includes(h.riskCategory)
-        ? h.riskCategory
-        : "Physical",
-  }));
-}
-
-// Worth retrying: a flaky structured-output miss, rate limiting, or a provider
-// 5xx. Auth/quota/unknown-model (401/403/404) are not — fail those fast.
-function isTransient(err: unknown): boolean {
-  if (NoObjectGeneratedError.isInstance(err)) return true;
-  const status = isGatewayError(err)
-    ? err.statusCode
-    : APICallError.isInstance(err)
-      ? err.statusCode
-      : undefined;
-  return status === 429 || (status !== undefined && status >= 500);
-}
-
 // Translate a thrown error into a user-safe AiDraftError.
 function toAiDraftError(err: unknown, model: string): AiDraftError {
   if (err instanceof AiDraftError) return err;
@@ -373,21 +402,6 @@ function toAiDraftError(err: unknown, model: string): AiDraftError {
       "The model took too long to respond. Please try again, or set RISKLY_AI_MODEL to a faster model.",
     );
   }
-  if (NoObjectGeneratedError.isInstance(err)) {
-    console.error(
-      "[ai-draft] no object generated | finishReason:",
-      err.finishReason,
-      "| cause:",
-      err.cause instanceof Error ? err.cause.message : err.cause,
-      "| text:",
-      err.text?.slice(0, 600),
-    );
-    return new AiDraftError(
-      err.finishReason === "length"
-        ? "The model's response was cut off before it finished. Try again, or switch RISKLY_AI_MODEL to another model."
-        : "The model couldn't produce a valid set of hazards — this can be intermittent, so try again. If it persists, switch RISKLY_AI_MODEL to another model.",
-    );
-  }
   if (isGatewayError(err)) {
     console.error("[ai-draft] gateway error", err.name, err.statusCode);
     return new AiDraftError(aiStatusMessage(err.statusCode, model));
@@ -396,41 +410,78 @@ function toAiDraftError(err: unknown, model: string): AiDraftError {
     console.error("[ai-draft] api error", err.statusCode);
     return new AiDraftError(aiStatusMessage(err.statusCode, model));
   }
-  console.error("[ai-draft] generateObject failed", err);
+  if (err instanceof TypeError) {
+    console.error("[ai-draft] network error", err.message);
+    return new AiDraftError("Couldn't reach the AI provider. Please try again.");
+  }
+  console.error("[ai-draft] draft failed", err);
   return new AiDraftError("AI drafting failed unexpectedly. Please try again.");
 }
 
-// One generation round, retried a couple of times on transient failures.
+// One generation round: call the model and parse hazards, retrying transient
+// failures and unparseable replies with backoff until we get a usable result
+// or run out of the shared time budget.
 async function generateRound(
   model: string,
   maxOutputTokens: number,
   subject: DraftSubject,
   avoid: ExistingHazard[],
   want: number | null,
+  deadline: number,
 ): Promise<DraftedHazard[]> {
   const system = buildSystemPrompt(want);
   const prompt = buildUserPrompt(subject, avoid, want);
-  let lastErr: unknown;
-  // Two attempts (one retry on a transient flake). Each call is time-boxed so a
-  // hung request can't run the serverless function out of time and crash.
-  for (let attempt = 0; attempt < 2; attempt++) {
+  let lastGenError: unknown = null;
+  let sawInvalid = false;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS_PER_ROUND; attempt++) {
+    const remaining = deadline - Date.now();
+    if (remaining < MIN_ATTEMPT_MS) break;
+
+    let text: string;
     try {
-      const { object } = await generateObject({
+      const res = await generateText({
         model,
-        schema: outputSchema,
         system,
         prompt,
         maxOutputTokens,
-        abortSignal: AbortSignal.timeout(30_000),
-        experimental_repairText: repairJsonText,
+        temperature: 0.4,
+        abortSignal: AbortSignal.timeout(Math.min(ATTEMPT_TIMEOUT_MS, remaining)),
       });
-      return mapRawHazards(object.hazards);
+      text = res.text ?? "";
+      lastGenError = null; // the call itself succeeded
     } catch (err) {
-      lastErr = err;
-      if (!isTransient(err)) throw err;
+      lastGenError = err;
+      if (!isRetryable(err)) throw err;
+      console.error(
+        `[ai-draft] attempt ${attempt + 1}/${MAX_ATTEMPTS_PER_ROUND} call failed (model=${model}): ${errSummary(err)}`,
+      );
+      await sleep(backoffMs(attempt), deadline);
+      continue;
     }
+
+    const hazards = parseHazards(text);
+    // A specific count was asked for but nothing came back — treat as a miss
+    // and retry; for "as needed" (want=null) an empty list is a valid answer.
+    if (hazards && (want == null || hazards.length > 0)) return hazards;
+
+    sawInvalid = true;
+    console.error(
+      `[ai-draft] attempt ${attempt + 1}/${MAX_ATTEMPTS_PER_ROUND} no usable hazards (model=${model}, want=${want ?? "auto"}) text[0..200]=${JSON.stringify(text.slice(0, 200))}`,
+    );
+    await sleep(backoffMs(attempt), deadline);
   }
-  throw lastErr;
+
+  // Exhausted. Surface the most informative failure.
+  if (lastGenError) throw lastGenError;
+  if (sawInvalid) {
+    throw new AiDraftError(
+      "The model couldn't produce a valid set of hazards — this can be intermittent, so please try again.",
+    );
+  }
+  throw new AiDraftError(
+    "The model didn't respond in time. Please try again, or set RISKLY_AI_MODEL to a faster model.",
+  );
 }
 
 export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard[]> {
@@ -441,9 +492,12 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
   }
 
   const model = process.env.RISKLY_AI_MODEL || DEFAULT_MODEL;
-  // Gemini reasons before answering and needs output headroom; other models
-  // (Gemma, DeepSeek, …) cap lower, so stay within ~8k to avoid 400s.
+  // Gemini reasons before answering and needs output headroom; other models cap
+  // lower, so stay within ~8k to avoid 400s.
   const maxOutputTokens = model.includes("gemini") ? 16000 : 8000;
+  // One budget for the whole call (all rounds + retries), comfortably under the
+  // route's maxDuration so the function can never time out mid-flight.
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
 
   const existing = (subject.existingHazards ?? []).filter((h) => h.hazard.trim());
   const topUp = existing.length > 0;
@@ -472,7 +526,14 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
   if (target === null) {
     let mapped: DraftedHazard[];
     try {
-      mapped = await generateRound(model, maxOutputTokens, subject, existing, null);
+      mapped = await generateRound(
+        model,
+        maxOutputTokens,
+        subject,
+        existing,
+        null,
+        deadline,
+      );
     } catch (err) {
       throw toAiDraftError(err, model);
     }
@@ -484,10 +545,12 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
   // Targeted: weaker models tend to echo the "already covered" list back, which
   // dedup then strips — leaving too few. So accumulate over a few rounds,
   // feeding back everything covered so far (existing + collected) and over-
-  // asking slightly, until we hit the target or a round adds nothing new.
+  // asking slightly, until we hit the target, run out of budget, or a round
+  // adds nothing new.
   const collected: DraftedHazard[] = [];
   const MAX_ROUNDS = 3;
   for (let round = 0; round < MAX_ROUNDS && collected.length < target; round++) {
+    if (deadline - Date.now() < MIN_ATTEMPT_MS) break;
     const want = Math.min(MAX_HAZARDS, target - collected.length + 2);
     const avoid: ExistingHazard[] = [
       ...existing,
@@ -495,7 +558,14 @@ export async function draftHazards(subject: DraftSubject): Promise<DraftedHazard
     ];
     let mapped: DraftedHazard[];
     try {
-      mapped = await generateRound(model, maxOutputTokens, subject, avoid, want);
+      mapped = await generateRound(
+        model,
+        maxOutputTokens,
+        subject,
+        avoid,
+        want,
+        deadline,
+      );
     } catch (err) {
       if (collected.length === 0) throw toAiDraftError(err, model);
       break; // keep what we already have rather than failing the whole draft
