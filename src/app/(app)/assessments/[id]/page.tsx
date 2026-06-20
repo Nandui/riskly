@@ -5,8 +5,13 @@ import { StatusBadge } from "@/components/ui/badge";
 import { AssessmentView } from "@/components/assessments/assessment-view";
 import { AssessmentReport } from "@/components/assessments/assessment-report";
 import { AssessmentActions } from "@/components/assessments/assessment-actions";
+import { CopyHazardsButton } from "@/components/assessments/copy-hazards-modal";
 import { ReviewRequestPanel } from "@/components/assessments/review-request-panel";
-import { getAssessmentDetail, assessmentTitle } from "@/lib/data/assessments";
+import {
+  getAssessmentDetail,
+  assessmentTitle,
+  listCopyTargets,
+} from "@/lib/data/assessments";
 import { getCurrentUser, can } from "@/lib/auth";
 import { formatDate } from "@/lib/utils";
 
@@ -43,6 +48,11 @@ export default async function AssessmentDetailPage({
   const isOwner = !!user && !!a.ownerId && user.id === a.ownerId;
   const canApproveOwner = isOwner;
   const canApproveCeo = !isOwner && (user?.role === "CEO" || can(user, "admin"));
+
+  // Hazards can be copied into any other assessment (any centre); only fetch the
+  // candidates when there's something to copy and the user can edit.
+  const copyTargets =
+    canEdit && a.hazards.length > 0 ? await listCopyTargets(a.id) : [];
 
   const requests = a.reviewRequests.map((r) => ({
     id: r.id,
@@ -101,7 +111,19 @@ export default async function AssessmentDetailPage({
             </p>
           )}
         </div>
-        <div className="no-print">
+        <div className="no-print flex items-center gap-2">
+          {canEdit && a.hazards.length > 0 && (
+            <CopyHazardsButton
+              sourceId={a.id}
+              sourceRef={a.reference}
+              hazards={a.hazards.map((h) => ({
+                id: h.id,
+                seq: h.seq,
+                hazard: h.hazard,
+              }))}
+              targets={copyTargets}
+            />
+          )}
           <AssessmentActions id={a.id} canEdit={canEdit} />
         </div>
       </div>

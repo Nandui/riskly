@@ -304,6 +304,33 @@ export async function findSubjectAssessment(
   });
 }
 
+// Lightweight list of assessments that hazards can be copied into — every
+// assessment except the source, labelled for the picker (grouped by centre by
+// the caller).
+export async function listCopyTargets(excludeId: string) {
+  const rows = await db.riskAssessment.findMany({
+    where: { id: { not: excludeId } },
+    orderBy: [{ center: { name: "asc" } }, { reference: "asc" }],
+    select: {
+      id: true,
+      reference: true,
+      subjectType: true,
+      center: { select: { name: true } },
+      area: { select: { name: true } },
+      role: { select: { name: true } },
+      activity: { select: { name: true } },
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    reference: r.reference,
+    centerName: r.center.name,
+    title: assessmentTitle(r),
+  }));
+}
+
+export type CopyTarget = Awaited<ReturnType<typeof listCopyTargets>>[number];
+
 function deriveSiteCode(name: string): string {
   const letters = name.replace(/[^A-Za-z]/g, "");
   return (letters.slice(0, 2) || "XX").toUpperCase();

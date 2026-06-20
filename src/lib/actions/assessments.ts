@@ -625,3 +625,117 @@ export async function deleteHazard(hazardId: string): Promise<FormState> {
   revalidateAssessments(assessmentId);
   return { ok: true };
 }
+
+// Copy a selection of hazards from one assessment into another existing
+// assessment (which may be in a different centre). Like adding a hazard, this
+// is a material change to the TARGET: it goes back to Under review and any
+// sign-off there is cleared. The copies are appended with fresh, never-reused
+// seq numbers; the source is left untouched.
+export async function copyHazards(
+  sourceId: string,
+  targetId: string,
+  hazardIds: string[],
+): Promise<FormState> {
+  const denied = await denyUnless("editContent");
+  if (denied) return denied;
+
+  if (!targetId || targetId === sourceId) {
+    return { ok: false, error: "Choose a different assessment to copy into." };
+  }
+  const ids = Array.from(new Set(hazardIds.filter(Boolean)));
+  if (!ids.length) {
+    return { ok: false, error: "Select at least one hazard to copy." };
+  }
+
+  const [target, source, sources] = await Promise.all([
+    db.riskAssessment.findUnique({
+      where: { id: targetId },
+      select: {
+        id: true,
+        reference: true,
+        status: true,
+        ...APPROVAL_FLAGS_SELECT,
+        hazardSeq: true,
+      },
+    }),
+    db.riskAssessment.findUnique({
+      where: { id: sourceId },
+      select: { reference: true },
+    }),
+    // Only hazards that actually belong to the stated source can be copied.
+    db.hazard.findMany({
+      where: { id: { in: ids }, assessmentId: sourceId },
+      orderBy: { sortOrder: "asc" },
+      select: {
+        hazard: true,
+        riskFactor: true,
+        personAtRisk: true,
+        consequence: true,
+        currentControls: true,
+        likelihood: true,
+        severity: true,
+        riskCategory: true,
+      },
+    }),
+  ]);
+  if (!target) return { ok: false, error: "That assessment no longer exists." };
+  if (!sources.length) {
+    return { ok: false, error: "Those hazards are no longer available to copy." };
+  }
+
+  // Allocate seq/sortOrder above the target's high-water mark so a hazard
+  // number is never reused, even after deletions.
+  const agg = await db.hazard.aggregate({
+    where: { assessmentId: targetId },
+    _max: { sortOrder: true, seq: true },
+  });
+  let seq = Math.max(target.hazardSeq, agg._max.seq ?? 0);
+  let sort = agg._max.sortOrder ?? 0;
+  const data = sources.map((h) => ({
+    assessmentId: targetId,
+    sortOrder: ++sort,
+    seq: ++seq,
+    hazard: h.hazard,
+    riskFactor: h.riskFactor,
+    personAtRisk: h.personAtRisk,
+    consequence: h.consequence,
+    currentControls: h.currentControls,
+    likelihood: h.likelihood,
+    severity: h.severity,
+    riskCategory: h.riskCategory,
+  }));
+
+  const wasApproved = isApproved(target);
+  const toReview = target.status !== "Archived";
+
+  await db.$transaction([
+    db.hazard.createMany({ data }),
+    db.riskAssessment.update({
+      where: { id: targetId },
+      data: {
+        hazardSeq: seq,
+        ...(toReview ? { status: "UnderReview" } : {}),
+        ...(wasApproved ? CLEARED_APPROVAL : {}),
+      },
+    }),
+  ]);
+
+  const user = await getCurrentUser();
+  await recordAudit(
+    targetId,
+    user,
+    "hazard_added",
+    `Copied ${data.length} hazard${data.length === 1 ? "" : "s"} from ${source?.reference ?? "another assessment"}`,
+  );
+  if (wasApproved) {
+    await recordAudit(
+      targetId,
+      user,
+      "approval_revoked",
+      "Reset because hazards were copied in",
+    );
+  }
+
+  revalidateAssessments(targetId);
+  return { ok: true };
+}
