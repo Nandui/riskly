@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { PageHeader } from "@/components/ui/page-header";
-import { IncidentForm } from "@/components/incidents/incident-form";
+import { IncidentCaptureWizard } from "@/components/incidents/incident-capture-wizard";
 import { requireCapability, can } from "@/lib/auth";
 import { getCenterContext } from "@/lib/center-context";
 import { getAreaOptions, getReporterOptions } from "@/lib/data/incidents";
@@ -29,25 +29,18 @@ export default async function NewIncidentPage() {
         </Link>
         <PageHeader
           title="Report an incident"
-          description="Capture what happened and who was involved. You can save a draft and finish it later; follow-up actions are added during the investigation."
+          description="A few quick steps — what, where, what happened, and whether anyone was hurt. You can save a draft and finish later; detail and follow-up actions are added during the investigation."
         />
       </div>
 
-      <IncidentForm
-        mode="create"
+      <IncidentCaptureWizard
         centers={centers}
         areaOptions={areaOptions}
         isAdmin={isAdmin}
         reporterOptions={reporterOptions}
         defaultValues={{
           centerId: selectedId ?? centers[0]?.id ?? "",
-          type: "Accident",
-          severity: "Minor",
           occurredAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
-          areaId: "",
-          subAreaId: "",
-          description: "",
-          immediateAction: "",
           reportedById: user.id,
         }}
       />

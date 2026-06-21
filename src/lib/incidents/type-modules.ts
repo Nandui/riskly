@@ -5,7 +5,13 @@
 export type IncidentSection = "injured" | "witnesses";
 
 // Per-type field modules captured at intake (beyond the shared core).
-export type ModuleKey = "accident" | "aquatic" | "medical" | "facility" | "security";
+export type ModuleKey =
+  | "accident"
+  | "aquatic"
+  | "medical"
+  | "facility"
+  | "security"
+  | "missingChild";
 
 export type TypeModule = {
   label: string;
@@ -15,6 +21,13 @@ export type TypeModule = {
   // Ask the reporter for an actual-outcome severity at intake? False for types
   // with no inherent personal injury (the manager rates potential at triage).
   outcomeAtIntake: boolean;
+  // Per-type framing of the shared narrative fields. When a type captures the
+  // response in structured form, the generic "Immediate action taken" box is
+  // redundant and hidden. The narrative placeholder/hint can be tailored so the
+  // free-text invites the right content (and, for sensitive types, not the wrong).
+  narrativePlaceholder?: string;
+  narrativeHint?: string;
+  hideImmediateAction?: boolean;
 };
 
 export const TYPE_MODULES: Record<string, TypeModule> = {
@@ -38,6 +51,20 @@ export const TYPE_MODULES: Record<string, TypeModule> = {
     sections: ["witnesses"],
     modules: [],
     outcomeAtIntake: false,
+  },
+  MissingChild: {
+    label: "Missing Child (Code Amber)",
+    examples: "A child unaccounted for — usually found safe, but a key leading indicator for supervision. Record operational facts only; raise any welfare concern with the DLP.",
+    sections: ["witnesses"],
+    modules: ["missingChild"],
+    outcomeAtIntake: false,
+    narrativePlaceholder:
+      "Brief, factual summary — e.g. 'Child unaccounted for at the end of the lesson; Code Amber called; located in the showers, having never entered the pool.'",
+    narrativeHint:
+      "Operational facts only — no child or guardian names, and no welfare detail (raise that with the DLP).",
+    // Response is captured in structured form (Response actions / Lockdown /
+    // Emergency services / Policy reinforced), so the generic box is redundant.
+    hideImmediateAction: true,
   },
   Aquatic: {
     label: "Aquatic / water rescue",

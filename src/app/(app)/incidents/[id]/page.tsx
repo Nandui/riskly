@@ -161,6 +161,9 @@ export default async function IncidentDetailPage({
           <DetailField label="Location" value={location} />
           <DetailField label="Centre" value={incident.center.name} />
           <DetailField label="Reported by" value={incident.reportedBy} />
+          {incident.evidenceRef && (
+            <DetailField label="CCTV reference" value={incident.evidenceRef} />
+          )}
           <DetailField
             label="Injured / witnesses"
             value={`${incident.injuredParties.length} injured · ${incident.witnesses.length} witness${incident.witnesses.length === 1 ? "" : "es"}`}
@@ -224,6 +227,22 @@ export default async function IncidentDetailPage({
           )}
         </div>
       </Card>
+
+      {incident.photoUrl && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Photo</CardTitle>
+          </CardHeader>
+          <div className="p-5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/incidents/${incident.id}/photo`}
+              alt="Incident photo"
+              className="max-h-96 rounded-[var(--radius-card)] border border-line object-contain"
+            />
+          </div>
+        </Card>
+      )}
 
       {moduleGroups.length > 0 && (
         <Card>

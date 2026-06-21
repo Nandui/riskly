@@ -79,6 +79,11 @@ function mDate(formData: FormData, k: string): Date | null {
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? null : d;
 }
+// Multi-select (several same-named checkboxes) -> comma-joined string, or null.
+function mMulti(formData: FormData, k: string): string | null {
+  const vals = formData.getAll(k).filter((v): v is string => typeof v === "string" && v.trim() !== "");
+  return vals.length ? vals.join(",") : null;
+}
 
 function incidentModuleData(formData: FormData) {
   return {
@@ -86,6 +91,7 @@ function incidentModuleData(formData: FormData) {
     ambulanceCalled: mBool(formData, "ambulanceCalled"),
     aedUsed: mBool(formData, "aedUsed"),
     cprGiven: mBool(formData, "cprGiven"),
+    firstAidBy: mStr(formData, "firstAidBy"),
     // Accident
     mechanism: mStr(formData, "mechanism"),
     // Aquatic
@@ -113,6 +119,21 @@ function incidentModuleData(formData: FormData) {
     crimeReference: mStr(formData, "crimeReference"),
     gardaiNotified: mBool(formData, "gardaiNotified"),
     ejection: mBool(formData, "ejection"),
+    // Missing Child (Code Amber) — operational facts only (supervisionCause is
+    // set at triage, not here)
+    locatedAt: mDate(formData, "locatedAt"),
+    missingChildSetting: mStr(formData, "missingChildSetting"),
+    childAgeBand: mStr(formData, "childAgeBand"),
+    lastSeenLocation: mStr(formData, "lastSeenLocation"),
+    foundLocationClass: mStr(formData, "foundLocationClass"),
+    proximityToWaterWhenFound: mStr(formData, "proximityToWaterWhenFound"),
+    waterSearchInitiated: mBool(formData, "waterSearchInitiated"),
+    poolsCleared: mStr(formData, "poolsCleared"),
+    responseActions: mMulti(formData, "responseActions"),
+    lockdownInitiated: mBool(formData, "lockdownInitiated"),
+    emergencyServicesCalled: mBool(formData, "emergencyServicesCalled"),
+    missingChildResolution: mStr(formData, "missingChildResolution"),
+    policyReinforced: mBool(formData, "policyReinforced"),
   };
 }
 
@@ -289,6 +310,8 @@ export async function createIncident(
     subAreaId: formData.get("subAreaId") ?? "",
     description: formData.get("description") ?? "",
     immediateAction: formData.get("immediateAction") ?? undefined,
+    evidenceRef: formData.get("evidenceRef") ?? undefined,
+    photoUrl: formData.get("photoUrl") ?? undefined,
     reportedById: formData.get("reportedById") ?? undefined,
     witnesses: parseJsonArray(formData, "witnesses"),
     injuredParties: parseJsonArray(formData, "injuredParties"),
@@ -335,6 +358,8 @@ export async function createIncident(
             locationDetail: loc.locationDetail,
             description: d.description,
             immediateAction: d.immediateAction || null,
+            evidenceRef: d.evidenceRef || null,
+            photoUrl: d.photoUrl || null,
             reportedBy: reporter.reportedBy,
             reportedById: reporter.reportedById,
             witnessCount: d.witnesses.length,
@@ -390,6 +415,7 @@ export async function updateIncident(
     subAreaId: formData.get("subAreaId") ?? "",
     description: formData.get("description") ?? "",
     immediateAction: formData.get("immediateAction") ?? undefined,
+    evidenceRef: formData.get("evidenceRef") ?? undefined,
     reportedById: formData.get("reportedById") ?? undefined,
   };
 
@@ -433,6 +459,7 @@ export async function updateIncident(
         locationDetail: loc.locationDetail,
         description: d.description,
         immediateAction: d.immediateAction || null,
+        evidenceRef: d.evidenceRef || null,
         ...(reporterUpdate ?? {}),
       },
     });
@@ -493,6 +520,7 @@ export async function triageIncident(
     hazardCategory: formData.get("hazardCategory") ?? undefined,
     definedDangerousOccurrence: formData.get("definedDangerousOccurrence") ?? undefined,
     hsaReportable: formData.get("hsaReportable") ?? undefined,
+    supervisionCause: formData.get("supervisionCause") ?? undefined,
   });
   if (!parsed.success) {
     return invalidForm(parsed.error);
@@ -525,6 +553,8 @@ export async function triageIncident(
       // Advisory HSA-reportable indicator — a recorded human decision, never an
       // automatic legal determination.
       hsaReportable: d.hsaReportable ?? false,
+      // Missing Child root cause (only set when the manager picked one).
+      supervisionCause: d.supervisionCause || null,
       triageStatus: "Triaged",
       triagedAt: new Date(),
       triagedBy: user?.name ?? user?.email ?? null,

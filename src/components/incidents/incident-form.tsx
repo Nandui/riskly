@@ -31,6 +31,7 @@ type DefaultValues = {
   subAreaId: string;
   description: string;
   immediateAction: string;
+  evidenceRef?: string;
   reportedById: string;
 };
 
@@ -297,6 +298,7 @@ export function IncidentForm({
             label="What happened?"
             htmlFor="description"
             error={fieldErr("description")}
+            hint={moduleFor(type).narrativeHint}
             required
             className="sm:col-span-2"
           >
@@ -305,21 +307,40 @@ export function IncidentForm({
               name="description"
               rows={5}
               defaultValue={defaultValues.description}
-              placeholder="Describe the incident — what happened, who was involved, and the sequence of events."
+              placeholder={
+                moduleFor(type).narrativePlaceholder ??
+                "Describe what happened and the sequence of events."
+              }
             />
           </Field>
 
+          {!moduleFor(type).hideImmediateAction && (
+            <Field
+              label="Immediate action taken"
+              htmlFor="immediateAction"
+              hint="Optional — what was done at the time"
+              className="sm:col-span-2"
+            >
+              <Textarea
+                id="immediateAction"
+                name="immediateAction"
+                rows={3}
+                defaultValue={defaultValues.immediateAction}
+              />
+            </Field>
+          )}
+
           <Field
-            label="Immediate action taken"
-            htmlFor="immediateAction"
-            hint="Optional — what was done at the time"
+            label="CCTV reference"
+            htmlFor="evidenceRef"
+            hint="Added during investigation if CCTV is reviewed — camera and time."
             className="sm:col-span-2"
           >
-            <Textarea
-              id="immediateAction"
-              name="immediateAction"
-              rows={3}
-              defaultValue={defaultValues.immediateAction}
+            <Input
+              id="evidenceRef"
+              name="evidenceRef"
+              defaultValue={defaultValues.evidenceRef}
+              placeholder="e.g. Pool-hall cam 3, ~21:15"
             />
           </Field>
 
@@ -351,7 +372,9 @@ export function IncidentForm({
       </Card>
 
       {/* ── Type-specific module fields (create only) ── */}
-      {mode === "create" && <IncidentModuleFields type={type} />}
+      {mode === "create" && (
+        <IncidentModuleFields type={type} areas={areasForCenter} />
+      )}
 
       {/* ── People & follow-up (create only) ── */}
       {mode === "create" && (

@@ -3,12 +3,31 @@
 
 import { formatDateTime } from "@/lib/utils";
 import {
+  ACCIDENT_MECHANISMS,
   AQUATIC_RESCUE_TYPES,
+  CHILD_AGE_BANDS,
   EAP_LEVELS,
+  FOUND_LOCATION_CLASSES,
+  MC_RESPONSE_ACTIONS,
+  MISSING_CHILD_RESOLUTIONS,
+  MISSING_CHILD_SETTINGS,
   SECONDARY_DROWNING_ADVICE,
+  SUPERVISION_CAUSES,
+  WATER_PROXIMITY,
   labelFor,
 } from "@/lib/incidents/constants";
 import type { IncidentDetail } from "@/lib/incidents/types";
+
+// "Time unaccounted" = located − occurred (when found has been recorded).
+function durationLabel(occurredAt: Date, locatedAt: Date | null): string | null {
+  if (!locatedAt) return null;
+  const mins = Math.round((locatedAt.getTime() - occurredAt.getTime()) / 60000);
+  if (mins <= 0) return null;
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
 
 type Row = { label: string; value: string };
 export type ModuleGroup = { group: string; rows: Row[] };
@@ -39,8 +58,11 @@ export function incidentModuleGroups(i: IncidentDetail): ModuleGroup[] {
     row("Ambulance called", yesOnly(i.ambulanceCalled)),
     row("AED used", yesOnly(i.aedUsed)),
     row("CPR / resuscitation", yesOnly(i.cprGiven)),
+    row("First aid given by", txt(i.firstAidBy)),
   ]);
-  push("Accident", [row("Mechanism", txt(i.mechanism))]);
+  push("Accident", [
+    row("Mechanism", i.mechanism ? labelFor(ACCIDENT_MECHANISMS, i.mechanism) : null),
+  ]);
   push("Aquatic / water rescue", [
     row("Rescue type", i.aquaticRescueType ? labelFor(AQUATIC_RESCUE_TYPES, i.aquaticRescueType) : null),
     row("EAP level", i.eapLevel ? labelFor(EAP_LEVELS, i.eapLevel) : null),
@@ -69,6 +91,22 @@ export function incidentModuleGroups(i: IncidentDetail): ModuleGroup[] {
     row("Crime / Garda reference", txt(i.crimeReference)),
     row("Gardaí notified", yesOnly(i.gardaiNotified)),
     row("Ejection", yesOnly(i.ejection)),
+  ]);
+  push("Missing child (Code Amber)", [
+    row("Setting", i.missingChildSetting ? labelFor(MISSING_CHILD_SETTINGS, i.missingChildSetting) : null),
+    row("Child age band", i.childAgeBand ? labelFor(CHILD_AGE_BANDS, i.childAgeBand) : null),
+    row("Time unaccounted", durationLabel(i.occurredAt, i.locatedAt)),
+    row("Last seen", txt(i.lastSeenLocation)),
+    row("Found — location", i.foundLocationClass ? labelFor(FOUND_LOCATION_CLASSES, i.foundLocationClass) : null),
+    row("Proximity to water", i.proximityToWaterWhenFound ? labelFor(WATER_PROXIMITY, i.proximityToWaterWhenFound) : null),
+    row("Water search initiated", yesOnly(i.waterSearchInitiated)),
+    row("Pools cleared", txt(i.poolsCleared)),
+    row("Response actions", i.responseActions ? i.responseActions.split(",").map((v) => labelFor(MC_RESPONSE_ACTIONS, v)).join(", ") : null),
+    row("Site lockdown", yesOnly(i.lockdownInitiated)),
+    row("Emergency services called", yesOnly(i.emergencyServicesCalled)),
+    row("Resolution", i.missingChildResolution ? labelFor(MISSING_CHILD_RESOLUTIONS, i.missingChildResolution) : null),
+    row("Supervision cause", i.supervisionCause ? labelFor(SUPERVISION_CAUSES, i.supervisionCause) : null),
+    row("Policy reinforced", yesOnly(i.policyReinforced)),
   ]);
 
   return groups;

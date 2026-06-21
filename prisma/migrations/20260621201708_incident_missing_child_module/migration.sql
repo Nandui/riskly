@@ -1,0 +1,15 @@
+-- AlterTable
+ALTER TABLE "Incident" ADD COLUMN     "childAgeBand" TEXT,
+ADD COLUMN     "emergencyServicesCalled" BOOLEAN,
+ADD COLUMN     "foundLocationClass" TEXT,
+ADD COLUMN     "lastSeenLocation" TEXT,
+ADD COLUMN     "locatedAt" TIMESTAMP(3),
+ADD COLUMN     "lockdownInitiated" BOOLEAN,
+ADD COLUMN     "missingChildResolution" TEXT,
+ADD COLUMN     "missingChildSetting" TEXT,
+ADD COLUMN     "policyReinforced" BOOLEAN,
+ADD COLUMN     "poolsCleared" TEXT,
+ADD COLUMN     "proximityToWaterWhenFound" TEXT,
+ADD COLUMN     "responseActions" TEXT,
+ADD COLUMN     "supervisionCause" TEXT,
+ADD COLUMN     "waterSearchInitiated" BOOLEAN;

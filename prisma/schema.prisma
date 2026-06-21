@@ -288,6 +288,8 @@ model Incident {
   locationDetail  String? // denormalised SubArea name
   description     String // narrative of what happened
   immediateAction String? // what was done at the time
+  evidenceRef     String? // CCTV reference, added during investigation
+  photoUrl        String? // optional capture photo (private Vercel Blob URL)
   reportedBy      String // name (or email) of the person the report is attributed to
   reportedById    String? // loose link to User.id (no FK; deleting a user keeps the name)
   witnessCount    Int       @default(0) // denormalised for display
@@ -318,6 +320,7 @@ model Incident {
   ambulanceCalled Boolean?
   aedUsed         Boolean?
   cprGiven        Boolean?
+  firstAidBy      String? // who administered first aid (accident-book field)
   // Accident
   mechanism       String? // how the injury happened
   hsaReportable   Boolean? // advisory HSA-reportable indicator, set at triage
@@ -346,6 +349,24 @@ model Incident {
   crimeReference  String?
   gardaiNotified  Boolean?
   ejection        Boolean?
+
+  // ── Missing Child (Code Amber) module ──
+  // De-identified, operational facts only. NO child name/DOB and NO welfare
+  // detail — any child-protection concern is handled off-platform with the DLP.
+  locatedAt                 DateTime? // child located; duration = locatedAt - occurredAt (derived)
+  missingChildSetting       String?   // supervised setting the child was lost from
+  childAgeBand              String?   // BAND only, never DOB/name
+  lastSeenLocation          String?   // area name where last seen (pairs with the core found-location)
+  foundLocationClass        String?   // class of where found (no in-water value -> Aquatic)
+  proximityToWaterWhenFound String?
+  waterSearchInitiated      Boolean?
+  poolsCleared              String?   // which water bodies were physically cleared
+  responseActions           String?   // serialised multi-select of response actions taken
+  lockdownInitiated         Boolean?
+  emergencyServicesCalled   Boolean?
+  missingChildResolution    String?   // how it ended
+  supervisionCause          String?   // root cause (non-welfare policy terms), set at triage
+  policyReinforced          Boolean?
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

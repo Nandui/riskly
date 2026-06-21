@@ -59,6 +59,7 @@ export default async function EditIncidentPage({
           subAreaId: incident.subAreaId ?? "",
           description: incident.description,
           immediateAction: incident.immediateAction ?? "",
+          evidenceRef: incident.evidenceRef ?? "",
           reportedById: incident.reportedById ?? "",
         }}
       />

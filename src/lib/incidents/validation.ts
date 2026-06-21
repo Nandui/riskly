@@ -26,6 +26,7 @@ const incidentTypeEnum = z.enum([
   "Accident",
   "NearMiss",
   "DangerousOccurrence",
+  "MissingChild",
   "Aquatic",
   "Medical",
   "Security",
@@ -118,6 +119,10 @@ const incidentBase = {
     .optional()
     .transform((v) => (v ? v : undefined)),
   immediateAction: optionalText(2000),
+  // CCTV reference — added during investigation.
+  evidenceRef: optionalText(300),
+  // Optional capture photo (a private Vercel Blob URL).
+  photoUrl: optionalText(600),
   // Who the report is attributed to. Defaults server-side to the signed-in user;
   // only admins may set this to someone else.
   reportedById: optionalText(60),
@@ -191,6 +196,8 @@ export const triageIncidentSchema = z.object({
   hazardCategory: optionalText(40),
   definedDangerousOccurrence: z.coerce.boolean().optional(),
   hsaReportable: z.coerce.boolean().optional(),
+  // Missing Child root cause (non-welfare policy terms), set at triage.
+  supervisionCause: optionalText(40),
 });
 
 export type TriageIncidentInput = z.infer<typeof triageIncidentSchema>;

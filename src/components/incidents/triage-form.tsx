@@ -12,6 +12,7 @@ import {
   HAZARD_CATEGORIES,
   INCIDENT_SEVERITIES,
   INCIDENT_TYPES,
+  SUPERVISION_CAUSES,
 } from "@/lib/incidents/constants";
 import {
   LIKELIHOOD_LABELS,
@@ -136,6 +137,21 @@ export function TriageForm({
                 />
                 Yes — this meets a defined dangerous-occurrence type
               </label>
+            </Field>
+          )}
+
+          {type === "MissingChild" && (
+            <Field
+              label="Supervision cause"
+              hint="The control/policy root cause in non-welfare terms — any child-welfare concern goes to the DLP, not here."
+              className="sm:col-span-2"
+            >
+              <Select name="supervisionCause" defaultValue="">
+                <option value="">Not set</option>
+                {SUPERVISION_CAUSES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </Select>
             </Field>
           )}
 

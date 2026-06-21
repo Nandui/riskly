@@ -15,6 +15,7 @@ export const INCIDENT_TYPES = [
   { value: "Accident", label: "Accident" },
   { value: "NearMiss", label: "Near miss" },
   { value: "DangerousOccurrence", label: "Dangerous occurrence" },
+  { value: "MissingChild", label: "Missing Child (Code Amber)" },
   { value: "Aquatic", label: "Aquatic / water rescue" },
   { value: "Medical", label: "Medical / first aid" },
   { value: "Security", label: "Security / antisocial" },
@@ -28,6 +29,9 @@ export const INCIDENT_TYPE_META: Record<string, { label: string; pill: string }>
   Accident: { label: "Accident", pill: "bg-slate-100 text-slate-700 border border-slate-200" },
   NearMiss: { label: "Near miss", pill: "bg-cyan-50 text-cyan-700 border border-cyan-200" },
   DangerousOccurrence: { label: "Dangerous occurrence", pill: "bg-sky-50 text-sky-700 border border-sky-200" },
+  // Rose — deliberately NOT amber (that's the AwaitingTriage status pill) and not
+  // the reserved severity ramp, despite the protocol being named "amber".
+  MissingChild: { label: "Missing Child (Code Amber)", pill: "bg-rose-50 text-rose-700 border border-rose-200" },
   Aquatic: { label: "Aquatic / water rescue", pill: "bg-blue-50 text-blue-700 border border-blue-200" },
   Medical: { label: "Medical / first aid", pill: "bg-teal-50 text-teal-700 border border-teal-200" },
   Security: { label: "Security / antisocial", pill: "bg-violet-50 text-violet-700 border border-violet-200" },
@@ -344,6 +348,104 @@ export const YES_NO_UNKNOWN = [
   { value: "Yes", label: "Yes" },
   { value: "No", label: "No" },
   { value: "Unknown", label: "Unknown" },
+] as const;
+
+// Capture "Was anyone hurt?" — a plain outcome the reporter taps instead of
+// grading a severity band. Maps to the actual-outcome severity value; a manager
+// confirms (and can escalate to Critical) at triage.
+export const HARM_OUTCOMES = [
+  { value: "None", label: "No one was hurt", sub: "no injury", severity: "None" },
+  { value: "FirstAid", label: "First aid only", sub: "minor, dealt with on site", severity: "Minor" },
+  { value: "Doctor", label: "Needed a doctor or hospital", sub: "GP, A&E or admitted", severity: "Significant" },
+  { value: "Serious", label: "Serious or life-threatening", sub: "major injury or worse", severity: "Reportable" },
+] as const;
+
+export function severityFromOutcome(outcome: string): string {
+  return HARM_OUTCOMES.find((o) => o.value === outcome)?.severity ?? "None";
+}
+
+// Accident — mechanism / kind of accident (the trendable cause dimension; the
+// narrative carries the specifics, so this stays a fixed list).
+export const ACCIDENT_MECHANISMS = [
+  { value: "SlipTripFall", label: "Slip, trip or fall (same level)" },
+  { value: "FallFromHeight", label: "Fall from height" },
+  { value: "StruckByObject", label: "Struck by a moving / falling object" },
+  { value: "StruckAgainst", label: "Struck against something fixed (poolside, wall, equipment)" },
+  { value: "ManualHandling", label: "Manual handling / lifting" },
+  { value: "ContactSharpHot", label: "Cut, burn or abrasion (sharp / hot surface)" },
+  { value: "CaughtCrush", label: "Caught in or between (crush / trap)" },
+  { value: "SportActivityContact", label: "Contact during sport or activity" },
+  { value: "Overexertion", label: "Overexertion / strain" },
+  { value: "Other", label: "Other" },
+] as const;
+
+// Missing Child (Code Amber) — de-identified operational vocabularies.
+export const MISSING_CHILD_SETTINGS = [
+  { value: "Pool", label: "Pool / public swim" },
+  { value: "SwimLesson", label: "Swim lesson" },
+  { value: "Creche", label: "Crèche" },
+  { value: "Camp", label: "Camp" },
+  { value: "SoftPlay", label: "Soft play" },
+  { value: "ChangingVillage", label: "Changing village" },
+  { value: "Other", label: "Other" },
+] as const;
+
+export const CHILD_AGE_BANDS = [
+  { value: "Under4", label: "Under 4" },
+  { value: "Age4to7", label: "4–7" },
+  { value: "Age8to11", label: "8–11" },
+  { value: "Age12Plus", label: "12+" },
+] as const;
+
+// Where the child was found — a CLASS (not free text). Deliberately NO in-water
+// value: a child found in or under the water is a rescue, logged as Aquatic.
+export const FOUND_LOCATION_CLASSES = [
+  { value: "Showers", label: "Showers" },
+  { value: "ChangingVillage", label: "Changing village" },
+  { value: "OtherWetArea", label: "Other wet area (poolside, etc.)" },
+  { value: "DryAreaOnSite", label: "Dry area on site" },
+  { value: "Creche", label: "Crèche" },
+  { value: "LeftSite", label: "Had left the site" },
+  { value: "Other", label: "Other" },
+] as const;
+
+export const WATER_PROXIMITY = [
+  { value: "AtWaterEdge", label: "At the water's edge" },
+  { value: "WetAreaNotWater", label: "Wet area, not the water" },
+  { value: "AwayFromWater", label: "Away from water" },
+] as const;
+
+export const MC_RESPONSE_ACTIONS = [
+  { value: "TannoyAnnouncement", label: "Tannoy announcement" },
+  { value: "EntrancesSecured", label: "Entrances secured" },
+  { value: "SearchTeamDeployed", label: "Search team deployed" },
+  { value: "CCTVReviewed", label: "CCTV reviewed" },
+  { value: "PoliceCalled", label: "Gardaí / police called" },
+  { value: "RegisterChecked", label: "Register / roll-call checked" },
+] as const;
+
+export const MISSING_CHILD_RESOLUTIONS = [
+  { value: "FoundSafeOnSite", label: "Found safe on site" },
+  { value: "FoundWithGuardian", label: "Found with guardian" },
+  { value: "NeverAttendedFoundElsewhere", label: "Never attended — found elsewhere on site" },
+  { value: "LeftPremises", label: "Had left the premises" },
+  { value: "FoundInjured", label: "Found injured (logged on a linked record)" },
+  { value: "PoliceHandover", label: "Handed to Gardaí / police" },
+  { value: "Other", label: "Other" },
+] as const;
+
+// Root-cause taxonomy in NON-WELFARE policy terms — set by a manager at triage.
+// Fixed enum so it can never smuggle welfare detail (e.g. a guardian sending a
+// minor encodes as AdultCollectionPolicyBreach, nothing more).
+export const SUPERVISION_CAUSES = [
+  { value: "AdultCollectionPolicyBreach", label: "Adult bring/collect policy not followed" },
+  { value: "RatioOrStaffingGap", label: "Supervision ratio / staffing gap" },
+  { value: "AccessControlGap", label: "Access-control gap" },
+  { value: "ChildWanderedUnnoticed", label: "Child wandered unnoticed" },
+  { value: "RegisterRollCallGap", label: "Register / roll-call gap" },
+  { value: "UnaccountedTransition", label: "Unaccounted transition (e.g. lesson → changing)" },
+  { value: "None", label: "No control failure identified" },
+  { value: "Other", label: "Other" },
 ] as const;
 
 // Generic helpers --------------------------------------------------------------
