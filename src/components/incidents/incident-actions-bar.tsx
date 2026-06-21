@@ -26,12 +26,12 @@ import type { FormState } from "@/lib/form";
 
 export function IncidentActionsBar({
   incident,
-  canManage,
+  canReport,
   canInvestigate,
   canAdmin,
 }: {
   incident: { id: string; status: string };
-  canManage: boolean;
+  canReport: boolean;
   canInvestigate: boolean;
   canAdmin: boolean;
 }) {
@@ -67,7 +67,7 @@ export function IncidentActionsBar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {status === "Draft" && canManage && (
+      {status === "Draft" && canReport && (
         <Button
           variant="primary"
           disabled={pending}

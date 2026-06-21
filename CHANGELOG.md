@@ -5,6 +5,22 @@ tagged `vX.Y.Z-alpha`.
 
 ## [Unreleased]
 
+### Roles (Centrely role set)
+
+Replaced the old roles with the Centrely set — **Operations Manager**, **CEO**,
+**Duty Manager**, **Department Supervisor**, **Shift Supervisor** — and moved
+permissions from a strict hierarchy to an explicit capability matrix:
+
+- **Shift Supervisor** — view risk assessments & incidents; submit incidents.
+- **Duty Manager / Department Supervisor** — the above, plus request assessment
+  & hazard reviews and manage an incident's follow-up actions / people.
+- **CEO** — view everything and grant the CEO sign-off on assessments; views
+  incidents only (cannot change them).
+- **Operations Manager** — full admin; sees every option, current and future.
+
+Existing users are remapped by a migration (Admin/Assessor → Operations Manager,
+Reviewer/Contributor → Duty Manager, Viewer → Shift Supervisor; CEO unchanged).
+
 ### Incidents module (new)
 
 Riskly is now two modules under one shell. Alongside risk assessments, a new

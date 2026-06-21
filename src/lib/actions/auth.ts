@@ -61,7 +61,7 @@ export async function createFirstAdmin(
     data: {
       name: parsed.data.name,
       email,
-      role: "Admin",
+      role: "Operations Manager",
       isActive: true,
       passwordHash: await hashPassword(parsed.data.password),
     },

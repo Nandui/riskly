@@ -19,6 +19,7 @@ import {
   canAdminIncidents,
   canInvestigateIncidents,
   canManageIncidents,
+  canReportIncidents,
 } from "@/lib/incidents/permissions";
 import { getIncidentDetail } from "@/lib/data/incidents";
 import { INCIDENT_TYPE_META } from "@/lib/incidents/constants";
@@ -55,6 +56,7 @@ export default async function IncidentDetailPage({
   ]);
   if (!incident) notFound();
 
+  const canReport = canReportIncidents(user);
   const canManage = canManageIncidents(user);
   const canInvestigate = canInvestigateIncidents(user);
   const canAdmin = canAdminIncidents(user);
@@ -102,7 +104,7 @@ export default async function IncidentDetailPage({
           </div>
           <IncidentActionsBar
             incident={{ id: incident.id, status: incident.status }}
-            canManage={canManage}
+            canReport={canReport}
             canInvestigate={canInvestigate}
             canAdmin={canAdmin}
           />

@@ -200,7 +200,7 @@ export async function createIncident(
   formData: FormData,
 ): Promise<FormState> {
   const user = await getCurrentUser();
-  if (!can(user, "requestReview")) {
+  if (!can(user, "reportIncidents")) {
     return { ok: false, error: "You don't have permission to report incidents." };
   }
 
@@ -292,7 +292,7 @@ export async function updateIncident(
   formData: FormData,
 ): Promise<FormState> {
   const user = await getCurrentUser();
-  if (!can(user, "requestReview")) {
+  if (!can(user, "manageIncidents")) {
     return { ok: false, error: "You don't have permission to edit incidents." };
   }
 
@@ -364,7 +364,7 @@ export async function updateIncident(
 // ─── Lifecycle ──────────────────────────────────────────────────────────────
 
 export async function submitDraft(incidentId: string): Promise<FormState> {
-  const denied = await denyUnless("requestReview");
+  const denied = await denyUnless("reportIncidents");
   if (denied) return denied;
 
   const incident = await db.incident.findUnique({
@@ -391,7 +391,7 @@ export async function setIncidentStatus(
   incidentId: string,
   status: "Open" | "UnderInvestigation",
 ): Promise<FormState> {
-  const denied = await denyUnless("review");
+  const denied = await denyUnless("investigateIncidents");
   if (denied) return denied;
 
   const incident = await db.incident.findUnique({
@@ -415,7 +415,7 @@ export async function closeIncident(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const denied = await denyUnless("review");
+  const denied = await denyUnless("investigateIncidents");
   if (denied) return denied;
 
   const parsed = closeIncidentSchema.safeParse({
@@ -454,7 +454,7 @@ export async function closeIncident(
 }
 
 export async function reopenIncident(incidentId: string): Promise<FormState> {
-  const denied = await denyUnless("review");
+  const denied = await denyUnless("investigateIncidents");
   if (denied) return denied;
 
   const incident = await db.incident.findUnique({
@@ -507,7 +507,7 @@ export async function addWitness(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const denied = await denyUnless("requestReview");
+  const denied = await denyUnless("manageIncidents");
   if (denied) return denied;
 
   const parsed = addWitnessSchema.safeParse({
@@ -534,7 +534,7 @@ export async function updateWitness(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const denied = await denyUnless("requestReview");
+  const denied = await denyUnless("manageIncidents");
   if (denied) return denied;
 
   const parsed = updateWitnessSchema.safeParse({
@@ -559,7 +559,7 @@ export async function updateWitness(
 }
 
 export async function deleteWitness(id: string): Promise<FormState> {
-  const denied = await denyUnless("requestReview");
+  const denied = await denyUnless("manageIncidents");
   if (denied) return denied;
 
   const existing = await db.witness.findUnique({ where: { id }, select: { incidentId: true } });
@@ -598,7 +598,7 @@ export async function addInjuredParty(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const denied = await denyUnless("requestReview");
+  const denied = await denyUnless("manageIncidents");
   if (denied) return denied;
 
   const parsed = addInjuredPartySchema.safeParse({
@@ -620,7 +620,7 @@ export async function updateInjuredParty(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const denied = await denyUnless("requestReview");
+  const denied = await denyUnless("manageIncidents");
   if (denied) return denied;
 
   const parsed = updateInjuredPartySchema.safeParse({
@@ -640,7 +640,7 @@ export async function updateInjuredParty(
 }
 
 export async function deleteInjuredParty(id: string): Promise<FormState> {
-  const denied = await denyUnless("requestReview");
+  const denied = await denyUnless("manageIncidents");
   if (denied) return denied;
 
   const existing = await db.injuredParty.findUnique({ where: { id }, select: { incidentId: true } });
@@ -658,7 +658,7 @@ export async function addFollowUpAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const denied = await denyUnless("requestReview");
+  const denied = await denyUnless("manageIncidents");
   if (denied) return denied;
 
   const parsed = addFollowUpActionSchema.safeParse({
@@ -681,7 +681,7 @@ export async function updateFollowUpAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const denied = await denyUnless("requestReview");
+  const denied = await denyUnless("manageIncidents");
   if (denied) return denied;
 
   const parsed = updateFollowUpActionSchema.safeParse({
@@ -725,7 +725,7 @@ export async function setActionStatus(
   id: string,
   status: "Open" | "InProgress" | "Complete" | "Overdue",
 ): Promise<FormState> {
-  const denied = await denyUnless("requestReview");
+  const denied = await denyUnless("manageIncidents");
   if (denied) return denied;
 
   const parsed = setActionStatusSchema.safeParse({ id, status });
@@ -752,7 +752,7 @@ export async function setActionStatus(
 }
 
 export async function deleteFollowUpAction(id: string): Promise<FormState> {
-  const denied = await denyUnless("requestReview");
+  const denied = await denyUnless("manageIncidents");
   if (denied) return denied;
 
   const existing = await db.followUpAction.findUnique({

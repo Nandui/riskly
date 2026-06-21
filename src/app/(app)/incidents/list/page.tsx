@@ -6,7 +6,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { IncidentsTableView } from "@/components/incidents/incidents-table-view";
 import { getCenterContext } from "@/lib/center-context";
 import { getCurrentUser } from "@/lib/auth";
-import { canManageIncidents } from "@/lib/incidents/permissions";
+import { canReportIncidents } from "@/lib/incidents/permissions";
 import { listIncidents } from "@/lib/data/incidents";
 
 export const metadata = { title: "Incidents" };
@@ -15,7 +15,7 @@ export default async function IncidentsListPage() {
   const { selected, selectedId } = await getCenterContext();
   const user = await getCurrentUser();
   const rows = await listIncidents({ centerId: selectedId });
-  const canReport = canManageIncidents(user);
+  const canReport = canReportIncidents(user);
 
   return (
     <div className="space-y-6">

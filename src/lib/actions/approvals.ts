@@ -27,7 +27,7 @@ function mayApprove(
   if (!user) return false;
   const isOwner = ownerId != null && user.id === ownerId;
   if (kind === "owner") return isOwner;
-  return !isOwner && (user.role === "CEO" || can(user, "admin"));
+  return !isOwner && can(user, "approveAssessments");
 }
 
 // Grant the Owner or CEO sign-off. Either approval puts the assessment in force

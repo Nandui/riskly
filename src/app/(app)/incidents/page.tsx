@@ -23,7 +23,7 @@ import {
 import { IncidentsTableView } from "@/components/incidents/incidents-table-view";
 import { getCenterContext } from "@/lib/center-context";
 import { getCurrentUser } from "@/lib/auth";
-import { canManageIncidents } from "@/lib/incidents/permissions";
+import { canReportIncidents } from "@/lib/incidents/permissions";
 import { getIncidentDashboard } from "@/lib/data/incident-dashboard";
 import { INCIDENT_SEVERITIES } from "@/lib/incidents/constants";
 import { cn, formatDate, pluralize } from "@/lib/utils";
@@ -70,7 +70,7 @@ export default async function IncidentsOverviewPage() {
   const { selected, selectedId } = await getCenterContext();
   const user = await getCurrentUser();
   const d = await getIncidentDashboard(selectedId);
-  const canReport = canManageIncidents(user);
+  const canReport = canReportIncidents(user);
 
   const severityData = INCIDENT_SEVERITIES.map((s) => ({
     label: s.label,

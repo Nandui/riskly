@@ -94,5 +94,5 @@ src/
 
 ## Notes & roadmap
 
-- **Authentication** — built-in **email + password** login (Auth.js Credentials). An Admin creates accounts and assigns roles (**Admin / Assessor / Reviewer / Contributor / Viewer**); the first run prompts you to create the first Admin. Includes per-assessment **assignees** and a **review-request** workflow. Set it up via [DEPLOY.md](DEPLOY.md).
+- **Authentication & roles** — built-in **email + password** login (Auth.js Credentials). An Operations Manager creates accounts and assigns roles from the Centrely set (**Operations Manager / CEO / Duty Manager / Department Supervisor / Shift Supervisor**); the first run prompts you to create the first Operations Manager. Permissions are a capability matrix (not a strict hierarchy) — e.g. the CEO approves assessments but only views incidents, while a Shift Supervisor reports incidents but can't request assessment reviews. Includes per-assessment **assignees** and a **review-request** workflow. Set it up via [DEPLOY.md](DEPLOY.md).
 - Possible next steps: PDF export & e-signatures, photo/file attachments, assessment version history & approval workflow, per-centre user access, and email notifications for assignments / requests / overdue reviews.

@@ -16,7 +16,7 @@ export default async function EditIncidentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const user = await requireCapability("requestReview");
+  const user = await requireCapability("manageIncidents");
   const incident = await getIncidentDetail(id);
   if (!incident) notFound();
 

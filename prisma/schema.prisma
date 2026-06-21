@@ -189,7 +189,7 @@ model User {
   email        String   @unique
   image        String?
   passwordHash String?
-  role         String   @default("Viewer") // Viewer | Contributor | Reviewer | CEO | Assessor | Admin
+  role         String   @default("Shift Supervisor") // Shift Supervisor | Duty Manager | Department Supervisor | CEO | Operations Manager
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

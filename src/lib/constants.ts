@@ -20,14 +20,14 @@ export const SUBJECT_TYPES = [
 
 export type SubjectType = (typeof SUBJECT_TYPES)[number]["value"];
 
-// User roles (increasing privilege). See can() in src/lib/auth.ts.
+// User roles (the Centrely role set). Capability grants live in
+// src/lib/permissions.ts (ROLE_CAPS) — this is just the list + display metadata.
 export const ROLES = [
-  { value: "Viewer", label: "Viewer" },
-  { value: "Contributor", label: "Contributor" },
-  { value: "Reviewer", label: "Reviewer" },
+  { value: "Shift Supervisor", label: "Shift Supervisor" },
+  { value: "Duty Manager", label: "Duty Manager" },
+  { value: "Department Supervisor", label: "Department Supervisor" },
   { value: "CEO", label: "CEO" },
-  { value: "Assessor", label: "Assessor" },
-  { value: "Admin", label: "Admin" },
+  { value: "Operations Manager", label: "Operations Manager" },
 ] as const;
 
 export type UserRole = (typeof ROLES)[number]["value"];
@@ -36,35 +36,33 @@ export const ROLE_META: Record<
   string,
   { label: string; pill: string; description: string }
 > = {
-  Viewer: {
-    label: "Viewer",
+  "Shift Supervisor": {
+    label: "Shift Supervisor",
     pill: "bg-slate-100 text-slate-600 border border-slate-200",
-    description: "Read-only access to everything.",
+    description: "Views risk assessments and incidents; can submit incidents.",
   },
-  Contributor: {
-    label: "Contributor",
+  "Duty Manager": {
+    label: "Duty Manager",
     pill: "bg-cyan-50 text-cyan-700 border border-cyan-200",
-    description: "Can request reviews and add notes.",
+    description:
+      "Submits incidents, manages their follow-up actions, and requests assessment reviews.",
   },
-  Reviewer: {
-    label: "Reviewer",
+  "Department Supervisor": {
+    label: "Department Supervisor",
     pill: "bg-blue-50 text-blue-700 border border-blue-200",
-    description: "Can review assessments, log reviews and action requests.",
+    description:
+      "Submits incidents, manages their follow-up actions, and requests assessment reviews.",
   },
   CEO: {
     label: "CEO",
-    pill: "bg-indigo-50 text-indigo-700 border border-indigo-200",
-    description: "Executive sign-off — can view and grant the CEO approval.",
-  },
-  Assessor: {
-    label: "Assessor",
     pill: "bg-violet-50 text-violet-700 border border-violet-200",
-    description: "Can create, edit and delete assessments and manage the library.",
+    description:
+      "Views everything and grants the CEO sign-off on assessments; views incidents only.",
   },
-  Admin: {
-    label: "Admin",
+  "Operations Manager": {
+    label: "Operations Manager",
     pill: "bg-brand-soft text-brand-strong border border-brand/25",
-    description: "Full access, including centres and user management.",
+    description: "Full access — administers the app and every module.",
   },
 };
 

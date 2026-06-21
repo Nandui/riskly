@@ -10,7 +10,7 @@ import { getAreaOptions, getReporterOptions } from "@/lib/data/incidents";
 export const metadata = { title: "Report an incident" };
 
 export default async function NewIncidentPage() {
-  const user = await requireCapability("requestReview");
+  const user = await requireCapability("reportIncidents");
   const { centers, selectedId } = await getCenterContext();
   const isAdmin = can(user, "admin");
   const [areaOptions, reporterOptions] = await Promise.all([
