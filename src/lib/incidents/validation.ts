@@ -42,9 +42,6 @@ const incidentTypeEnum = z.enum([
 
 const severityEnum = z.enum(["None", "Minor", "Significant", "Reportable", "Critical"]);
 
-// A 1-5 risk rating (likelihood or consequence), coerced from a form string.
-const ratingInt = z.coerce.number().int().min(1, "Pick 1-5").max(5, "Pick 1-5");
-
 const optionalDateTimeString = z
   .union([
     z
@@ -81,17 +78,20 @@ export const witnessFields = z.object({
   roleOrRelation: z.string().trim().min(1, "Enter a role or relationship").max(200),
   contactPhone: optionalText(50),
   contactEmail: optionalEmail,
-  statement: z.string().trim().min(1, "Enter the statement").max(5000),
-  statementDate: dateString,
+  // Optional at capture — the full statement is taken during investigation.
+  statement: optionalText(5000),
+  statementDate: optionalText(40),
 });
 
 export const injuredPartyFields = z.object({
   partyType: partyTypeEnum,
   name: z.string().trim().min(1, "Enter a name").max(200),
+  memberId: optionalText(40),
   contactPhone: optionalText(50),
   contactEmail: optionalEmail,
-  injuryNature: z.string().trim().min(1, "Describe the injury").max(500),
-  bodyPartAffected: z.string().trim().min(1, "Enter the body part affected").max(200),
+  // Optional at capture — the injury specifics are completed during investigation.
+  injuryNature: optionalText(500),
+  bodyPartAffected: optionalText(200),
   treatment: treatmentEnum,
   hospitalName: optionalText(200),
   lostTime: z.coerce.boolean().default(false),
@@ -184,23 +184,6 @@ export const setActionStatusSchema = z.object({
   id: z.string().min(1),
   status: actionStatusEnum,
 });
-
-// Triage: a manager confirms the type + actual-outcome severity and rates the
-// POTENTIAL risk on the 5×5 (likelihood × consequence), plus the module fields.
-export const triageIncidentSchema = z.object({
-  incidentId: z.string().min(1),
-  type: incidentTypeEnum,
-  severity: severityEnum,
-  potentialLikelihood: ratingInt,
-  potentialConsequence: ratingInt,
-  hazardCategory: optionalText(40),
-  definedDangerousOccurrence: z.coerce.boolean().optional(),
-  hsaReportable: z.coerce.boolean().optional(),
-  // Missing Child root cause (non-welfare policy terms), set at triage.
-  supervisionCause: optionalText(40),
-});
-
-export type TriageIncidentInput = z.infer<typeof triageIncidentSchema>;
 
 // Close-out — the existing dialog posts only incidentId + closureNotes, so the
 // risk-assessment outcome defaults to "NoAction" and the RA fields are optional

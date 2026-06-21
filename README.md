@@ -20,7 +20,7 @@ reports) with quick actions.
 
 - **Report** — log incidents (accident, near miss, property damage, aggression, hazardous substance, fire/evacuation…) with severity, date/time and a precise **Area → Sub-area** location. Save a draft or submit.
 - **Investigate** — record injured parties and witness statements, raise **follow-up actions** (which flip to *overdue* automatically), and move the incident through Draft → Open → Under investigation → Closed.
-- **Oversee** — an incident dashboard with KPIs, a "needs attention" triage zone, trend/type/severity charts, and a PDF incident report for insurance or records.
+- **Oversee** — an incident dashboard with KPIs, a "needs attention" zone, trend/type/severity charts, and a PDF incident report for insurance or records.
 
 Both modules share the same centres and users. Data is scoped to a **current centre** (chosen in the sidebar switcher), with an "All centres" overview.
 

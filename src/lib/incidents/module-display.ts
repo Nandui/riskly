@@ -18,15 +18,18 @@ import {
 } from "@/lib/incidents/constants";
 import type { IncidentDetail } from "@/lib/incidents/types";
 
-// "Time unaccounted" = located − occurred (when found has been recorded).
-function durationLabel(occurredAt: Date, locatedAt: Date | null): string | null {
-  if (!locatedAt) return null;
-  const mins = Math.round((locatedAt.getTime() - occurredAt.getTime()) / 60000);
-  if (mins <= 0) return null;
+function minsLabel(mins: number | null): string | null {
+  if (mins == null) return null;
   if (mins < 60) return `${mins} min`;
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+// Legacy "time unaccounted" derived from a located-at timestamp.
+function durationLabel(occurredAt: Date, locatedAt: Date | null): string | null {
+  if (!locatedAt) return null;
+  return minsLabel(Math.round((locatedAt.getTime() - occurredAt.getTime()) / 60000));
 }
 
 type Row = { label: string; value: string };
@@ -95,6 +98,7 @@ export function incidentModuleGroups(i: IncidentDetail): ModuleGroup[] {
   push("Missing child (Code Amber)", [
     row("Setting", i.missingChildSetting ? labelFor(MISSING_CHILD_SETTINGS, i.missingChildSetting) : null),
     row("Child age band", i.childAgeBand ? labelFor(CHILD_AGE_BANDS, i.childAgeBand) : null),
+    row("Time to locate", minsLabel(i.timeToLocateMins)),
     row("Time unaccounted", durationLabel(i.occurredAt, i.locatedAt)),
     row("Last seen", txt(i.lastSeenLocation)),
     row("Found — location", i.foundLocationClass ? labelFor(FOUND_LOCATION_CLASSES, i.foundLocationClass) : null),

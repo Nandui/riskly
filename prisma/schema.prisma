@@ -353,7 +353,8 @@ model Incident {
   // ── Missing Child (Code Amber) module ──
   // De-identified, operational facts only. NO child name/DOB and NO welfare
   // detail — any child-protection concern is handled off-platform with the DLP.
-  locatedAt                 DateTime? // child located; duration = locatedAt - occurredAt (derived)
+  locatedAt                 DateTime? // legacy: child-located timestamp (superseded by timeToLocateMins)
+  timeToLocateMins          Int? // how long it took to find the child (null if not found, e.g. handed to Gardaí)
   missingChildSetting       String?   // supervised setting the child was lost from
   childAgeBand              String?   // BAND only, never DOB/name
   lastSeenLocation          String?   // area name where last seen (pairs with the core found-location)
@@ -430,7 +431,8 @@ model InjuredParty {
   incident         Incident  @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   partyType        String // Staff | Member | Contractor | Visitor | Public
   name             String
-  contactPhone     String?
+  memberId         String? // membership number (when partyType = Member)
+  contactPhone     String? // the injured person or their next of kin
   contactEmail     String?
   address          String?
   dateOfBirth      DateTime?

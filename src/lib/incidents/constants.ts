@@ -29,8 +29,8 @@ export const INCIDENT_TYPE_META: Record<string, { label: string; pill: string }>
   Accident: { label: "Accident", pill: "bg-slate-100 text-slate-700 border border-slate-200" },
   NearMiss: { label: "Near miss", pill: "bg-cyan-50 text-cyan-700 border border-cyan-200" },
   DangerousOccurrence: { label: "Dangerous occurrence", pill: "bg-sky-50 text-sky-700 border border-sky-200" },
-  // Rose — deliberately NOT amber (that's the AwaitingTriage status pill) and not
-  // the reserved severity ramp, despite the protocol being named "amber".
+  // Rose — deliberately not amber and not the reserved severity ramp, despite
+  // the protocol being named "amber".
   MissingChild: { label: "Missing Child (Code Amber)", pill: "bg-rose-50 text-rose-700 border border-rose-200" },
   Aquatic: { label: "Aquatic / water rescue", pill: "bg-blue-50 text-blue-700 border border-blue-200" },
   Medical: { label: "Medical / first aid", pill: "bg-teal-50 text-teal-700 border border-teal-200" },
@@ -59,17 +59,13 @@ export const LEGACY_INCIDENT_TYPES = [
 
 export const INCIDENT_STATUSES = [
   { value: "Draft", label: "Draft" },
-  { value: "AwaitingTriage", label: "Awaiting triage" },
   { value: "Open", label: "Open" },
   { value: "UnderInvestigation", label: "Under investigation" },
   { value: "Closed", label: "Closed" },
+  { value: "Imported", label: "Imported" },
 ] as const;
 
 export type IncidentStatus = (typeof INCIDENT_STATUSES)[number]["value"];
-
-// The passive queue state a Near-miss / Dangerous-occurrence report lands in on
-// submit, before a manager triages it (confirms type + dual severity).
-export const AWAITING_TRIAGE_STATUS = "AwaitingTriage" as const;
 
 export const INCIDENT_STATUS_META: Record<
   string,
@@ -80,8 +76,8 @@ export const INCIDENT_STATUS_META: Record<
     pill: "bg-slate-100 text-slate-600 border border-slate-200",
     dot: "bg-slate-400",
   },
-  // Amber reads as "waiting" — distinct from the blue Open / indigo
-  // Under-investigation, and never borrows the reserved risk palette.
+  // Retired status — no new incidents enter it, but kept here so any historical
+  // record still renders a sane badge (mirrors how legacy types are retained).
   AwaitingTriage: {
     label: "Awaiting triage",
     pill: "bg-amber-50 text-amber-700 border border-amber-200",
@@ -101,6 +97,13 @@ export const INCIDENT_STATUS_META: Record<
     label: "Closed",
     pill: "bg-slate-50 text-slate-400 border border-slate-200",
     dot: "bg-slate-300",
+  },
+  // A historical record entered by an admin from a previous system — it never
+  // went through this tool's investigation lifecycle.
+  Imported: {
+    label: "Imported",
+    pill: "bg-stone-100 text-stone-600 border border-stone-300",
+    dot: "bg-stone-400",
   },
 };
 
@@ -249,40 +252,9 @@ export const OPEN_ACTION_STATUSES = ["Open", "InProgress", "Overdue"] as const;
 // Statuses where an incident is live (counts on the dashboard active list).
 export const ACTIVE_INCIDENT_STATUSES = ["Open", "UnderInvestigation"] as const;
 
-// ─── Triage (dual severity, set by a manager) ───────────────────────────────
-
-// Sub-state recorded when a manager triages — orthogonal to the main status
-// (which flips straight to Open). Null on legacy/un-triaged rows => Unreviewed.
-export const TRIAGE_STATUSES = [
-  { value: "Unreviewed", label: "Unreviewed" },
-  { value: "Triaged", label: "Triaged" },
-  { value: "ReferredToRA", label: "Referred to risk assessment" },
-] as const;
-
-export type TriageStatus = (typeof TRIAGE_STATUSES)[number]["value"];
-
-// Hazard category for the Near-miss / Dangerous-occurrence module (captured at
-// triage). Mirrors the spirit of Hazard.riskCategory but incident-flavoured.
-export const HAZARD_CATEGORIES = [
-  { value: "Slips", label: "Slips / trips / falls" },
-  { value: "ManualHandling", label: "Manual handling" },
-  { value: "Machinery", label: "Machinery / equipment" },
-  { value: "Electrical", label: "Electrical" },
-  { value: "Water", label: "Water / drowning" },
-  { value: "Chemical", label: "Chemical / substance" },
-  { value: "FireExplosion", label: "Fire / explosion" },
-  { value: "Structural", label: "Structural / collapse" },
-  { value: "Other", label: "Other" },
-] as const;
-
-export type HazardCategory = (typeof HAZARD_CATEGORIES)[number]["value"];
-
-export const HAZARD_CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
-  HAZARD_CATEGORIES.map((c) => [c.value, c.label]),
-);
-
-// Ratings 1-5 for the potential-risk axes (reuse the risk engine's labels).
-export const RATINGS = [1, 2, 3, 4, 5] as const;
+// Statuses that are resolved / not awaiting any action — excluded from the
+// "still open" attention metrics. Imported historical records sit here too.
+export const INACTIVE_INCIDENT_STATUSES = ["Closed", "Imported"] as const;
 
 // ─── Close-out risk-assessment link ─────────────────────────────────────────
 
@@ -290,28 +262,7 @@ export const RATINGS = [1, 2, 3, 4, 5] as const;
 export const LINK_TYPES = ["ControlFailureReview", "SeededDraft"] as const;
 export type IncidentRaLinkType = (typeof LINK_TYPES)[number];
 
-// ─── Awaiting-triage age RAG ────────────────────────────────────────────────
-// Colours the "how long has this waited" pill, reusing the risk band tokens.
-// Phase 1 has no formal SLA — these buckets are a visual nudge, not a deadline.
-
-export type TriageAgeBucket = {
-  key: "fresh" | "due" | "overdue";
-  maxHours: number;
-  pill: string;
-  dot: string;
-};
-
-export const TRIAGE_AGE_RAG: TriageAgeBucket[] = [
-  { key: "fresh", maxHours: 24, pill: "bg-low-bg text-low border border-low-line", dot: "bg-low" },
-  { key: "due", maxHours: 72, pill: "bg-medium-bg text-medium border border-medium-line", dot: "bg-medium" },
-  { key: "overdue", maxHours: Infinity, pill: "bg-high-bg text-high border border-high-line", dot: "bg-high" },
-];
-
-export function triageAgeBucket(hours: number): TriageAgeBucket {
-  return TRIAGE_AGE_RAG.find((b) => hours < b.maxHours) ?? TRIAGE_AGE_RAG[TRIAGE_AGE_RAG.length - 1];
-}
-
-// Humanise an elapsed-hours figure for the age pill ("5h", "2d").
+// Humanise an elapsed-hours figure for a report-gap pill ("5h", "2d").
 export function humaniseHours(hours: number): string {
   if (hours < 1) return "<1h";
   if (hours < 24) return `${Math.floor(hours)}h`;
@@ -352,7 +303,7 @@ export const YES_NO_UNKNOWN = [
 
 // Capture "Was anyone hurt?" — a plain outcome the reporter taps instead of
 // grading a severity band. Maps to the actual-outcome severity value; a manager
-// confirms (and can escalate to Critical) at triage.
+// can confirm (and can escalate to Critical) during the investigation.
 export const HARM_OUTCOMES = [
   { value: "None", label: "No one was hurt", sub: "no injury", severity: "None" },
   { value: "FirstAid", label: "First aid only", sub: "minor, dealt with on site", severity: "Minor" },
@@ -373,6 +324,7 @@ export const ACCIDENT_MECHANISMS = [
   { value: "StruckAgainst", label: "Struck against something fixed (poolside, wall, equipment)" },
   { value: "ManualHandling", label: "Manual handling / lifting" },
   { value: "ContactSharpHot", label: "Cut, burn or abrasion (sharp / hot surface)" },
+  { value: "HarmfulSubstance", label: "Exposure to or contact with a harmful substance (ingestion, inhalation, splash)" },
   { value: "CaughtCrush", label: "Caught in or between (crush / trap)" },
   { value: "SportActivityContact", label: "Contact during sport or activity" },
   { value: "Overexertion", label: "Overexertion / strain" },
@@ -418,10 +370,7 @@ export const WATER_PROXIMITY = [
 export const MC_RESPONSE_ACTIONS = [
   { value: "TannoyAnnouncement", label: "Tannoy announcement" },
   { value: "EntrancesSecured", label: "Entrances secured" },
-  { value: "SearchTeamDeployed", label: "Search team deployed" },
   { value: "CCTVReviewed", label: "CCTV reviewed" },
-  { value: "PoliceCalled", label: "Gardaí / police called" },
-  { value: "RegisterChecked", label: "Register / roll-call checked" },
 ] as const;
 
 export const MISSING_CHILD_RESOLUTIONS = [
@@ -434,9 +383,10 @@ export const MISSING_CHILD_RESOLUTIONS = [
   { value: "Other", label: "Other" },
 ] as const;
 
-// Root-cause taxonomy in NON-WELFARE policy terms — set by a manager at triage.
-// Fixed enum so it can never smuggle welfare detail (e.g. a guardian sending a
-// minor encodes as AdultCollectionPolicyBreach, nothing more).
+// Root-cause taxonomy in NON-WELFARE policy terms. Fixed enum so it can never
+// smuggle welfare detail (e.g. a guardian sending a minor encodes as
+// AdultCollectionPolicyBreach, nothing more). Retained for display of any
+// historical record that captured it.
 export const SUPERVISION_CAUSES = [
   { value: "AdultCollectionPolicyBreach", label: "Adult bring/collect policy not followed" },
   { value: "RatioOrStaffingGap", label: "Supervision ratio / staffing gap" },

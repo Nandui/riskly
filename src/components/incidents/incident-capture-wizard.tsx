@@ -12,7 +12,6 @@ import {
   INCIDENT_TYPES,
   INCIDENT_TYPE_META,
   INJURED_PARTY_TYPES,
-  TREATMENTS,
   severityFromOutcome,
 } from "@/lib/incidents/constants";
 import { moduleFor } from "@/lib/incidents/type-modules";
@@ -27,22 +26,18 @@ type WitnessItem = {
   name: string;
   roleOrRelation: string;
   contactPhone: string;
-  statement: string;
-  statementDate: string;
 };
 type InjuredItem = {
   partyType: string;
   name: string;
+  memberId: string;
+  contactPhone: string;
   injuryNature: string;
   bodyPartAffected: string;
-  treatment: string;
-  hospitalName: string;
-  lostTime: boolean;
-  lostTimeDays: string;
 };
 
-const emptyWitness: WitnessItem = { name: "", roleOrRelation: "", contactPhone: "", statement: "", statementDate: "" };
-const emptyInjured: InjuredItem = { partyType: "Member", name: "", injuryNature: "", bodyPartAffected: "", treatment: "FirstAidOnly", hospitalName: "", lostTime: false, lostTimeDays: "" };
+const emptyWitness: WitnessItem = { name: "", roleOrRelation: "", contactPhone: "" };
+const emptyInjured: InjuredItem = { partyType: "Member", name: "", memberId: "", contactPhone: "", injuryNature: "", bodyPartAffected: "" };
 
 const STEPS = ["Type", "Where & when", "What happened", "Who was affected", "Review"];
 
@@ -70,15 +65,18 @@ export function IncidentCaptureWizard({
   const [outcome, setOutcome] = useState("");
   const [injured, setInjured] = useState<InjuredItem[]>([]);
   const [witnesses, setWitnesses] = useState<WitnessItem[]>([]);
+  const [imported, setImported] = useState(false); // admin: historical record
 
   const tm = moduleFor(type);
   const areasForCenter = useMemo(() => areaOptions.filter((a) => a.centerId === centerId), [areaOptions, centerId]);
 
   const severity = severityFromOutcome(outcome);
   const witnessesJson = JSON.stringify(witnesses.map((w) => ({ ...w, contactEmail: "" })));
-  const injuredJson = JSON.stringify(
-    injured.map((p) => ({ ...p, lostTimeDays: p.lostTime && p.lostTimeDays ? Number(p.lostTimeDays) : undefined })),
-  );
+  // Treatment isn't asked at capture — it's implied by the harm-outcome tap (a
+  // manager refines it per-person during investigation).
+  const derivedTreatment =
+    outcome === "FirstAid" ? "FirstAidOnly" : outcome === "Doctor" ? "GpReferral" : outcome === "Serious" ? "HospitalAE" : "None";
+  const injuredJson = JSON.stringify(injured.map((p) => ({ ...p, treatment: derivedTreatment })));
 
   // Per-step "can advance" gates (the essentials). occurredAt has a default.
   const stepReady = [
@@ -180,7 +178,11 @@ export function IncidentCaptureWizard({
             <Field label="Occurred at" required>
               <Input type="datetime-local" name="occurredAt" value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} />
             </Field>
-            <Field label="Area" required>
+            <Field
+              label={type === "MissingChild" ? "Last seen (area)" : "Area"}
+              hint={type === "MissingChild" ? "Where the child was last accounted for." : undefined}
+              required
+            >
               <Select value={areaId} name="areaId" onChange={(e) => setAreaId(e.target.value)} disabled={!centerId}>
                 <option value="">Select an area…</option>
                 {areasForCenter.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -243,30 +245,28 @@ export function IncidentCaptureWizard({
               );
             })}
           </div>
-          <p className="px-5 pb-4 text-xs text-muted-foreground">A manager confirms the severity and rates the potential risk at triage.</p>
+          <p className="px-5 pb-4 text-xs text-muted-foreground">A manager can confirm the outcome during the investigation.</p>
         </Card>
 
         {outcome !== "" && outcome !== "None" && (
           <Repeater
             title="Injured people"
-            description="Optional now — you (or a manager) can add full detail later."
+            description="Optional — record who was hurt and the injury. Treatment, hospital and lost-time are added during the investigation."
             addLabel="Add injured person"
             items={injured}
             onAdd={() => setInjured((x) => [...x, { ...emptyInjured }])}
             onRemove={(i) => setInjured((x) => x.filter((_, j) => j !== i))}
+            itemNoun="Injured person"
             render={(item, i) => (
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Type"><Select value={item.partyType} onChange={(e) => setInjured(upd(i, "partyType", e.target.value))}>{INJURED_PARTY_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</Select></Field>
                 <Field label="Name"><Input value={item.name} onChange={(e) => setInjured(upd(i, "name", e.target.value))} /></Field>
-                <Field label="Nature of injury"><Input value={item.injuryNature} onChange={(e) => setInjured(upd(i, "injuryNature", e.target.value))} placeholder="e.g. Laceration" /></Field>
+                {item.partyType === "Member" && (
+                  <Field label="Member ID"><Input value={item.memberId} onChange={(e) => setInjured(upd(i, "memberId", e.target.value))} placeholder="e.g. LWB26571" /></Field>
+                )}
+                <Field label="Contact (person or next of kin)"><Input value={item.contactPhone} onChange={(e) => setInjured(upd(i, "contactPhone", e.target.value))} placeholder="Phone number" /></Field>
+                <Field label="Nature of injury" hint="The injury itself (e.g. laceration, sprain) — not how it happened."><Input value={item.injuryNature} onChange={(e) => setInjured(upd(i, "injuryNature", e.target.value))} placeholder="e.g. Laceration" /></Field>
                 <Field label="Body part affected"><Input value={item.bodyPartAffected} onChange={(e) => setInjured(upd(i, "bodyPartAffected", e.target.value))} placeholder="e.g. Left forearm" /></Field>
-                <Field label="Treatment given"><Select value={item.treatment} onChange={(e) => setInjured(upd(i, "treatment", e.target.value))}>{TREATMENTS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</Select></Field>
-                <Field label="Hospital (if applicable)"><Input value={item.hospitalName} onChange={(e) => setInjured(upd(i, "hospitalName", e.target.value))} /></Field>
-                <label className="flex items-center gap-2 text-sm text-ink-soft sm:col-span-2">
-                  <input type="checkbox" checked={item.lostTime} onChange={(e) => setInjured(upd(i, "lostTime", e.target.checked))} className="size-4 rounded border-line-strong" />
-                  Lost time
-                  {item.lostTime && <Input type="number" min={0} value={item.lostTimeDays} onChange={(e) => setInjured(upd(i, "lostTimeDays", e.target.value))} placeholder="Days" className="h-9 w-24" />}
-                </label>
               </div>
             )}
           />
@@ -279,13 +279,12 @@ export function IncidentCaptureWizard({
           items={witnesses}
           onAdd={() => setWitnesses((x) => [...x, { ...emptyWitness }])}
           onRemove={(i) => setWitnesses((x) => x.filter((_, j) => j !== i))}
+          itemNoun="Witness"
           render={(item, i) => (
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Name"><Input value={item.name} onChange={(e) => setWitnesses(upd(i, "name", e.target.value))} /></Field>
               <Field label="Role / relationship"><Input value={item.roleOrRelation} onChange={(e) => setWitnesses(upd(i, "roleOrRelation", e.target.value))} placeholder="e.g. Lifeguard" /></Field>
-              <Field label="Statement date"><Input type="date" value={item.statementDate} onChange={(e) => setWitnesses(upd(i, "statementDate", e.target.value))} /></Field>
-              <Field label="Contact (phone or email)"><Input value={item.contactPhone} onChange={(e) => setWitnesses(upd(i, "contactPhone", e.target.value))} /></Field>
-              <Field label="Statement" className="sm:col-span-2"><Textarea rows={2} value={item.statement} onChange={(e) => setWitnesses(upd(i, "statement", e.target.value))} /></Field>
+              <Field label="Contact (phone or email)" className="sm:col-span-2"><Input value={item.contactPhone} onChange={(e) => setWitnesses(upd(i, "contactPhone", e.target.value))} /></Field>
             </div>
           )}
         />
@@ -308,7 +307,28 @@ export function IncidentCaptureWizard({
                 </Select>
               </Field>
             )}
-            <p className="text-xs text-muted-foreground">On submit this goes to the triage queue, where a manager confirms the classification and rates the risk.</p>
+            {isAdmin && (
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-card)] border border-line bg-surface-2/40 p-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={imported}
+                  onChange={(e) => setImported(e.target.checked)}
+                  className="mt-0.5 size-4 rounded border-line-strong"
+                />
+                <span>
+                  <span className="font-medium text-ink">Import as a historical record</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    For entering old incidents from a previous system. Stays out of the open / overdue counts (it still feeds the trend charts).
+                  </span>
+                </span>
+              </label>
+            )}
+            <input type="hidden" name="imported" value={imported ? "true" : ""} />
+            <p className="text-xs text-muted-foreground">
+              {imported
+                ? "This will be saved as an imported historical record."
+                : "On submit this becomes an open incident."}
+            </p>
           </div>
         </Card>
       </div>
@@ -322,15 +342,26 @@ export function IncidentCaptureWizard({
           <Button type="submit" name="intent" value="draft" variant="secondary" disabled={pending || !draftReady}>
             Save as draft
           </Button>
-          {isLast ? (
-            <Button type="submit" name="intent" value="submit" disabled={pending}>
-              {pending ? "Submitting…" : "Submit report"}
-            </Button>
-          ) : (
-            <Button type="button" onClick={next} disabled={!stepReady[step]}>
-              Next <ChevronRight className="size-4" />
-            </Button>
-          )}
+          {/* Next and Submit are separate, always-rendered elements (one hidden)
+              so a click on Next never lands on a button whose type changed to
+              "submit" mid-click — which would otherwise submit the form early. */}
+          <Button
+            type="button"
+            onClick={next}
+            disabled={!stepReady[step]}
+            className={cn(isLast && "hidden")}
+          >
+            Next <ChevronRight className="size-4" />
+          </Button>
+          <Button
+            type="submit"
+            name="intent"
+            value="submit"
+            disabled={pending}
+            className={cn(!isLast && "hidden")}
+          >
+            {pending ? "Saving…" : imported ? "Import record" : "Submit report"}
+          </Button>
         </div>
       </div>
     </form>
@@ -350,8 +381,8 @@ function upd<T>(index: number, key: keyof T, value: T[keyof T]) {
   return (items: T[]): T[] => items.map((item, i) => (i === index ? { ...item, [key]: value } : item));
 }
 
-function Repeater<T>({ title, description, addLabel, items, onAdd, onRemove, render }: {
-  title: string; description: string; addLabel: string; items: T[]; onAdd: () => void; onRemove: (i: number) => void; render: (item: T, i: number) => React.ReactNode;
+function Repeater<T>({ title, description, addLabel, items, onAdd, onRemove, render, itemNoun }: {
+  title: string; description: string; addLabel: string; items: T[]; onAdd: () => void; onRemove: (i: number) => void; render: (item: T, i: number) => React.ReactNode; itemNoun?: string;
 }) {
   return (
     <Card>
@@ -369,7 +400,7 @@ function Repeater<T>({ title, description, addLabel, items, onAdd, onRemove, ren
           items.map((item, i) => (
             <div key={i} className="rounded-[var(--radius-card)] border border-line bg-surface-2/40 p-4">
               <div className="mb-3 flex items-center justify-between">
-                <Label className="mb-0 text-xs uppercase tracking-wide text-muted-foreground">{title.replace(/s$/, "")} {i + 1}</Label>
+                <Label className="mb-0 text-xs uppercase tracking-wide text-muted-foreground">{itemNoun ?? title.replace(/s$/, "")} {i + 1}</Label>
                 <Button type="button" variant="ghost" size="sm" onClick={() => onRemove(i)} className="text-critical hover:bg-critical-bg"><Trash2 className="size-4" /> Remove</Button>
               </div>
               {render(item, i)}

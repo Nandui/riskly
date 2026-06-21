@@ -92,6 +92,9 @@ export function InjuredPartiesManager({
                       — {INJURED_PARTY_TYPE_LABELS[p.partyType] ?? p.partyType}
                     </span>
                   </p>
+                  {p.memberId && (
+                    <p className="text-xs text-muted-foreground">Member ID: {p.memberId}</p>
+                  )}
                   <p className="text-sm text-ink-soft">
                     Injury: {p.injuryNature} · Body part: {p.bodyPartAffected} ·
                     Treatment: {TREATMENT_LABELS[p.treatment] ?? p.treatment}
@@ -198,6 +201,7 @@ function InjuredPartyForm(props: InjuredPartyFormProps) {
   );
   const fe = state?.fieldErrors ?? {};
   const p = props.mode === "edit" ? props.party : null;
+  const [partyType, setPartyType] = useState(p?.partyType ?? INJURED_PARTY_TYPES[0].value);
 
   useEffect(() => {
     if (state?.ok) {
@@ -233,7 +237,7 @@ function InjuredPartyForm(props: InjuredPartyFormProps) {
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Type" required error={fe.partyType}>
-            <Select name="partyType" defaultValue={p?.partyType ?? INJURED_PARTY_TYPES[0].value}>
+            <Select name="partyType" value={partyType} onChange={(e) => setPartyType(e.target.value)}>
               {INJURED_PARTY_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
@@ -245,8 +249,13 @@ function InjuredPartyForm(props: InjuredPartyFormProps) {
             <Input name="name" defaultValue={p?.name ?? ""} required />
           </Field>
         </div>
+        {partyType === "Member" && (
+          <Field label="Member ID" error={fe.memberId}>
+            <Input name="memberId" defaultValue={p?.memberId ?? ""} placeholder="e.g. LWB26571" />
+          </Field>
+        )}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Nature of injury" required error={fe.injuryNature}>
+          <Field label="Nature of injury" hint="The injury itself, not how it happened." required error={fe.injuryNature}>
             <Input name="injuryNature" defaultValue={p?.injuryNature ?? ""} required />
           </Field>
           <Field label="Body part affected" required error={fe.bodyPartAffected}>
@@ -291,7 +300,7 @@ function InjuredPartyForm(props: InjuredPartyFormProps) {
           </label>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Contact phone" error={fe.contactPhone}>
+          <Field label="Contact (person / next of kin)" error={fe.contactPhone}>
             <Input name="contactPhone" defaultValue={p?.contactPhone ?? ""} />
           </Field>
           <Field label="Contact email" error={fe.contactEmail}>

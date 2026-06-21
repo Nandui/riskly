@@ -21,15 +21,13 @@ import {
   canInvestigateIncidents,
   canManageIncidents,
   canReportIncidents,
-  canTriageIncidents,
 } from "@/lib/incidents/permissions";
 import { getIncidentDetail, getReporterOptions } from "@/lib/data/incidents";
 import { listLinkableAssessments } from "@/lib/data/assessments";
 import { INCIDENT_TYPE_META, humaniseHours } from "@/lib/incidents/constants";
 import { typeHasSection } from "@/lib/incidents/type-modules";
 import { incidentModuleGroups } from "@/lib/incidents/module-display";
-import { bandFromRatings, bandMeta, riskScore } from "@/lib/risk";
-import { cn, formatDate, formatDateTime } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
 
 export async function generateMetadata({
   params,
@@ -65,7 +63,6 @@ export default async function IncidentDetailPage({
   const canReport = canReportIncidents(user);
   const canManage = canManageIncidents(user);
   const canInvestigate = canInvestigateIncidents(user);
-  const canTriage = canTriageIncidents(user);
   const canAdmin = canAdminIncidents(user);
   // Assignees for the follow-up action picker (only needed when managing).
   const users = canManage ? await getReporterOptions() : [];
@@ -84,12 +81,6 @@ export default async function IncidentDetailPage({
   const showWitnesses =
     typeHasSection(incident.type, "witnesses") || incident.witnesses.length > 0;
 
-  // Triage outputs (only once rated).
-  const hasPotential =
-    incident.potentialLikelihood != null && incident.potentialConsequence != null;
-  const potentialBand = hasPotential
-    ? bandMeta(bandFromRatings(incident.potentialLikelihood!, incident.potentialConsequence!))
-    : null;
   const reportGap =
     incident.reportedAt != null
       ? Math.max(0, (incident.reportedAt.getTime() - incident.occurredAt.getTime()) / 36e5)
@@ -138,7 +129,6 @@ export default async function IncidentDetailPage({
           <IncidentActionsBar
             incident={{ id: incident.id, status: incident.status }}
             canReport={canReport}
-            canTriage={canTriage}
             canInvestigate={canInvestigate}
             canAdmin={canAdmin}
             closeContext={{
@@ -172,23 +162,6 @@ export default async function IncidentDetailPage({
             <DetailField
               label="Report gap"
               value={`Reported ${humaniseHours(reportGap)} after the event`}
-            />
-          )}
-          {potentialBand && (
-            <DetailField
-              label="Potential risk (triage)"
-              value={
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                    potentialBand.badge,
-                  )}
-                >
-                  {incident.potentialLikelihood} × {incident.potentialConsequence} ={" "}
-                  {riskScore(incident.potentialLikelihood!, incident.potentialConsequence!)} ·{" "}
-                  {potentialBand.label}
-                </span>
-              }
             />
           )}
           {incident.status === "Closed" && (
