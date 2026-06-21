@@ -214,51 +214,49 @@ export default async function ForYouPage() {
           <p className="text-sm text-muted-foreground">
             Review requests you&apos;ve raised and where they stand.
           </p>
-          <div className="overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-xs">
-            <ul className="divide-y divide-line">
-              {myRequests.map((r) => {
-                const stateMeta = REQUEST_STATE[r.status] ?? REQUEST_STATE.Open;
-                return (
-                  <li key={r.id}>
-                    <Link
-                      href={`/assessments/${r.assessment.id}`}
-                      className="flex items-start justify-between gap-3 px-4 py-3 hover:bg-surface-2/60"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm text-ink">
-                          <span className="font-mono text-xs text-muted-foreground">
-                            {r.assessment.reference}
-                          </span>{" "}
-                          · {assessmentTitle(r.assessment)}
-                        </p>
-                        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                          {r.notes}
-                        </p>
-                        {r.status !== "Open" && (
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            {stateMeta.label}
-                            {r.resolvedAt ? ` ${formatDate(r.resolvedAt)}` : ""}
-                            {r.resolvedBy
-                              ? ` by ${r.resolvedBy.name ?? r.resolvedBy.email}`
-                              : ""}
-                            {r.resolutionNote ? ` — ${r.resolutionNote}` : ""}
-                          </p>
-                        )}
-                      </div>
-                      <span
-                        className={cn(
-                          "inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                          stateMeta.pill,
-                        )}
-                      >
-                        {stateMeta.label}
+          <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-xs">
+            {myRequests.map((r) => {
+              const stateMeta = REQUEST_STATE[r.status] ?? REQUEST_STATE.Open;
+              return (
+                <li key={r.id}>
+                  <Link
+                    href={`/assessments/${r.assessment.id}`}
+                    className="flex items-start justify-between gap-4 px-4 py-3.5 transition-colors hover:bg-surface-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <span className="font-mono text-xs text-faint">
+                        {r.assessment.reference}
                       </span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+                      <p className="mt-0.5 truncate font-medium text-ink">
+                        {assessmentTitle(r.assessment)}
+                      </p>
+                      <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                        {r.notes}
+                      </p>
+                      {r.status !== "Open" && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {stateMeta.label}
+                          {r.resolvedAt ? ` ${formatDate(r.resolvedAt)}` : ""}
+                          {r.resolvedBy
+                            ? ` by ${r.resolvedBy.name ?? r.resolvedBy.email}`
+                            : ""}
+                          {r.resolutionNote ? ` — ${r.resolutionNote}` : ""}
+                        </p>
+                      )}
+                    </div>
+                    <span
+                      className={cn(
+                        "inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+                        stateMeta.pill,
+                      )}
+                    >
+                      {stateMeta.label}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </section>
       )}
     </div>
