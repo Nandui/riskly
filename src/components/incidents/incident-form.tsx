@@ -51,7 +51,6 @@ type InjuredItem = {
   lostTimeDays: string;
   additionalNotes: string;
 };
-type ActionItem = { description: string; assignedTo: string; dueDate: string };
 
 const emptyWitness: WitnessItem = {
   name: "",
@@ -74,7 +73,6 @@ const emptyInjured: InjuredItem = {
   lostTimeDays: "",
   additionalNotes: "",
 };
-const emptyAction: ActionItem = { description: "", assignedTo: "", dueDate: "" };
 
 export function IncidentForm({
   mode,
@@ -103,7 +101,6 @@ export function IncidentForm({
 
   const [witnesses, setWitnesses] = useState<WitnessItem[]>([]);
   const [injured, setInjured] = useState<InjuredItem[]>([]);
-  const [actions, setActions] = useState<ActionItem[]>([]);
 
   const fieldErr = (key: string) => state?.fieldErrors?.[key];
 
@@ -124,7 +121,6 @@ export function IncidentForm({
       lostTimeDays: p.lostTime && p.lostTimeDays ? Number(p.lostTimeDays) : undefined,
     })),
   );
-  const actionsJson = JSON.stringify(actions);
 
   return (
     <form action={formAction} className="space-y-6">
@@ -272,7 +268,11 @@ export function IncidentForm({
                 name="reportedById"
                 defaultValue={defaultValues.reportedById}
               >
-                <option value="">Me</option>
+                {/* Keeps the existing reporter when editing a record that
+                    pre-dates reporter attribution. */}
+                {!defaultValues.reportedById && (
+                  <option value="">Keep current reporter</option>
+                )}
                 {reporterOptions.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name}
@@ -417,41 +417,13 @@ export function IncidentForm({
             )}
           />
 
-          <Repeater
-            title="Follow-up actions"
-            description="Corrective or preventive actions arising from the incident."
-            addLabel="Add action"
-            items={actions}
-            onAdd={() => setActions((x) => [...x, { ...emptyAction }])}
-            onRemove={(i) => setActions((x) => x.filter((_, j) => j !== i))}
-            render={(item, i) => (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Action" className="sm:col-span-2">
-                  <Input
-                    value={item.description}
-                    onChange={(e) => setActions(upd(i, "description", e.target.value))}
-                  />
-                </Field>
-                <Field label="Assigned to">
-                  <Input
-                    value={item.assignedTo}
-                    onChange={(e) => setActions(upd(i, "assignedTo", e.target.value))}
-                  />
-                </Field>
-                <Field label="Due date">
-                  <Input
-                    type="date"
-                    value={item.dueDate}
-                    onChange={(e) => setActions(upd(i, "dueDate", e.target.value))}
-                  />
-                </Field>
-              </div>
-            )}
-          />
+          <p className="text-xs text-muted-foreground">
+            Follow-up actions are added during the investigation, from the
+            incident page.
+          </p>
 
           <input type="hidden" name="witnesses" value={witnessesJson} />
           <input type="hidden" name="injuredParties" value={injuredJson} />
-          <input type="hidden" name="followUpActions" value={actionsJson} />
         </>
       )}
 

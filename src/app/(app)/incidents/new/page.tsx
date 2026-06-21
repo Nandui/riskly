@@ -29,7 +29,7 @@ export default async function NewIncidentPage() {
         </Link>
         <PageHeader
           title="Report an incident"
-          description="Capture what happened, who was involved, and any immediate follow-up. You can save a draft and complete it later."
+          description="Capture what happened and who was involved. You can save a draft and finish it later; follow-up actions are added during the investigation."
         />
       </div>
 
@@ -48,7 +48,7 @@ export default async function NewIncidentPage() {
           subAreaId: "",
           description: "",
           immediateAction: "",
-          reportedById: "",
+          reportedById: user.id,
         }}
       />
     </div>
