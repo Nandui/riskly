@@ -57,7 +57,7 @@ export const ROLE_META: Record<
     label: "CEO",
     pill: "bg-violet-50 text-violet-700 border border-violet-200",
     description:
-      "Views everything and grants the CEO sign-off on assessments; views incidents only.",
+      "Views everything, grants the CEO sign-off and can raise assessment review requests; views incidents only.",
   },
   "Operations Manager": {
     label: "Operations Manager",

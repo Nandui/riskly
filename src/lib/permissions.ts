@@ -32,7 +32,7 @@ const ROLE_CAPS: Record<string, Capability[]> = {
     "reportIncidents",
     "manageIncidents",
   ],
-  CEO: ["view", "approveAssessments"],
+  CEO: ["view", "requestReview", "approveAssessments"],
   // Operations Manager is the admin — "admin" is a wildcard granting every
   // capability, so future capabilities are included automatically.
   "Operations Manager": ["admin"],

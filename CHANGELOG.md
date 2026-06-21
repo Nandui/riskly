@@ -14,8 +14,10 @@ permissions from a strict hierarchy to an explicit capability matrix:
 - **Shift Supervisor** — view risk assessments & incidents; submit incidents.
 - **Duty Manager / Department Supervisor** — the above, plus request assessment
   & hazard reviews and manage an incident's follow-up actions / people.
-- **CEO** — view everything and grant the CEO sign-off on assessments; views
-  incidents only (cannot change them).
+- **CEO** — view everything, grant the CEO sign-off, and raise assessment
+  review requests; views incidents only (cannot change them). Monitoring shows
+  the CEO a count + list of assessments awaiting their approval and the state of
+  the review requests they've raised.
 - **Operations Manager** — full admin; sees every option, current and future.
 
 Existing users are remapped by a migration (Admin/Assessor → Operations Manager,

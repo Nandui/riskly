@@ -164,6 +164,39 @@ export type OpenReviewRequest = Awaited<
   ReturnType<typeof getOpenReviewRequests>
 >[number];
 
+// Review requests the given user has raised, with their current state
+// (Open / Actioned / Dismissed) — so a requester can track what happened.
+export async function getMyReviewRequests(
+  userId: string,
+  centerId: string | null,
+) {
+  return db.reviewRequest.findMany({
+    where: {
+      requestedById: userId,
+      ...(centerId ? { assessment: { centerId } } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      resolvedBy: { select: { name: true, email: true } },
+      assessment: {
+        select: {
+          id: true,
+          reference: true,
+          subjectType: true,
+          center: { select: { name: true } },
+          area: { select: { name: true } },
+          role: { select: { name: true } },
+          activity: { select: { name: true } },
+        },
+      },
+    },
+  });
+}
+
+export type MyReviewRequest = Awaited<
+  ReturnType<typeof getMyReviewRequests>
+>[number];
+
 // Non-archived assessments the given user owns.
 export async function getOwnedByMe(
   userId: string,
