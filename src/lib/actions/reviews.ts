@@ -7,6 +7,7 @@ import { fieldErrorsFromZod, emptyToNull, type FormState } from "@/lib/form";
 import { computeNextReviewDate } from "@/lib/utils";
 import { denyUnless, getCurrentUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import { liveStatus } from "@/lib/approval";
 
 export async function logReview(
   _prev: FormState,
@@ -21,7 +22,6 @@ export async function logReview(
     reviewerName: formData.get("reviewerName"),
     outcome: formData.get("outcome") || "NoChanges",
     notes: formData.get("notes"),
-    newStatus: formData.get("newStatus") || "",
   });
   if (!parsed.success) {
     return {
@@ -34,7 +34,12 @@ export async function logReview(
 
   const assessment = await db.riskAssessment.findUnique({
     where: { id: d.assessmentId },
-    select: { reviewFrequencyMonths: true },
+    select: {
+      reviewFrequencyMonths: true,
+      status: true,
+      ownerApprovedByName: true,
+      ceoApprovedByName: true,
+    },
   });
   if (!assessment) return { ok: false, error: "Assessment not found." };
 
@@ -43,6 +48,19 @@ export async function logReview(
     reviewedDate,
     assessment.reviewFrequencyMonths,
   );
+
+  // Logging a review rolls the next-review date forward; the status is then
+  // derived. A fully-signed assessment that had gone Under review for being
+  // overdue returns to Approved; otherwise it stays Under review. Drafts and
+  // archived assessments keep their status.
+  const nextStatus =
+    assessment.status === "Draft" || assessment.status === "Archived"
+      ? assessment.status
+      : liveStatus({
+          ownerApprovedByName: assessment.ownerApprovedByName,
+          ceoApprovedByName: assessment.ceoApprovedByName,
+          nextReviewDate,
+        });
 
   await db.$transaction([
     db.reviewLog.create({
@@ -57,11 +75,7 @@ export async function logReview(
     }),
     db.riskAssessment.update({
       where: { id: d.assessmentId },
-      data: {
-        lastReviewedDate: reviewedDate,
-        nextReviewDate,
-        ...(d.newStatus ? { status: d.newStatus } : {}),
-      },
+      data: { lastReviewedDate: reviewedDate, nextReviewDate, status: nextStatus },
     }),
   ]);
 
@@ -69,7 +83,7 @@ export async function logReview(
     d.assessmentId,
     await getCurrentUser(),
     "review_logged",
-    `Outcome: ${d.outcome}${d.newStatus ? ` · status → ${d.newStatus}` : ""}`,
+    `Outcome: ${d.outcome} · status → ${nextStatus}`,
   );
 
   revalidatePath("/monitoring");

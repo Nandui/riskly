@@ -4,8 +4,7 @@ import {
   ShieldCheck,
   CircleCheckBig,
   Inbox,
-  UserRoundCheck,
-  CircleAlert,
+  Loader,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -18,12 +17,11 @@ import {
   getReviewQueue,
   getHighRiskHazards,
   getOpenReviewRequests,
-  getOwnedByMe,
+  getUnderReview,
 } from "@/lib/data/monitoring";
 import { assessmentTitle } from "@/lib/data/assessments";
 import { getCurrentUser, can } from "@/lib/auth";
-import { formatDate, toDateInputValue } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatDate, toDateInputValue, cn } from "@/lib/utils";
 
 export const metadata = { title: "Monitoring" };
 
@@ -53,15 +51,14 @@ function Stat({
 export default async function MonitoringPage() {
   const { selected, selectedId } = await getCenterContext();
   const user = await getCurrentUser();
-  const [queue, highRisk, openRequests, ownedByMe] = await Promise.all([
+  const [queue, underReview, highRisk, openRequests] = await Promise.all([
     getReviewQueue(selectedId),
+    getUnderReview(selectedId),
     getHighRiskHazards(selectedId),
     getOpenReviewRequests(selectedId),
-    user ? getOwnedByMe(user.id, selectedId) : Promise.resolve([]),
   ]);
 
   const canReview = can(user, "review");
-  const needsAction = ownedByMe.filter((a) => a.status === "UnderReview");
 
   const items: ReviewItem[] = queue.map((a) => ({
     id: a.id,
@@ -102,27 +99,25 @@ export default async function MonitoringPage() {
   }));
 
   const todayInput = toDateInputValue(new Date());
-  const overdueReviews = items.filter((i) => i.reviewKey === "overdue").length;
-  const dueReviews = items.filter((i) => i.reviewKey === "due").length;
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow={selected ? selected.name : "All centres"}
         title="Monitoring"
-        description="Keep assessments current and high risks in view. Log a review to roll the next review date forward."
+        description="Awareness of what's happening to your assessments and hazards — reviews coming due, what's under review, where risk is high, and open requests."
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat
-          label="Overdue reviews"
-          value={overdueReviews}
-          tone={overdueReviews > 0 ? "critical" : "default"}
+          label="Reviews due soon"
+          value={items.length}
+          tone={items.length > 0 ? "medium" : "default"}
         />
         <Stat
-          label="Reviews due soon"
-          value={dueReviews}
-          tone={dueReviews > 0 ? "medium" : "default"}
+          label="Under review"
+          value={underReview.length}
+          tone={underReview.length > 0 ? "medium" : "default"}
         />
         <Stat
           label="Open review requests"
@@ -130,54 +125,6 @@ export default async function MonitoringPage() {
           tone={requestItems.length > 0 ? "medium" : "default"}
         />
       </div>
-
-      {needsAction.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <CircleAlert className="size-4 text-medium" /> Needs your action
-            <span className="font-normal tnum text-muted-foreground">
-              {needsAction.length}
-            </span>
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Assessments you own that have changed and are back under review —
-            re-check them and get them re-approved.
-          </p>
-          <AssessmentTable rows={needsAction} showCenter={!selected} />
-        </section>
-      )}
-
-      {ownedByMe.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <UserRoundCheck className="size-4 text-muted-foreground" /> Owned by me
-            <span className="font-normal tnum text-muted-foreground">
-              {ownedByMe.length}
-            </span>
-          </h2>
-          <AssessmentTable rows={ownedByMe} showCenter={!selected} />
-        </section>
-      )}
-
-      {canReview && (
-        <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <Inbox className="size-4 text-muted-foreground" /> Review requests
-            <span className="font-normal tnum text-muted-foreground">
-              {requestItems.length}
-            </span>
-          </h2>
-          {requestItems.length === 0 ? (
-            <EmptyState
-              icon={CircleCheckBig}
-              title="No open requests"
-              description="No one has requested a review in this scope."
-            />
-          ) : (
-            <OpenRequests items={requestItems} canResolve={canReview} />
-          )}
-        </section>
-      )}
 
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
@@ -191,11 +138,41 @@ export default async function MonitoringPage() {
             description="No assessments are overdue or due for review in this scope."
           />
         ) : (
-          <ReviewQueue
-            items={items}
-            todayInput={todayInput}
-            canReview={canReview}
+          <ReviewQueue items={items} todayInput={todayInput} canReview={canReview} />
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+          <Loader className="size-4 text-muted-foreground" /> Under review
+          <span className="font-normal tnum text-muted-foreground">
+            {underReview.length}
+          </span>
+        </h2>
+        {underReview.length === 0 ? (
+          <div className="rounded-[var(--radius-card)] border border-dashed border-line-strong bg-surface/60 px-4 py-8 text-center text-sm text-muted-foreground">
+            Nothing is currently under review.
+          </div>
+        ) : (
+          <AssessmentTable rows={underReview} showCenter={!selected} />
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+          <Inbox className="size-4 text-muted-foreground" /> Open review requests
+          <span className="font-normal tnum text-muted-foreground">
+            {requestItems.length}
+          </span>
+        </h2>
+        {requestItems.length === 0 ? (
+          <EmptyState
+            icon={CircleCheckBig}
+            title="No open requests"
+            description="No one has requested a review in this scope."
           />
+        ) : (
+          <OpenRequests items={requestItems} canResolve={canReview} />
         )}
       </section>
 

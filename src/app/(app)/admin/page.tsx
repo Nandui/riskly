@@ -7,6 +7,7 @@ import { CentresPanel } from "@/components/centers/centres-panel";
 import { UserManager } from "@/components/users/user-manager";
 import { RolePermissionMatrix } from "@/components/users/role-permission-matrix";
 import { LibraryManager } from "@/components/library/library-manager";
+import { LocationsManager } from "@/components/incidents/locations-manager";
 import { getCenterContext } from "@/lib/center-context";
 import { listCenters } from "@/lib/data/centers";
 import { listUsers } from "@/lib/data/users";
@@ -17,6 +18,7 @@ import {
   listDepartments,
   type LibraryEntity,
 } from "@/lib/data/library";
+import { listAreasWithSubAreas, type AdminAreaLocation } from "@/lib/data/incidents";
 import { requireCapability } from "@/lib/auth";
 
 export const metadata = { title: "Admin" };
@@ -38,6 +40,14 @@ export default async function AdminPage() {
   );
   const areasByCenter: Record<string, LibraryEntity[]> =
     Object.fromEntries(areaEntries);
+
+  const locationEntries = await Promise.all(
+    ctxCenters.map(
+      async (c) => [c.id, await listAreasWithSubAreas(c.id)] as const,
+    ),
+  );
+  const locationsByCenter: Record<string, AdminAreaLocation[]> =
+    Object.fromEntries(locationEntries);
 
   const centresPanel = <CentresPanel centers={centers} />;
 
@@ -69,12 +79,20 @@ export default async function AdminPage() {
     />
   );
 
+  const locationsPanel = (
+    <LocationsManager
+      centers={ctxCenters.map((c) => ({ id: c.id, name: c.name }))}
+      defaultCenterId={selected?.id ?? ctxCenters[0]?.id ?? null}
+      areasByCenter={locationsByCenter}
+    />
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Administration"
         title="Admin"
-        description="Set up your organisation — centres, users, and the shared library of areas, roles, activities and departments."
+        description="Set up your organisation — centres, users, the shared library, and incident locations."
         actions={
           <Link
             href="/admin/audit"
@@ -88,6 +106,7 @@ export default async function AdminPage() {
         centres={centresPanel}
         users={usersPanel}
         library={libraryPanel}
+        locations={locationsPanel}
       />
     </div>
   );

@@ -84,6 +84,13 @@ export async function getDashboard(centerId: string | null) {
 
 export type ReviewQueueItem = AssessmentRow;
 
+// Assessments currently being reviewed (status Under review) — awareness.
+export async function getUnderReview(
+  centerId: string | null,
+): Promise<AssessmentRow[]> {
+  return listAssessments({ centerId, status: "UnderReview" });
+}
+
 export async function getReviewQueue(
   centerId: string | null,
 ): Promise<ReviewQueueItem[]> {
@@ -164,6 +171,39 @@ export type OpenReviewRequest = Awaited<
   ReturnType<typeof getOpenReviewRequests>
 >[number];
 
+// Review requests the given user has raised, with their current state
+// (Open / Actioned / Dismissed) — so a requester can track what happened.
+export async function getMyReviewRequests(
+  userId: string,
+  centerId: string | null,
+) {
+  return db.reviewRequest.findMany({
+    where: {
+      requestedById: userId,
+      ...(centerId ? { assessment: { centerId } } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      resolvedBy: { select: { name: true, email: true } },
+      assessment: {
+        select: {
+          id: true,
+          reference: true,
+          subjectType: true,
+          center: { select: { name: true } },
+          area: { select: { name: true } },
+          role: { select: { name: true } },
+          activity: { select: { name: true } },
+        },
+      },
+    },
+  });
+}
+
+export type MyReviewRequest = Awaited<
+  ReturnType<typeof getMyReviewRequests>
+>[number];
+
 // Non-archived assessments the given user owns.
 export async function getOwnedByMe(
   userId: string,
@@ -171,6 +211,19 @@ export async function getOwnedByMe(
 ): Promise<AssessmentRow[]> {
   const rows = await listAssessments({ centerId, ownedByUserId: userId });
   return rows.filter((a) => a.status !== "Archived");
+}
+
+// Assessments awaiting the CEO sign-off — in the active lifecycle but without a
+// CEO approval yet. Shown on Monitoring/For you to users who can grant it.
+export async function getAwaitingCeoApproval(
+  centerId: string | null,
+): Promise<AssessmentRow[]> {
+  const rows = await listAssessments({ centerId });
+  return rows.filter(
+    (a) =>
+      (a.status === "UnderReview" || a.status === "Approved") &&
+      !a.ceoApprovedByName,
+  );
 }
 
 // Assessments the user owns that are back Under review (e.g. a hazard was

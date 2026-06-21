@@ -15,7 +15,7 @@ const payloadSchema = z.object({
   subjectType: z.enum(["Area", "Role", "Activity"]),
   subjectId: z.string().optional(),
   newSubjectName: z.string().trim().max(120).optional(),
-  status: z.enum(["Draft", "Active", "UnderReview", "Archived"]).default("Active"),
+  status: z.enum(["Draft", "UnderReview", "Archived"]).default("UnderReview"),
   assessmentDate: z.string().min(1, "Set an assessment date"),
   reviewFrequencyMonths: z.coerce.number().int().min(1).max(60).default(12),
   hazards: z.array(hazardSchema).min(1, "There are no hazards to import"),

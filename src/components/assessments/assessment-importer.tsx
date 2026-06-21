@@ -25,7 +25,7 @@ import type { ImportOptions } from "@/lib/data/library";
 import { cn } from "@/lib/utils";
 
 type SubjectType = "Area" | "Role" | "Activity";
-type Status = "Draft" | "Active" | "UnderReview" | "Archived";
+type Status = "Draft" | "UnderReview" | "Archived";
 
 interface ParsedHazard {
   hazard: string;
@@ -207,7 +207,7 @@ export function AssessmentImporter({ options }: { options: ImportOptions }) {
   const [subjectType, setSubjectType] = useState<SubjectType>("Area");
   const [subjectId, setSubjectId] = useState("");
   const [newSubjectName, setNewSubjectName] = useState("");
-  const [status, setStatus] = useState<Status>("Active");
+  const [status, setStatus] = useState<Status>("UnderReview");
   const [assessmentDate, setAssessmentDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
@@ -346,11 +346,13 @@ export function AssessmentImporter({ options }: { options: ImportOptions }) {
               value={status}
               onChange={(e) => setStatus(e.target.value as Status)}
             >
-              {ASSESSMENT_STATUSES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
+              {ASSESSMENT_STATUSES.filter((s) => s.value !== "Approved").map(
+                (s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ),
+              )}
             </Select>
           </Field>
           <Field label="Assessment date" htmlFor="imp-date">

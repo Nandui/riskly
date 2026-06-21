@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getCurrentUser, can } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import { liveStatus } from "@/lib/approval";
 import type { FormState } from "@/lib/form";
 
 function revalidate(id: string) {
@@ -27,16 +28,23 @@ function mayApprove(
   if (!user) return false;
   const isOwner = ownerId != null && user.id === ownerId;
   if (kind === "owner") return isOwner;
-  return !isOwner && (user.role === "CEO" || can(user, "admin"));
+  return !isOwner && can(user, "approveAssessments");
 }
 
-// Grant the Owner or CEO sign-off. Either approval puts the assessment in force
-// (Active), per the agreed model.
+// Grant the Owner or CEO sign-off. An assessment is Approved only once BOTH
+// sign-offs are present (and it isn't overdue); a single sign-off leaves it
+// Under review.
 export async function grantApproval(id: string, kind: Kind): Promise<FormState> {
   const user = await getCurrentUser();
   const a = await db.riskAssessment.findUnique({
     where: { id },
-    select: { status: true, ownerId: true },
+    select: {
+      status: true,
+      ownerId: true,
+      ownerApprovedByName: true,
+      ceoApprovedByName: true,
+      nextReviewDate: true,
+    },
   });
   if (!a) return { ok: false, error: "Assessment not found." };
   if (!mayApprove(user, kind, a.ownerId)) {
@@ -47,7 +55,6 @@ export async function grantApproval(id: string, kind: Kind): Promise<FormState> 
   }
 
   const name = user!.name ?? user!.email ?? "Unknown";
-  const toActive = a.status !== "Active" && a.status !== "Archived";
   const data =
     kind === "owner"
       ? {
@@ -61,23 +68,34 @@ export async function grantApproval(id: string, kind: Kind): Promise<FormState> 
           ceoApprovedAt: new Date(),
         };
 
+  // Recompute the live status from both sign-offs (archived stays archived).
+  const nextStatus =
+    a.status === "Archived"
+      ? a.status
+      : liveStatus({
+          ownerApprovedByName:
+            kind === "owner" ? name : a.ownerApprovedByName,
+          ceoApprovedByName: kind === "ceo" ? name : a.ceoApprovedByName,
+          nextReviewDate: a.nextReviewDate,
+        });
+
   await db.riskAssessment.update({
     where: { id },
-    data: { ...data, ...(toActive ? { status: "Active" } : {}) },
+    data: { ...data, status: nextStatus },
   });
 
   await recordAudit(
     id,
     user,
     "approved",
-    `${KIND_LABEL[kind]} approval by ${name}${toActive ? " · status → Active" : ""}`,
+    `${KIND_LABEL[kind]} approval by ${name}${nextStatus === "Approved" ? " · status → Approved" : ""}`,
   );
   revalidate(id);
   return { ok: true };
 }
 
-// Withdraw the Owner or CEO sign-off. The assessment stays Active while the
-// other approval remains; once neither is left it goes back to Under review.
+// Withdraw the Owner or CEO sign-off. Since Approved requires both, removing
+// either one sends the assessment back to Under review.
 export async function withdrawApproval(
   id: string,
   kind: Kind,
@@ -118,11 +136,9 @@ export async function withdrawApproval(
           ceoApprovedById: null,
           ceoApprovedAt: null,
         };
-  const otherApproved =
-    kind === "owner"
-      ? Boolean(a.ceoApprovedByName)
-      : Boolean(a.ownerApprovedByName);
-  const toReview = !otherApproved && a.status !== "Archived";
+  // With both sign-offs required to be Approved, removing either one always
+  // sends it back to Under review (unless it's archived).
+  const toReview = a.status !== "Archived";
 
   await db.riskAssessment.update({
     where: { id },

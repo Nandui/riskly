@@ -1,31 +1,41 @@
 // Pure, client-safe permission logic (no server imports) so both server code
 // and client components (e.g. the sidebar) can gate by role.
+//
+// Roles are NOT a strict hierarchy: the CEO can approve assessments but only
+// *views* incidents, while a Shift Supervisor reports incidents but can't
+// request assessment reviews. So each role lists exactly what it can do, and
+// the Operations Manager (the admin) is granted everything — current and
+// future — via the "admin" wildcard in can().
 
 export type Capability =
-  | "view"
-  | "requestReview"
-  | "review"
-  | "editContent"
-  | "admin";
+  // Risk assessments
+  | "view" // see assessments, incidents and dashboards (read)
+  | "requestReview" // raise assessment / hazard review requests
+  | "review" // log reviews, resolve requests, change assessment status
+  | "approveAssessments" // grant the CEO sign-off
+  | "editContent" // create/edit/delete assessments & hazards; manage the library
+  // Incidents
+  | "reportIncidents" // submit incident reports
+  | "manageIncidents" // add people involved; add/complete follow-up actions; edit
+  | "investigateIncidents" // change incident status, close and re-open
+  // Cross-cutting
+  | "admin"; // centres, users, locations — full access
 
-// Roles form a strict hierarchy of increasing privilege.
-const ROLE_RANK: Record<string, number> = {
-  Viewer: 0,
-  Contributor: 1,
-  Reviewer: 2,
-  // CEO is an executive approver: can view and review/approve, but not edit
-  // content or administer. The CEO-specific sign-off is gated by role name.
-  CEO: 2,
-  Assessor: 3,
-  Admin: 4,
-};
-
-const CAP_RANK: Record<Capability, number> = {
-  view: 0,
-  requestReview: 1,
-  review: 2,
-  editContent: 3,
-  admin: 4,
+// Explicit role → capability grants (the single source of truth, mirrored by
+// the role-permission matrix on the Users page).
+const ROLE_CAPS: Record<string, Capability[]> = {
+  "Shift Supervisor": ["view", "reportIncidents"],
+  "Duty Manager": ["view", "requestReview", "reportIncidents", "manageIncidents"],
+  "Department Supervisor": [
+    "view",
+    "requestReview",
+    "reportIncidents",
+    "manageIncidents",
+  ],
+  CEO: ["view", "requestReview", "approveAssessments"],
+  // Operations Manager is the admin — "admin" is a wildcard granting every
+  // capability, so future capabilities are included automatically.
+  "Operations Manager": ["admin"],
 };
 
 export function can(
@@ -33,11 +43,14 @@ export function can(
   capability: Capability,
 ): boolean {
   if (!user) return false;
-  return (ROLE_RANK[user.role] ?? 0) >= CAP_RANK[capability];
+  const caps = ROLE_CAPS[user.role];
+  if (!caps) return false;
+  if (caps.includes("admin")) return true; // admin sees & does everything
+  return caps.includes(capability);
 }
 
-// Ordered capability metadata (increasing privilege) — the single source for
-// the role permissions matrix on the Users page.
+// Ordered capability metadata — the single source for the role permissions
+// matrix on the Users page.
 export const CAPABILITIES: {
   key: Capability;
   label: string;
@@ -46,26 +59,46 @@ export const CAPABILITIES: {
   {
     key: "view",
     label: "View everything",
-    description: "Dashboard, assessments and monitoring",
+    description: "Risk assessments, incidents and dashboards",
   },
   {
     key: "requestReview",
     label: "Request reviews",
-    description: "Raise a review request with notes",
+    description: "Raise assessment & hazard review requests",
+  },
+  {
+    key: "approveAssessments",
+    label: "Approve assessments",
+    description: "Grant the CEO sign-off on an assessment",
   },
   {
     key: "review",
     label: "Review assessments",
-    description: "Log reviews, approve sign-off, action requests and change status",
+    description: "Log reviews, resolve requests and change assessment status",
   },
   {
     key: "editContent",
     label: "Manage assessments",
-    description: "Create, edit and delete assessments and hazards; manage the Library",
+    description: "Create, edit and delete assessments, hazards and the library",
+  },
+  {
+    key: "reportIncidents",
+    label: "Report incidents",
+    description: "Submit incident reports",
+  },
+  {
+    key: "manageIncidents",
+    label: "Manage incidents",
+    description: "Record people involved and complete follow-up actions",
+  },
+  {
+    key: "investigateIncidents",
+    label: "Investigate incidents",
+    description: "Change incident status, close and re-open incidents",
   },
   {
     key: "admin",
     label: "Administer",
-    description: "Manage centres, users and assignments",
+    description: "Manage centres, users and locations — full access",
   },
 ];

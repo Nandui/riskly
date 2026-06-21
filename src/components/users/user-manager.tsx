@@ -46,7 +46,7 @@ function NewUserForm() {
           <Input id="nu-email" name="email" type="email" autoComplete="off" required />
         </Field>
         <Field label="Role" htmlFor="nu-role" error={state?.fieldErrors?.role}>
-          <Select id="nu-role" name="role" defaultValue="Viewer">
+          <Select id="nu-role" name="role" defaultValue="Shift Supervisor">
             {ROLES.map((r) => (
               <option key={r.value} value={r.value}>
                 {r.label}

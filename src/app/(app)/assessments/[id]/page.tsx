@@ -48,7 +48,7 @@ export default async function AssessmentDetailPage({
   // owner. So the owner can never grant the CEO approval on their own work.
   const isOwner = !!user && !!a.ownerId && user.id === a.ownerId;
   const canApproveOwner = isOwner;
-  const canApproveCeo = !isOwner && (user?.role === "CEO" || can(user, "admin"));
+  const canApproveCeo = !isOwner && can(user, "approveAssessments");
 
   // Hazards can be copied into any other assessment (any centre); only fetch the
   // candidates when there's something to copy and the user can edit.

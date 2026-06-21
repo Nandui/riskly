@@ -3,6 +3,86 @@
 All notable changes to Riskly. The project uses alpha versioning; releases are
 tagged `vX.Y.Z-alpha`.
 
+## [Unreleased]
+
+### Assessment lifecycle
+
+Assessment status is now derived from approval + review date rather than set by
+hand:
+
+- **Draft** — being written; no review schedule/due date.
+- **Under review** — submitted but not fully signed off, or past its next review
+  date (an overdue Approved assessment flips back automatically on read).
+- **Approved** — signed off by **both** the Owner and the CEO and in date
+  (replaces the old "Active"; either sign-off alone is no longer enough).
+- **Archived** — retired.
+
+The assessment form and importer no longer let you pick "Approved" — it's earned
+via the two sign-offs; withdrawing either sign-off (or editing the content)
+returns it to Under review, and logging a review re-validates a fully-signed
+assessment back to Approved.
+
+Only an Approved assessment carries a next-review date — Draft, Under review and
+Archived read as "Not scheduled" (the review schedule only applies once it's in
+force). Monitoring drops the now-redundant "Overdue reviews" stat (overdue
+assessments simply become Under review).
+
+### Home & navigation
+
+- New **For you** home (`/`) — the first thing you see on login. A personal,
+  cross-module inbox of what's waiting on you: assessments awaiting your CEO
+  sign-off, assessments you own that are back under review, incident follow-up
+  actions assigned to you, your unfinished incident drafts, and the state of the
+  review requests you've raised — plus quick actions (report an incident, new
+  assessment). Shows an "all caught up" state when nothing needs you.
+- **Monitoring** is now an org-wide **awareness** view: reviews coming due,
+  what's under review, high & very high risk, and open review requests (personal
+  items moved to *For you*).
+- The risk dashboard (charts + risk matrix) moved to **Overview** (`/overview`)
+  under Risk assessments — a "risk ratios & highlights" glance.
+
+### Roles (Centrely role set)
+
+Replaced the old roles with the Centrely set — **Operations Manager**, **CEO**,
+**Duty Manager**, **Department Supervisor**, **Shift Supervisor** — and moved
+permissions from a strict hierarchy to an explicit capability matrix:
+
+- **Shift Supervisor** — view risk assessments & incidents; submit incidents.
+- **Duty Manager / Department Supervisor** — the above, plus request assessment
+  & hazard reviews and manage an incident's follow-up actions / people.
+- **CEO** — view everything, grant the CEO sign-off, and raise assessment
+  review requests; views incidents only (cannot change them). Monitoring shows
+  the CEO a count + list of assessments awaiting their approval and the state of
+  the review requests they've raised.
+- **Operations Manager** — full admin; sees every option, current and future.
+
+Existing users are remapped by a migration (Admin/Assessor → Operations Manager,
+Reviewer/Contributor → Duty Manager, Viewer → Shift Supervisor; CEO unchanged).
+
+### Incidents module (new)
+
+Riskly is now two modules under one shell. Alongside risk assessments, a new
+**Incidents** module covers incident reporting and the investigation workflow:
+
+- **Report incidents** — accidents, near misses, property damage, aggression,
+  hazardous substances, fire/evacuation and more, with severity (reusing the
+  risk palette), a date/time, and a precise location. Save as a **draft** or
+  submit.
+- **People involved** — record injured parties (injury, body part, treatment,
+  lost time) and witness statements.
+- **Investigation workflow** — Draft → Open → Under investigation → Closed,
+  with **follow-up actions** that track open/in-progress/complete and flip to
+  **overdue** automatically. Closing requires every action complete.
+- **Incident dashboard** — KPIs, "needs attention" (overdue actions + open
+  reportable incidents), trend/type/severity charts and recent incidents.
+- **PDF export** — a clean incident report for insurance or records.
+- **Locations** — incidents reuse each centre's existing **Areas** plus a new
+  **Sub-area** level, managed under **Admin → Locations**.
+- Sidebar grouped into **Risk assessments** and **Incidents** sections.
+- Permissions reuse Riskly's roles: anyone can view; **Contributor+** report &
+  manage; **Reviewer+** investigate & close; **Admin** deletes & manages
+  locations.
+
 ## [0.5.0] — 2026-06-20 (Alpha)
 
 ### AI hazard drafting

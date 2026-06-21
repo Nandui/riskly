@@ -215,7 +215,7 @@ export function AssessmentView({
               <ReviewChip review={review} />
               {review.key === "none" ? (
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  Scheduled once the assessment is active.
+                  Scheduled once the assessment is approved.
                 </p>
               ) : (
                 <>

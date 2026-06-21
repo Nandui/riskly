@@ -9,6 +9,10 @@ import {
   ClipboardList,
   CalendarClock,
   Wrench,
+  Gauge,
+  Siren,
+  ListChecks,
+  Home,
   Menu,
   X,
   LogOut,
@@ -28,17 +32,38 @@ interface ShellUser {
   role: string;
 }
 
-const NAV: {
+type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
   exact?: boolean;
   cap: Capability;
-}[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, cap: "view" },
-  { href: "/assessments", label: "Assessments", icon: ClipboardList, cap: "view" },
-  { href: "/monitoring", label: "Monitoring", icon: CalendarClock, cap: "view" },
-  { href: "/admin", label: "Admin", icon: Wrench, cap: "admin" },
+};
+
+// Grouped navigation — a personal home up top, then each module as its own section.
+const NAV: { label?: string; items: NavItem[] }[] = [
+  {
+    items: [{ href: "/", label: "For you", icon: Home, exact: true, cap: "view" }],
+  },
+  {
+    label: "Risk assessments",
+    items: [
+      { href: "/overview", label: "Overview", icon: LayoutDashboard, cap: "view" },
+      { href: "/assessments", label: "Assessments", icon: ClipboardList, cap: "view" },
+      { href: "/monitoring", label: "Monitoring", icon: CalendarClock, cap: "view" },
+    ],
+  },
+  {
+    label: "Incidents",
+    items: [
+      { href: "/incidents", label: "Overview", icon: Gauge, exact: true, cap: "view" },
+      { href: "/incidents/list", label: "All incidents", icon: Siren, cap: "view" },
+      { href: "/incidents/actions", label: "Follow-up actions", icon: ListChecks, cap: "view" },
+    ],
+  },
+  {
+    items: [{ href: "/admin", label: "Admin", icon: Wrench, cap: "admin" }],
+  },
 ];
 
 function initials(user: ShellUser) {
@@ -85,7 +110,10 @@ export function AppShell({
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 
-  const navItems = NAV.filter((item) => can(user, item.cap));
+  const navGroups = NAV.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => can(user, item.cap)),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <div className="min-h-screen md:flex">
@@ -141,34 +169,41 @@ export function AppShell({
           <CenterSwitcher centers={centers} selectedId={selectedId} />
         </div>
 
-        <nav className="scroll-slim flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
-          {navItems.map((item) => {
-            const active = isActive(item.href, item.exact);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-ink/80 hover:bg-sidebar-2 hover:text-ink",
-                )}
-              >
-                <item.icon
-                  className={cn(
-                    "size-[1.15rem] shrink-0",
-                    active
-                      ? "text-sidebar-accent-foreground"
-                      : "text-sidebar-muted group-hover:text-ink",
-                  )}
-                />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="scroll-slim flex-1 space-y-4 overflow-y-auto px-3 py-3">
+          {navGroups.map((group, gi) => (
+            <div key={group.label ?? `group-${gi}`} className="space-y-0.5">
+              {group.label && (
+                <p className="eyebrow px-3 pb-1 pt-1">{group.label}</p>
+              )}
+              {group.items.map((item) => {
+                const active = isActive(item.href, item.exact);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      active
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-sidebar-ink/80 hover:bg-sidebar-2 hover:text-ink",
+                    )}
+                  >
+                    <item.icon
+                      className={cn(
+                        "size-[1.15rem] shrink-0",
+                        active
+                          ? "text-sidebar-accent-foreground"
+                          : "text-sidebar-muted group-hover:text-ink",
+                      )}
+                    />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* Signed-in user + sign out */}

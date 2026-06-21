@@ -30,6 +30,7 @@ model Center {
 
   areas       Area[]
   assessments RiskAssessment[]
+  incidents   Incident[]
 }
 
 // Physical / functional area within a centre (poolside, gym floor, plant room...). Per-centre.
@@ -44,6 +45,8 @@ model Area {
   updatedAt   DateTime @updatedAt
 
   assessments RiskAssessment[]
+  subAreas    SubArea[]
+  incidents   Incident[]
 
   @@index([centerId])
 }
@@ -186,7 +189,7 @@ model User {
   email        String   @unique
   image        String?
   passwordHash String?
-  role         String   @default("Viewer") // Viewer | Contributor | Reviewer | CEO | Assessor | Admin
+  role         String   @default("Shift Supervisor") // Shift Supervisor | Duty Manager | Department Supervisor | CEO | Operations Manager
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -236,4 +239,134 @@ model AuditLog {
 
   @@index([assessmentId])
   @@index([createdAt])
+}
+
+// ============================================================================
+// Incidents module — incident reporting & the investigation / follow-up
+// workflow. Reuses Center, Area and User from the risk-assessment side; adds a
+// SubArea level under Area for precise incident locations.
+// String-typed enums (PascalCase) match the rest of the schema; the allowed
+// values + display metadata live in src/lib/incidents/constants.ts.
+// ============================================================================
+
+// A sub-location within an Area (poolside → shallow end, plant room → boiler…).
+// Per-area; reused only by incidents for now.
+model SubArea {
+  id          String   @id @default(cuid())
+  areaId      String
+  area        Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  incidents Incident[]
+
+  @@index([areaId])
+}
+
+// A reported incident at a centre. Reference: INC-XX-NNNN (XX = Center.siteCode).
+model Incident {
+  id              String    @id @default(cuid())
+  reference       String    @unique // INC-XX-0001
+  centerId        String
+  center          Center    @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  type            String // Accident | NearMiss | PropertyDamage | ViolenceAggression | HazardousSubstance | FireOrEvacuation | Other
+  status          String    @default("Draft") // Draft | Open | UnderInvestigation | Closed
+  severity        String // Minor | Significant | Reportable | Critical
+  occurredAt      DateTime // exact date + time of the incident
+  // Structured location: an Area (+ optional SubArea). location/locationDetail are
+  // denormalised name copies so lists/dashboard/exports never join and survive deletes.
+  areaId          String?
+  area            Area?     @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  subAreaId       String?
+  subArea         SubArea?  @relation(fields: [subAreaId], references: [id], onDelete: SetNull)
+  location        String // denormalised Area name
+  locationDetail  String? // denormalised SubArea name
+  description     String // narrative of what happened
+  immediateAction String? // what was done at the time
+  reportedBy      String // name (or email) of the person the report is attributed to
+  reportedById    String? // loose link to User.id (no FK; deleting a user keeps the name)
+  witnessCount    Int       @default(0) // denormalised for display
+  injuredCount    Int       @default(0) // denormalised for display
+  closedAt        DateTime?
+  closedBy        String?
+  closureNotes    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  witnesses       Witness[]
+  injuredParties  InjuredParty[]
+  followUpActions FollowUpAction[]
+
+  @@index([centerId])
+  @@index([status])
+  @@index([severity])
+  @@index([occurredAt])
+  @@index([areaId])
+  @@index([subAreaId])
+}
+
+// A witness to an incident and their statement.
+model Witness {
+  id             String   @id @default(cuid())
+  incidentId     String
+  incident       Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  name           String
+  roleOrRelation String // "Lifeguard", "Member", "Contractor"…
+  contactPhone   String?
+  contactEmail   String?
+  statement      String
+  statementDate  DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([incidentId])
+}
+
+// A person injured in an incident.
+model InjuredParty {
+  id               String    @id @default(cuid())
+  incidentId       String
+  incident         Incident  @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  partyType        String // Staff | Member | Contractor | Visitor | Public
+  name             String
+  contactPhone     String?
+  contactEmail     String?
+  address          String?
+  dateOfBirth      DateTime?
+  gender           String?
+  injuryNature     String // "Laceration", "Fracture"…
+  bodyPartAffected String // "Left forearm", "Head"…
+  treatment        String // None | FirstAidOnly | GpReferral | HospitalAE | HospitalAdmitted
+  hospitalName     String?
+  gpReferral       Boolean   @default(false)
+  lostTime         Boolean   @default(false)
+  lostTimeDays     Int?
+  additionalNotes  String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([incidentId])
+}
+
+// A corrective / preventive action raised during an incident investigation.
+model FollowUpAction {
+  id          String    @id @default(cuid())
+  incidentId  String
+  incident    Incident  @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  description String
+  assignedTo  String // free-text name in v1
+  dueDate     DateTime
+  status      String    @default("Open") // Open | InProgress | Complete | Overdue
+  completedAt DateTime?
+  completedBy String?
+  notes       String    @default("")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([incidentId])
+  @@index([status])
+  @@index([dueDate])
 }

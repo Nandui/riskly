@@ -10,8 +10,7 @@ export function RolePermissionMatrix() {
     <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-xs">
       <h2 className="text-sm font-semibold text-ink">Role permissions</h2>
       <p className="mt-0.5 text-xs text-muted-foreground">
-        What each role can do. Each role also includes everything the roles to
-        its left can do.
+        What each role can do across risk assessments and incidents.
       </p>
 
       <div className="scroll-slim mt-4 overflow-x-auto">
