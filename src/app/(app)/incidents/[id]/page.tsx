@@ -21,7 +21,7 @@ import {
   canManageIncidents,
   canReportIncidents,
 } from "@/lib/incidents/permissions";
-import { getIncidentDetail } from "@/lib/data/incidents";
+import { getIncidentDetail, getReporterOptions } from "@/lib/data/incidents";
 import { INCIDENT_TYPE_META } from "@/lib/incidents/constants";
 import { formatDate, formatDateTime } from "@/lib/utils";
 
@@ -60,6 +60,8 @@ export default async function IncidentDetailPage({
   const canManage = canManageIncidents(user);
   const canInvestigate = canInvestigateIncidents(user);
   const canAdmin = canAdminIncidents(user);
+  // Assignees for the follow-up action picker (only needed when managing).
+  const users = canManage ? await getReporterOptions() : [];
   const typeLabel = INCIDENT_TYPE_META[incident.type]?.label ?? incident.type;
   const location = incident.locationDetail
     ? `${incident.location} — ${incident.locationDetail}`
@@ -175,6 +177,7 @@ export default async function IncidentDetailPage({
       <FollowUpActionsManager
         incidentId={incident.id}
         actions={incident.followUpActions}
+        users={users}
         canManage={canManage}
       />
     </div>

@@ -26,15 +26,17 @@ import {
 import { ACTION_STATUSES } from "@/lib/incidents/constants";
 import { formatDate, toDateInputValue } from "@/lib/utils";
 import type { FormState } from "@/lib/form";
-import type { FollowUpAction } from "@/lib/incidents/types";
+import type { FollowUpAction, UserOption } from "@/lib/incidents/types";
 
 export function FollowUpActionsManager({
   incidentId,
   actions,
+  users,
   canManage,
 }: {
   incidentId: string;
   actions: FollowUpAction[];
+  users: UserOption[];
   canManage: boolean;
 }) {
   const router = useRouter();
@@ -163,6 +165,7 @@ export function FollowUpActionsManager({
             <ActionForm
               mode="add"
               incidentId={incidentId}
+              users={users}
               onDone={() => setAddOpen(false)}
             />
           )}
@@ -175,6 +178,7 @@ export function FollowUpActionsManager({
             <ActionForm
               mode="edit"
               action={editing}
+              users={users}
               onDone={() => setEditing(null)}
             />
           )}
@@ -196,12 +200,13 @@ export function FollowUpActionsManager({
   );
 }
 
-type ActionFormProps =
+type ActionFormProps = (
   | { mode: "add"; incidentId: string; action?: undefined; onDone: () => void }
-  | { mode: "edit"; action: FollowUpAction; incidentId?: undefined; onDone: () => void };
+  | { mode: "edit"; action: FollowUpAction; incidentId?: undefined; onDone: () => void }
+) & { users: UserOption[] };
 
 function ActionForm(props: ActionFormProps) {
-  const { mode, onDone } = props;
+  const { mode, onDone, users } = props;
   const router = useRouter();
   const [state, formAction, pending] = useActionState<FormState, FormData>(
     mode === "add" ? addFollowUpAction : updateFollowUpAction,
@@ -251,7 +256,20 @@ function ActionForm(props: ActionFormProps) {
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Assigned to" required error={fe.assignedTo}>
-            <Input name="assignedTo" defaultValue={a?.assignedTo ?? ""} required />
+            <Select name="assignedTo" defaultValue={a?.assignedTo ?? ""} required>
+              <option value="" disabled>
+                Select a user…
+              </option>
+              {/* Preserve a legacy/non-user assignee when editing. */}
+              {a?.assignedTo && !users.some((u) => u.name === a.assignedTo) && (
+                <option value={a.assignedTo}>{a.assignedTo}</option>
+              )}
+              {users.map((u) => (
+                <option key={u.id} value={u.name}>
+                  {u.name}
+                </option>
+              ))}
+            </Select>
           </Field>
           <Field label="Due date" required error={fe.dueDate}>
             <Input
