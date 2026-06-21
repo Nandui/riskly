@@ -12,6 +12,7 @@ import {
   Gauge,
   Siren,
   ListChecks,
+  Home,
   Menu,
   X,
   LogOut,
@@ -39,12 +40,15 @@ type NavItem = {
   cap: Capability;
 };
 
-// Grouped navigation — each module reads as its own section in one sidebar.
+// Grouped navigation — a personal home up top, then each module as its own section.
 const NAV: { label?: string; items: NavItem[] }[] = [
+  {
+    items: [{ href: "/", label: "For you", icon: Home, exact: true, cap: "view" }],
+  },
   {
     label: "Risk assessments",
     items: [
-      { href: "/", label: "Overview", icon: LayoutDashboard, exact: true, cap: "view" },
+      { href: "/overview", label: "Overview", icon: LayoutDashboard, cap: "view" },
       { href: "/assessments", label: "Assessments", icon: ClipboardList, cap: "view" },
       { href: "/monitoring", label: "Monitoring", icon: CalendarClock, cap: "view" },
     ],

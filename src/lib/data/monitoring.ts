@@ -84,6 +84,13 @@ export async function getDashboard(centerId: string | null) {
 
 export type ReviewQueueItem = AssessmentRow;
 
+// Assessments currently being reviewed (status Under review) — awareness.
+export async function getUnderReview(
+  centerId: string | null,
+): Promise<AssessmentRow[]> {
+  return listAssessments({ centerId, status: "UnderReview" });
+}
+
 export async function getReviewQueue(
   centerId: string | null,
 ): Promise<ReviewQueueItem[]> {

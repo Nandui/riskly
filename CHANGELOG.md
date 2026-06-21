@@ -5,6 +5,20 @@ tagged `vX.Y.Z-alpha`.
 
 ## [Unreleased]
 
+### Home & navigation
+
+- New **For you** home (`/`) — the first thing you see on login. A personal,
+  cross-module inbox of what's waiting on you: assessments awaiting your CEO
+  sign-off, assessments you own that are back under review, incident follow-up
+  actions assigned to you, your unfinished incident drafts, and the state of the
+  review requests you've raised — plus quick actions (report an incident, new
+  assessment). Shows an "all caught up" state when nothing needs you.
+- **Monitoring** is now an org-wide **awareness** view: reviews coming due,
+  what's under review, high & very high risk, and open review requests (personal
+  items moved to *For you*).
+- The risk dashboard (charts + risk matrix) moved to **Overview** (`/overview`)
+  under Risk assessments — a "risk ratios & highlights" glance.
+
 ### Roles (Centrely role set)
 
 Replaced the old roles with the Centrely set — **Operations Manager**, **CEO**,

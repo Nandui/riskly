@@ -5,7 +5,10 @@ A web app for **documenting, monitoring and referencing health & safety risk ass
 One organisation, many centres. Every assessment is built around one subject — an **area**, a **role**, or an **activity** — and is named after it, with all of that subject's hazards inside. Each hazard is rated with a **5×5 risk matrix** (Likelihood × Consequence Severity = Overall Risk) based on current controls.
 
 Riskly is organised as **two modules under one shell**, grouped in the sidebar:
-**Risk assessments** and **Incidents**.
+**Risk assessments** and **Incidents**. The landing page is **For you** (`/`) — a
+personal, cross-module inbox of everything waiting on the signed-in user
+(approvals, assessments under review, incident actions assigned to them, draft
+reports) with quick actions.
 
 ### Risk assessments
 

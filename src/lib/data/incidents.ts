@@ -109,28 +109,24 @@ export const getIncidentDetail = cache(
 
 // ─── Cross-incident follow-up actions (actions overview) ────────────────────
 
-export async function listFollowUpActions(options?: {
-  centerId?: string | null;
-}): Promise<ActionListItem[]> {
-  await sweepOverdueActions(options?.centerId);
-
-  const actions = await db.followUpAction.findMany({
-    where: options?.centerId ? { incident: { centerId: options.centerId } } : {},
-    include: {
-      incident: {
-        select: {
-          id: true,
-          reference: true,
-          location: true,
-          centerId: true,
-          center: { select: { name: true } },
-        },
-      },
+const actionInclude = {
+  incident: {
+    select: {
+      id: true,
+      reference: true,
+      location: true,
+      centerId: true,
+      center: { select: { name: true } },
     },
-    orderBy: [{ dueDate: "asc" }],
-  });
+  },
+} satisfies Prisma.FollowUpActionInclude;
 
-  return actions.map((a) => ({
+type ActionWithIncident = Prisma.FollowUpActionGetPayload<{
+  include: typeof actionInclude;
+}>;
+
+function toActionListItem(a: ActionWithIncident): ActionListItem {
+  return {
     id: a.id,
     description: a.description,
     assignedTo: a.assignedTo,
@@ -144,7 +140,58 @@ export async function listFollowUpActions(options?: {
     incidentLocation: a.incident.location,
     centerId: a.incident.centerId,
     centerName: a.incident.center.name,
-  }));
+  };
+}
+
+export async function listFollowUpActions(options?: {
+  centerId?: string | null;
+}): Promise<ActionListItem[]> {
+  await sweepOverdueActions(options?.centerId);
+
+  const actions = await db.followUpAction.findMany({
+    where: options?.centerId ? { incident: { centerId: options.centerId } } : {},
+    include: actionInclude,
+    orderBy: [{ dueDate: "asc" }],
+  });
+
+  return actions.map(toActionListItem);
+}
+
+// Open follow-up actions assigned to a person (by name) — the For You inbox.
+export async function getActionsAssignedTo(
+  assignee: string,
+  centerId?: string | null,
+): Promise<ActionListItem[]> {
+  await sweepOverdueActions(centerId);
+
+  const actions = await db.followUpAction.findMany({
+    where: {
+      assignedTo: assignee,
+      status: { not: "Complete" },
+      ...(centerId ? { incident: { centerId } } : {}),
+    },
+    include: actionInclude,
+    orderBy: [{ dueDate: "asc" }],
+  });
+
+  return actions.map(toActionListItem);
+}
+
+// Draft incidents a user reported but hasn't submitted yet — the For You inbox.
+export async function getMyIncidentDrafts(
+  userId: string,
+  centerId?: string | null,
+): Promise<IncidentListItem[]> {
+  const incidents = await db.incident.findMany({
+    where: {
+      reportedById: userId,
+      status: "Draft",
+      ...(centerId ? { centerId } : {}),
+    },
+    include: listInclude,
+    orderBy: { occurredAt: "desc" },
+  });
+  return incidents.map(toListItem);
 }
 
 // ─── Location options for the incident form's cascading pickers ─────────────
