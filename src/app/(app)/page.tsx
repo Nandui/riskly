@@ -6,10 +6,10 @@ import {
   ListChecks,
   Siren,
   Send,
-  ArrowRight,
   CheckCircle2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
 import { AssessmentTable } from "@/components/assessments/assessment-table";
 import { ActionsOverviewTable } from "@/components/incidents/actions-overview-table";
@@ -44,16 +44,14 @@ function SectionHeading({
   icon: Icon,
   title,
   count,
-  tone = "default",
 }: {
   icon: typeof CircleAlert;
   title: string;
   count: number;
-  tone?: "default" | "critical";
 }) {
   return (
     <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-      <Icon className={cn("size-4", tone === "critical" ? "text-critical" : "text-medium")} />
+      <Icon className="size-4 text-muted-foreground" />
       {title}
       <span className="font-normal tnum text-muted-foreground">{count}</span>
     </h2>
@@ -89,6 +87,7 @@ export default async function ForYouPage() {
     needsAction.length +
     myActions.length +
     myDrafts.length;
+  const hasAnything = pending > 0 || (canRequest && myRequests.length > 0);
 
   const firstName = (me.name ?? me.email ?? "there").split(/[\s@.]+/)[0];
 
@@ -99,50 +98,56 @@ export default async function ForYouPage() {
         title="For you"
         description="Everything waiting on you across risk assessments and incidents."
         actions={
-          <>
-            {canReport && (
-              <Link href="/incidents/new" className={buttonClasses()}>
-                <Plus className="size-4" /> Report incident
-              </Link>
-            )}
-            {canEdit && (
-              <Link
-                href="/assessments/new"
-                className={buttonClasses({ variant: "secondary" })}
-              >
-                <Plus className="size-4" /> New assessment
-              </Link>
-            )}
-          </>
+          canReport || canEdit ? (
+            <>
+              {canReport && (
+                <Link href="/incidents/new" className={buttonClasses()}>
+                  <Plus className="size-4" /> Report incident
+                </Link>
+              )}
+              {canEdit && (
+                <Link
+                  href="/assessments/new"
+                  className={buttonClasses({ variant: "secondary" })}
+                >
+                  <Plus className="size-4" /> New assessment
+                </Link>
+              )}
+            </>
+          ) : undefined
         }
       />
 
-      {pending === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-[var(--radius-card)] border border-dashed border-line-strong bg-surface/60 px-6 py-12 text-center">
-          <div className="mb-3 flex size-11 items-center justify-center rounded-full bg-low-bg text-low">
-            <CheckCircle2 className="size-5" />
-          </div>
-          <h3 className="text-base font-semibold text-ink">
-            You&apos;re all caught up, {firstName}
-          </h3>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Nothing needs your attention right now. Report an incident or check
-            the dashboards to stay ahead.
-          </p>
-          <div className="mt-5 flex flex-wrap justify-center gap-2">
-            {canReport && (
-              <Link href="/incidents/new" className={buttonClasses({ variant: "secondary" })}>
-                Report incident
+      {!hasAnything && (
+        <EmptyState
+          icon={CheckCircle2}
+          title={`You're all caught up, ${firstName}`}
+          description="Nothing needs your attention right now. Report an incident or check the dashboards to stay ahead."
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              {canReport && (
+                <Link
+                  href="/incidents/new"
+                  className={buttonClasses({ variant: "secondary" })}
+                >
+                  Report incident
+                </Link>
+              )}
+              <Link
+                href="/overview"
+                className={buttonClasses({ variant: "secondary" })}
+              >
+                Risk overview
               </Link>
-            )}
-            <Link href="/overview" className={buttonClasses({ variant: "secondary" })}>
-              Risk overview
-            </Link>
-            <Link href="/incidents" className={buttonClasses({ variant: "secondary" })}>
-              Incidents overview
-            </Link>
-          </div>
-        </div>
+              <Link
+                href="/incidents"
+                className={buttonClasses({ variant: "secondary" })}
+              >
+                Incidents overview
+              </Link>
+            </div>
+          }
+        />
       )}
 
       {awaitingApproval.length > 0 && (
@@ -180,7 +185,6 @@ export default async function ForYouPage() {
             icon={ListChecks}
             title="Your follow-up actions"
             count={myActions.length}
-            tone={overdueActions > 0 ? "critical" : "default"}
           />
           <p className="text-sm text-muted-foreground">
             Incident follow-up actions assigned to you
@@ -256,17 +260,6 @@ export default async function ForYouPage() {
             </ul>
           </div>
         </section>
-      )}
-
-      {pending > 0 && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          <Link href="/overview" className="inline-flex items-center gap-1 text-primary hover:underline">
-            Risk overview <ArrowRight className="size-3.5" />
-          </Link>
-          <Link href="/incidents" className="inline-flex items-center gap-1 text-primary hover:underline">
-            Incidents overview <ArrowRight className="size-3.5" />
-          </Link>
-        </div>
       )}
     </div>
   );
