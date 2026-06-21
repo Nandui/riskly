@@ -185,6 +185,49 @@ export const setActionStatusSchema = z.object({
   status: actionStatusEnum,
 });
 
+// ─── Evidence / information requests (investigation) ─────────────────────────
+
+const evidenceKindEnum = z.enum(["CCTV", "Information"]);
+const evidenceStatusEnum = z.enum(["Requested", "Received", "Reviewed", "Unavailable"]);
+
+// Date-only (the retention deadline is a day, not a precise time).
+const optionalDateOnly = z
+  .union([
+    z
+      .string()
+      .trim()
+      .refine((v) => !v || !Number.isNaN(new Date(v).getTime()), "Enter a valid date"),
+    z.literal(""),
+  ])
+  .optional()
+  .transform((v) => (v ? v : undefined));
+
+export const evidenceRequestFields = z.object({
+  kind: evidenceKindEnum,
+  source: optionalText(200),
+  timeWindow: optionalText(120),
+  detail: optionalText(1000),
+  assignedTo: optionalText(200),
+  retentionDeadline: optionalDateOnly,
+  status: evidenceStatusEnum.default("Requested"),
+  outcomeRef: optionalText(500),
+});
+
+export const addEvidenceRequestSchema = evidenceRequestFields.extend({
+  incidentId: z.string().min(1),
+});
+export const updateEvidenceRequestSchema = evidenceRequestFields.extend({
+  id: z.string().min(1),
+});
+
+export type EvidenceRequestInput = z.infer<typeof evidenceRequestFields>;
+
+// Investigation working-log note (a single free-text field on the incident).
+export const investigationNotesSchema = z.object({
+  incidentId: z.string().min(1),
+  investigationNotes: optionalText(5000).transform((v) => v ?? ""),
+});
+
 // Close-out — the existing dialog posts only incidentId + closureNotes, so the
 // risk-assessment outcome defaults to "NoAction" and the RA fields are optional
 // (backward compatible). Outcomes: link an existing failed-control assessment,

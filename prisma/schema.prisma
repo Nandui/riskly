@@ -288,8 +288,9 @@ model Incident {
   locationDetail  String? // denormalised SubArea name
   description     String // narrative of what happened
   immediateAction String? // what was done at the time
-  evidenceRef     String? // CCTV reference, added during investigation
+  evidenceRef     String? // CCTV reference, added during investigation (legacy single-ref; superseded by EvidenceRequest)
   photoUrl        String? // optional capture photo (private Vercel Blob URL)
+  investigationNotes String? // free-text investigation working log, added during the investigation
   reportedBy      String // name (or email) of the person the report is attributed to
   reportedById    String? // loose link to User.id (no FK; deleting a user keeps the name)
   witnessCount    Int       @default(0) // denormalised for display
@@ -376,6 +377,7 @@ model Incident {
   injuredParties     InjuredParty[]
   followUpActions    FollowUpAction[]
   riskAssessmentLinks IncidentRiskAssessmentLink[]
+  evidenceRequests   EvidenceRequest[]
 
   @@index([centerId])
   @@index([status])
@@ -449,6 +451,32 @@ model InjuredParty {
   updatedAt        DateTime  @updatedAt
 
   @@index([incidentId])
+}
+
+// A tracked evidence / information request raised during an investigation — most
+// often "pull CCTV from camera X around HH:MM" (before footage is overwritten),
+// or "ask person Y for a statement / detail". First-class so its status and
+// outcome are followed, not lost in a single free-text field.
+model EvidenceRequest {
+  id                String    @id @default(cuid())
+  incidentId        String
+  incident          Incident  @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  kind              String // CCTV | Information
+  source            String? // camera / area (CCTV), or who/where the info is requested from
+  timeWindow        String? // CCTV time window, free text e.g. "12:40–12:50"
+  detail            String? // what is being asked for
+  assignedTo        String? // who is pulling / answering it (free-text name)
+  retentionDeadline DateTime? // CCTV: pull before this date (footage overwrite); also a generic due date
+  status            String    @default("Requested") // Requested | Received | Unavailable | Reviewed
+  outcomeRef        String? // clip reference / where stored, or the answer to an info request
+  requestedBy       String? // name of who raised it
+  requestedById     String? // loose link to User.id, no FK
+  resolvedAt        DateTime? // set when status leaves "Requested"
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([incidentId])
+  @@index([status])
 }
 
 // A corrective / preventive action raised during an incident investigation.

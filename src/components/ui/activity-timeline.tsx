@@ -9,6 +9,9 @@ import {
   CheckCheck,
   ListPlus,
   Trash2,
+  Send,
+  ClipboardCheck,
+  Lock,
   Dot,
   type LucideIcon,
 } from "lucide-react";
@@ -27,6 +30,11 @@ const ACTION_META: Record<string, { label: string; Icon: LucideIcon }> = {
   review_requested: { label: "Review requested", Icon: MessageSquarePlus },
   review_request_resolved: { label: "Review request resolved", Icon: CheckCheck },
   deleted: { label: "Deleted", Icon: Trash2 },
+  // Incident lifecycle
+  reported: { label: "Reported", Icon: Send },
+  triaged: { label: "Triaged", Icon: ClipboardCheck },
+  closed: { label: "Closed", Icon: Lock },
+  reopened: { label: "Re-opened", Icon: Undo2 },
 };
 
 export interface ActivityItem {

@@ -1,6 +1,8 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Plus, Trash2, TriangleAlert } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,6 +88,7 @@ export function IncidentForm({
   defaultValues,
   isAdmin,
   reporterOptions = [],
+  onSaved,
 }: {
   mode: "create" | "edit";
   centers: CenterSummary[];
@@ -93,12 +96,25 @@ export function IncidentForm({
   defaultValues: DefaultValues;
   isAdmin: boolean;
   reporterOptions?: UserOption[];
+  // Edit mode no longer redirects — let the host (e.g. an inline dialog) react.
+  onSaved?: () => void;
 }) {
   const action = mode === "create" ? createIncident : updateIncident;
   const [state, formAction, pending] = useActionState<FormState, FormData>(
     action,
     null,
   );
+  const router = useRouter();
+
+  // createIncident still redirects on success; updateIncident now revalidates in
+  // place, so the edit host closes + refreshes here.
+  useEffect(() => {
+    if (mode === "edit" && state?.ok) {
+      toast.success("Incident updated.");
+      router.refresh();
+      onSaved?.();
+    }
+  }, [state, mode, router, onSaved]);
 
   const [centerId, setCenterId] = useState(defaultValues.centerId);
   const [areaId, setAreaId] = useState(defaultValues.areaId);

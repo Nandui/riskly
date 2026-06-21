@@ -9,8 +9,10 @@ import { fieldErrorsFromZod, emptyToNull, type FormState } from "@/lib/form";
 import { generateIncidentReference } from "@/lib/incidents/reference";
 import { recordAudit } from "@/lib/audit";
 import { findSubjectAssessment, nextReference } from "@/lib/data/assessments";
+import { moduleFor, typeHasResponseBlock } from "@/lib/incidents/type-modules";
 import { computeNextReviewDate } from "@/lib/utils";
 import {
+  addEvidenceRequestSchema,
   addFollowUpActionSchema,
   addInjuredPartySchema,
   addWitnessSchema,
@@ -18,7 +20,9 @@ import {
   incidentDraftSchema,
   incidentFullSchema,
   incidentUpdateSchema,
+  investigationNotesSchema,
   setActionStatusSchema,
+  updateEvidenceRequestSchema,
   updateFollowUpActionSchema,
   updateInjuredPartySchema,
   updateWitnessSchema,
@@ -477,8 +481,266 @@ export async function updateIncident(
     return { ok: false, error: "Could not update the incident." };
   }
 
+  // Edited inline on the incident workspace — revalidate in place rather than
+  // redirecting (the old /edit page that relied on the redirect is retired).
   revalidateIncidents(d.id);
-  redirect(`/incidents/${d.id}`);
+  return { ok: true };
+}
+
+// ─── Type-specific module fields (edit) ─────────────────────────────────────
+
+// Which incident columns each module's editor renders. A module-edit writes
+// ONLY the current type's columns, so it never nulls another module's data
+// (matters for a reclassified or imported record that carries cross-type data)
+// and never touches legacy / triage-set fields.
+const MODULE_FIELD_KEYS: Record<string, string[]> = {
+  accident: ["mechanism"],
+  aquatic: [
+    "aquaticRescueType",
+    "eapLevel",
+    "lifeguardsOnDuty",
+    "timeInDifficulty",
+    "spinalManagement",
+    "secondaryDrowningAdvice",
+  ],
+  medical: ["presentingCondition", "conscious", "breathing", "casualtyHandover"],
+  facility: [
+    "afr",
+    "freeChlorine",
+    "combinedChlorine",
+    "ph",
+    "correctiveDosing",
+    "closureStart",
+    "closureEnd",
+    "samplesSent",
+  ],
+  security: ["crimeReference", "gardaiNotified", "ejection"],
+  missingChild: [
+    "timeToLocateMins",
+    "childAgeBand",
+    "foundLocationClass",
+    "proximityToWaterWhenFound",
+    "missingChildResolution",
+    "poolsCleared",
+    "responseActions",
+    "waterSearchInitiated",
+    "lockdownInitiated",
+    "emergencyServicesCalled",
+  ],
+};
+const RESPONSE_FIELD_KEYS = ["ambulanceCalled", "aedUsed", "cprGiven", "firstAidBy"];
+
+// Edit the captured per-type detail (mechanism, water chemistry, missing-child
+// facts, …) after creation. Reuses IncidentModuleFields; only the incident's
+// own type's columns are written. Triage-set fields are untouched.
+export async function updateIncidentModules(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const denied = await denyUnless("manageIncidents");
+  if (denied) return denied;
+
+  const incidentId = String(formData.get("incidentId") ?? "");
+  if (!incidentId) return { ok: false, error: "Missing incident." };
+
+  const existing = await db.incident.findUnique({
+    where: { id: incidentId },
+    select: { id: true, type: true },
+  });
+  if (!existing) return { ok: false, error: "Incident not found." };
+
+  // Restrict the write to the columns this type's editor actually renders.
+  const allowed = new Set<string>();
+  for (const m of moduleFor(existing.type).modules) {
+    for (const k of MODULE_FIELD_KEYS[m] ?? []) allowed.add(k);
+  }
+  if (typeHasResponseBlock(existing.type)) {
+    for (const k of RESPONSE_FIELD_KEYS) allowed.add(k);
+  }
+
+  const parsed = incidentModuleData(formData) as Record<string, unknown>;
+  const data: Record<string, unknown> = {};
+  for (const k of allowed) data[k] = parsed[k] ?? null;
+
+  try {
+    await db.incident.update({
+      where: { id: incidentId },
+      data: data as Prisma.IncidentUpdateInput,
+    });
+  } catch (error) {
+    console.error("updateIncidentModules failed", error);
+    return { ok: false, error: "Could not update the details." };
+  }
+
+  revalidateIncidents(incidentId);
+  return { ok: true };
+}
+
+// ─── Investigation working-log note ─────────────────────────────────────────
+
+export async function updateInvestigationNotes(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const denied = await denyUnless("manageIncidents");
+  if (denied) return denied;
+
+  const parsed = investigationNotesSchema.safeParse({
+    incidentId: formData.get("incidentId"),
+    investigationNotes: formData.get("investigationNotes") ?? "",
+  });
+  if (!parsed.success) return invalidForm(parsed.error);
+  const { incidentId, investigationNotes } = parsed.data;
+
+  const existing = await db.incident.findUnique({
+    where: { id: incidentId },
+    select: { id: true },
+  });
+  if (!existing) return { ok: false, error: "Incident not found." };
+
+  await db.incident.update({
+    where: { id: incidentId },
+    data: { investigationNotes: investigationNotes || null },
+  });
+  revalidateIncidents(incidentId);
+  return { ok: true };
+}
+
+// ─── Capture / investigation photo ──────────────────────────────────────────
+
+// Attach (or replace / clear with null) the single private-blob photo. The blob
+// itself is uploaded browser-side via /api/incidents/blob-upload; this just
+// stores the resulting URL.
+export async function setIncidentPhoto(
+  incidentId: string,
+  photoUrl: string | null,
+): Promise<FormState> {
+  const denied = await denyUnless("manageIncidents");
+  if (denied) return denied;
+
+  if (photoUrl != null && (typeof photoUrl !== "string" || photoUrl.length > 600)) {
+    return { ok: false, error: "Invalid photo reference." };
+  }
+
+  const existing = await db.incident.findUnique({
+    where: { id: incidentId },
+    select: { id: true },
+  });
+  if (!existing) return { ok: false, error: "Incident not found." };
+
+  await db.incident.update({
+    where: { id: incidentId },
+    data: { photoUrl: photoUrl || null },
+  });
+  revalidateIncidents(incidentId);
+  return { ok: true };
+}
+
+// ─── Evidence / information requests ─────────────────────────────────────────
+
+// A request is "resolved" once it leaves the Requested state.
+function evidenceResolvedAt(status: string): Date | null {
+  return status === "Requested" ? null : new Date();
+}
+
+export async function addEvidenceRequest(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const denied = await denyUnless("manageIncidents");
+  if (denied) return denied;
+
+  const parsed = addEvidenceRequestSchema.safeParse({
+    incidentId: formData.get("incidentId"),
+    kind: formData.get("kind"),
+    source: formData.get("source") ?? undefined,
+    timeWindow: formData.get("timeWindow") ?? undefined,
+    detail: formData.get("detail") ?? undefined,
+    assignedTo: formData.get("assignedTo") ?? undefined,
+    retentionDeadline: formData.get("retentionDeadline") ?? undefined,
+    status: formData.get("status") ?? undefined,
+    outcomeRef: formData.get("outcomeRef") ?? undefined,
+  });
+  if (!parsed.success) return invalidForm(parsed.error);
+  const { incidentId, retentionDeadline, status, ...rest } = parsed.data;
+
+  const user = await getCurrentUser();
+  await db.evidenceRequest.create({
+    data: {
+      incidentId,
+      ...rest,
+      status,
+      // An outcome only makes sense once it's left the "Requested" state.
+      outcomeRef: status === "Requested" ? null : (rest.outcomeRef ?? null),
+      retentionDeadline: retentionDeadline ? new Date(retentionDeadline) : null,
+      resolvedAt: evidenceResolvedAt(status),
+      requestedBy: user?.name ?? user?.email ?? null,
+      requestedById: user?.id ?? null,
+    },
+  });
+  revalidateIncidents(incidentId);
+  return { ok: true };
+}
+
+export async function updateEvidenceRequest(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const denied = await denyUnless("manageIncidents");
+  if (denied) return denied;
+
+  const parsed = updateEvidenceRequestSchema.safeParse({
+    id: formData.get("id"),
+    kind: formData.get("kind"),
+    source: formData.get("source") ?? undefined,
+    timeWindow: formData.get("timeWindow") ?? undefined,
+    detail: formData.get("detail") ?? undefined,
+    assignedTo: formData.get("assignedTo") ?? undefined,
+    retentionDeadline: formData.get("retentionDeadline") ?? undefined,
+    status: formData.get("status") ?? undefined,
+    outcomeRef: formData.get("outcomeRef") ?? undefined,
+  });
+  if (!parsed.success) return invalidForm(parsed.error);
+  const { id, retentionDeadline, status, ...rest } = parsed.data;
+
+  const existing = await db.evidenceRequest.findUnique({
+    where: { id },
+    select: { incidentId: true, resolvedAt: true },
+  });
+  if (!existing) return { ok: false, error: "Request not found." };
+
+  await db.evidenceRequest.update({
+    where: { id },
+    data: {
+      ...rest,
+      status,
+      // An outcome only makes sense once it's left the "Requested" state.
+      outcomeRef: status === "Requested" ? null : (rest.outcomeRef ?? null),
+      // A time window only applies to CCTV — clear it if switched to info.
+      timeWindow: rest.kind === "CCTV" ? (rest.timeWindow ?? null) : null,
+      retentionDeadline: retentionDeadline ? new Date(retentionDeadline) : null,
+      // Keep the original resolved timestamp if it was already resolved.
+      resolvedAt:
+        status === "Requested" ? null : (existing.resolvedAt ?? new Date()),
+    },
+  });
+  revalidateIncidents(existing.incidentId);
+  return { ok: true };
+}
+
+export async function deleteEvidenceRequest(id: string): Promise<FormState> {
+  const denied = await denyUnless("manageIncidents");
+  if (denied) return denied;
+
+  const existing = await db.evidenceRequest.findUnique({
+    where: { id },
+    select: { incidentId: true },
+  });
+  if (!existing) return { ok: false, error: "Request not found." };
+
+  await db.evidenceRequest.delete({ where: { id } });
+  revalidateIncidents(existing.incidentId);
+  return { ok: true };
 }
 
 // ─── Lifecycle ──────────────────────────────────────────────────────────────

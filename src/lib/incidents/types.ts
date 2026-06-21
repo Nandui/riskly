@@ -4,13 +4,14 @@
 
 import type {
   Center,
+  EvidenceRequest,
   FollowUpAction,
   Incident,
   InjuredParty,
   Witness,
 } from "@prisma/client";
 
-export type { FollowUpAction, InjuredParty, Witness };
+export type { EvidenceRequest, FollowUpAction, InjuredParty, Witness };
 
 // ─── Incident list (table rows, dashboard panels) ───────────────────────────
 
@@ -40,6 +41,7 @@ export type IncidentDetail = Incident & {
   witnesses: Witness[];
   injuredParties: InjuredParty[];
   followUpActions: FollowUpAction[];
+  evidenceRequests: EvidenceRequest[];
 };
 
 // ─── Location options for the cascading area / sub-area pickers ──────────────

@@ -102,6 +102,7 @@ export const getIncidentDetail = cache(
         witnesses: { orderBy: { createdAt: "asc" } },
         injuredParties: { orderBy: { createdAt: "asc" } },
         followUpActions: { orderBy: { dueDate: "asc" } },
+        evidenceRequests: { orderBy: { createdAt: "asc" } },
       },
     });
   },

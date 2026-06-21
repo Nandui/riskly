@@ -256,6 +256,57 @@ export const ACTIVE_INCIDENT_STATUSES = ["Open", "UnderInvestigation"] as const;
 // "still open" attention metrics. Imported historical records sit here too.
 export const INACTIVE_INCIDENT_STATUSES = ["Closed", "Imported"] as const;
 
+// ─── Evidence / information requests (investigation) ────────────────────────
+
+// A tracked request raised while investigating — pull CCTV before it's
+// overwritten, or ask someone for a statement / detail.
+export const EVIDENCE_REQUEST_KINDS = [
+  { value: "CCTV", label: "CCTV footage" },
+  { value: "Information", label: "Information / statement" },
+] as const;
+
+export type EvidenceRequestKind = (typeof EVIDENCE_REQUEST_KINDS)[number]["value"];
+
+export const EVIDENCE_REQUEST_STATUSES = [
+  { value: "Requested", label: "Requested" },
+  { value: "Received", label: "Received" },
+  { value: "Reviewed", label: "Reviewed" },
+  { value: "Unavailable", label: "Unavailable" },
+] as const;
+
+export type EvidenceRequestStatus =
+  (typeof EVIDENCE_REQUEST_STATUSES)[number]["value"];
+
+// Cool / neutral hues — the risk (green→red) palette stays reserved for severity.
+export const EVIDENCE_REQUEST_STATUS_META: Record<
+  string,
+  { label: string; pill: string; dot: string }
+> = {
+  Requested: {
+    label: "Requested",
+    pill: "bg-amber-50 text-amber-700 border border-amber-200",
+    dot: "bg-amber-500",
+  },
+  Received: {
+    label: "Received",
+    pill: "bg-blue-50 text-blue-700 border border-blue-200",
+    dot: "bg-blue-500",
+  },
+  Reviewed: {
+    label: "Reviewed",
+    pill: "bg-slate-100 text-slate-600 border border-slate-200",
+    dot: "bg-slate-400",
+  },
+  Unavailable: {
+    label: "Unavailable",
+    pill: "bg-rose-50 text-rose-700 border border-rose-200",
+    dot: "bg-rose-400",
+  },
+};
+
+// Statuses where a request is still outstanding (footage not yet secured).
+export const OPEN_EVIDENCE_REQUEST_STATUSES = ["Requested"] as const;
+
 // ─── Close-out risk-assessment link ─────────────────────────────────────────
 
 // How a closed incident relates to a risk assessment (see the 3 outcomes).
