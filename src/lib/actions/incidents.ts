@@ -7,6 +7,10 @@ import { db } from "@/lib/db";
 import { getCurrentUser, can, denyUnless, type CurrentUser } from "@/lib/auth";
 import { fieldErrorsFromZod, emptyToNull, type FormState } from "@/lib/form";
 import { generateIncidentReference } from "@/lib/incidents/reference";
+import { clampRating } from "@/lib/risk";
+import { recordAudit } from "@/lib/audit";
+import { findSubjectAssessment, nextReference } from "@/lib/data/assessments";
+import { computeNextReviewDate } from "@/lib/utils";
 import {
   addFollowUpActionSchema,
   addInjuredPartySchema,
@@ -16,6 +20,7 @@ import {
   incidentFullSchema,
   incidentUpdateSchema,
   setActionStatusSchema,
+  triageIncidentSchema,
   updateFollowUpActionSchema,
   updateInjuredPartySchema,
   updateWitnessSchema,
@@ -40,6 +45,75 @@ function parseJsonArray(formData: FormData, key: string): unknown {
     }
   }
   return [];
+}
+
+// ─── Per-type module fields (Phase 2) ───────────────────────────────────────
+// Read straight from the form. Only the selected type's module section renders,
+// so fields for other types simply aren't posted (→ null). Checkbox unchecked
+// also posts nothing (→ null = "not indicated").
+
+function mStr(formData: FormData, k: string): string | null {
+  const v = formData.get(k);
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+function mBool(formData: FormData, k: string): boolean | null {
+  const v = formData.get(k);
+  if (v == null) return null;
+  return v === "on" || v === "true" || v === "yes";
+}
+function mInt(formData: FormData, k: string): number | null {
+  const v = formData.get(k);
+  if (typeof v !== "string" || !v.trim()) return null;
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : null;
+}
+function mFloat(formData: FormData, k: string): number | null {
+  const v = formData.get(k);
+  if (typeof v !== "string" || !v.trim()) return null;
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : null;
+}
+function mDate(formData: FormData, k: string): Date | null {
+  const v = formData.get(k);
+  if (typeof v !== "string" || !v.trim()) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function incidentModuleData(formData: FormData) {
+  return {
+    // Emergency response
+    ambulanceCalled: mBool(formData, "ambulanceCalled"),
+    aedUsed: mBool(formData, "aedUsed"),
+    cprGiven: mBool(formData, "cprGiven"),
+    // Accident
+    mechanism: mStr(formData, "mechanism"),
+    // Aquatic
+    aquaticRescueType: mStr(formData, "aquaticRescueType"),
+    eapLevel: mStr(formData, "eapLevel"),
+    lifeguardsOnDuty: mInt(formData, "lifeguardsOnDuty"),
+    timeInDifficulty: mStr(formData, "timeInDifficulty"),
+    spinalManagement: mBool(formData, "spinalManagement"),
+    secondaryDrowningAdvice: mStr(formData, "secondaryDrowningAdvice"),
+    // Medical
+    presentingCondition: mStr(formData, "presentingCondition"),
+    conscious: mStr(formData, "conscious"),
+    breathing: mStr(formData, "breathing"),
+    casualtyHandover: mStr(formData, "casualtyHandover"),
+    // Facility / water
+    afr: mBool(formData, "afr"),
+    freeChlorine: mFloat(formData, "freeChlorine"),
+    combinedChlorine: mFloat(formData, "combinedChlorine"),
+    ph: mFloat(formData, "ph"),
+    correctiveDosing: mStr(formData, "correctiveDosing"),
+    closureStart: mDate(formData, "closureStart"),
+    closureEnd: mDate(formData, "closureEnd"),
+    samplesSent: mBool(formData, "samplesSent"),
+    // Security
+    crimeReference: mStr(formData, "crimeReference"),
+    gardaiNotified: mBool(formData, "gardaiNotified"),
+    ejection: mBool(formData, "ejection"),
+  };
 }
 
 function invalidForm(
@@ -210,6 +284,7 @@ export async function createIncident(
     type: formData.get("type"),
     severity: formData.get("severity"),
     occurredAt: formData.get("occurredAt"),
+    reportedAt: formData.get("reportedAt") ?? undefined,
     areaId: formData.get("areaId"),
     subAreaId: formData.get("subAreaId") ?? "",
     description: formData.get("description") ?? "",
@@ -237,14 +312,23 @@ export async function createIncident(
     try {
       const incident = await db.$transaction(async (tx) => {
         const reference = await generateIncidentReference(d.centerId, tx);
+        // Submitted reports land in the triage queue; a manager confirms the
+        // classification and dual severity before investigation. reportedAt is
+        // stamped at submit (drafts have none until submitted).
         return tx.incident.create({
           data: {
             centerId: d.centerId,
             reference,
             type: d.type,
-            status: isDraft ? "Draft" : "Open",
+            status: isDraft ? "Draft" : "AwaitingTriage",
             severity: d.severity,
             occurredAt: new Date(d.occurredAt),
+            reportedAt: isDraft
+              ? null
+              : d.reportedAt
+                ? new Date(d.reportedAt)
+                : new Date(),
+            ...incidentModuleData(formData),
             areaId: d.areaId,
             subAreaId: loc.subAreaId,
             location: loc.location,
@@ -369,7 +453,7 @@ export async function submitDraft(incidentId: string): Promise<FormState> {
 
   const incident = await db.incident.findUnique({
     where: { id: incidentId },
-    select: { id: true, status: true, description: true, location: true },
+    select: { id: true, status: true, type: true, description: true, location: true },
   });
   if (!incident) return { ok: false, error: "Incident not found." };
   if (incident.status !== "Draft") {
@@ -382,8 +466,71 @@ export async function submitDraft(incidentId: string): Promise<FormState> {
     return { ok: false, error: "A location is required before submitting." };
   }
 
-  await db.incident.update({ where: { id: incidentId }, data: { status: "Open" } });
+  await db.incident.update({
+    where: { id: incidentId },
+    data: { status: "AwaitingTriage", reportedAt: new Date() },
+  });
   revalidateIncidents(incidentId);
+  return { ok: true };
+}
+
+// Triage (admin / investigateIncidents): confirm the type + actual-outcome
+// severity, rate the POTENTIAL risk on the 5×5, capture the module fields, and
+// move the report out of the awaiting-triage queue into Open.
+export async function triageIncident(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const denied = await denyUnless("investigateIncidents");
+  if (denied) return denied;
+
+  const parsed = triageIncidentSchema.safeParse({
+    incidentId: formData.get("incidentId"),
+    type: formData.get("type"),
+    severity: formData.get("severity"),
+    potentialLikelihood: formData.get("potentialLikelihood"),
+    potentialConsequence: formData.get("potentialConsequence"),
+    hazardCategory: formData.get("hazardCategory") ?? undefined,
+    definedDangerousOccurrence: formData.get("definedDangerousOccurrence") ?? undefined,
+    hsaReportable: formData.get("hsaReportable") ?? undefined,
+  });
+  if (!parsed.success) {
+    return invalidForm(parsed.error);
+  }
+  const d = parsed.data;
+
+  const user = await getCurrentUser();
+  const incident = await db.incident.findUnique({
+    where: { id: d.incidentId },
+    select: { status: true },
+  });
+  if (!incident) return { ok: false, error: "Incident not found." };
+  if (incident.status !== "AwaitingTriage") {
+    return { ok: false, error: "Only reports awaiting triage can be triaged." };
+  }
+
+  await db.incident.update({
+    where: { id: d.incidentId },
+    data: {
+      status: "Open",
+      type: d.type,
+      severity: d.severity,
+      potentialLikelihood: clampRating(d.potentialLikelihood),
+      potentialConsequence: clampRating(d.potentialConsequence),
+      hazardCategory: d.hazardCategory || null,
+      definedDoType:
+        d.type === "DangerousOccurrence"
+          ? (d.definedDangerousOccurrence ?? false)
+          : null,
+      // Advisory HSA-reportable indicator — a recorded human decision, never an
+      // automatic legal determination.
+      hsaReportable: d.hsaReportable ?? false,
+      triageStatus: "Triaged",
+      triagedAt: new Date(),
+      triagedBy: user?.name ?? user?.email ?? null,
+    },
+  });
+  revalidateIncidents(d.incidentId);
   return { ok: true };
 }
 
@@ -421,6 +568,9 @@ export async function closeIncident(
   const parsed = closeIncidentSchema.safeParse({
     incidentId: formData.get("incidentId"),
     closureNotes: formData.get("closureNotes"),
+    closureOutcome: formData.get("closureOutcome") ?? undefined,
+    riskAssessmentId: formData.get("riskAssessmentId") ?? undefined,
+    reviewNotes: formData.get("reviewNotes") ?? undefined,
   });
   if (!parsed.success) {
     return invalidForm(parsed.error);
@@ -430,7 +580,14 @@ export async function closeIncident(
   const user = await getCurrentUser();
   const incident = await db.incident.findUnique({
     where: { id: d.incidentId },
-    select: { status: true, followUpActions: { select: { status: true } } },
+    select: {
+      status: true,
+      reference: true,
+      centerId: true,
+      areaId: true,
+      description: true,
+      followUpActions: { select: { status: true } },
+    },
   });
   if (!incident) return { ok: false, error: "Incident not found." };
   if (incident.status !== "Open" && incident.status !== "UnderInvestigation") {
@@ -440,6 +597,101 @@ export async function closeIncident(
     return { ok: false, error: "All follow-up actions must be complete before closing." };
   }
 
+  // Resolve the risk-assessment outcome BEFORE closing, so a failure never
+  // leaves a half-closed incident. The link is a first-class row, so it
+  // survives reopen.
+  let raLink:
+    | { assessmentId: string; linkType: string; reviewRequestId: string | null; note: string | null }
+    | null = null;
+  let triageStatusUpdate: string | undefined;
+
+  if (d.closureOutcome === "LinkExisting") {
+    if (!can(user, "requestReview")) {
+      return { ok: false, error: "You don't have permission to raise a review request." };
+    }
+    const ra = await db.riskAssessment.findFirst({
+      where: { id: d.riskAssessmentId!, centerId: incident.centerId },
+      select: { id: true },
+    });
+    if (!ra) return { ok: false, error: "Choose an assessment from this centre." };
+    const review = await db.reviewRequest.create({
+      data: {
+        assessmentId: ra.id,
+        requestedById: user!.id,
+        notes:
+          d.reviewNotes ||
+          `Raised from incident ${incident.reference} close-out — a control linked to this assessment failed.`,
+        sourceIncidentId: d.incidentId,
+      },
+    });
+    raLink = { assessmentId: ra.id, linkType: "ControlFailureReview", reviewRequestId: review.id, note: d.reviewNotes || null };
+    triageStatusUpdate = "ReferredToRA";
+    await recordAudit(ra.id, user, "review_requested", `From incident ${incident.reference}`);
+  } else if (d.closureOutcome === "SpawnDraft") {
+    if (!can(user, "editContent")) {
+      return { ok: false, error: "You don't have permission to create an assessment." };
+    }
+    if (!incident.areaId) {
+      return {
+        ok: false,
+        error: "This incident has no area, so a new area assessment can't be seeded. Link an existing assessment instead.",
+      };
+    }
+    // Don't create a duplicate Area assessment — each area is 1:1 with one.
+    const existing = await findSubjectAssessment("Area", incident.areaId);
+    if (existing) {
+      const review = await db.reviewRequest.create({
+        data: {
+          assessmentId: existing.id,
+          requestedById: user!.id,
+          notes:
+            d.reviewNotes ||
+            `Raised from incident ${incident.reference} close-out — this area already has an assessment to review.`,
+          sourceIncidentId: d.incidentId,
+        },
+      });
+      raLink = { assessmentId: existing.id, linkType: "ControlFailureReview", reviewRequestId: review.id, note: "Linked the area's existing assessment (no duplicate created)." };
+      triageStatusUpdate = "ReferredToRA";
+      await recordAudit(existing.id, user, "review_requested", `From incident ${incident.reference}`);
+    } else {
+      let created: { id: string } | null = null;
+      for (let attempt = 0; attempt < MAX_REFERENCE_RETRIES; attempt++) {
+        try {
+          const reference = await nextReference(incident.centerId);
+          created = await db.riskAssessment.create({
+            data: {
+              reference,
+              centerId: incident.centerId,
+              subjectType: "Area",
+              areaId: incident.areaId,
+              status: "Draft",
+              description: `Seeded from incident ${incident.reference}: ${incident.description.slice(0, 200)}`,
+              nextReviewDate: computeNextReviewDate(new Date(), 12),
+            },
+            select: { id: true },
+          });
+          break;
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002" &&
+            attempt < MAX_REFERENCE_RETRIES - 1
+          ) {
+            continue;
+          }
+          console.error("closeIncident seed-RA failed", error);
+          return { ok: false, error: "Could not seed a new assessment. Please try again." };
+        }
+      }
+      if (!created) {
+        return { ok: false, error: "Could not generate a unique assessment reference. Please try again." };
+      }
+      raLink = { assessmentId: created.id, linkType: "SeededDraft", reviewRequestId: null, note: `Seeded from incident ${incident.reference}` };
+      triageStatusUpdate = "ReferredToRA";
+      await recordAudit(created.id, user, "created", `Seeded from incident ${incident.reference}`);
+    }
+  }
+
   await db.incident.update({
     where: { id: d.incidentId },
     data: {
@@ -447,8 +699,33 @@ export async function closeIncident(
       closedAt: new Date(),
       closedBy: user?.name ?? user?.email ?? null,
       closureNotes: d.closureNotes,
+      ...(triageStatusUpdate ? { triageStatus: triageStatusUpdate } : {}),
     },
   });
+
+  if (raLink) {
+    // Upsert so a reopen → re-close with the same assessment doesn't collide
+    // on the (incident, assessment, linkType) unique.
+    await db.incidentRiskAssessmentLink.upsert({
+      where: {
+        incidentId_assessmentId_linkType: {
+          incidentId: d.incidentId,
+          assessmentId: raLink.assessmentId,
+          linkType: raLink.linkType,
+        },
+      },
+      create: {
+        incidentId: d.incidentId,
+        assessmentId: raLink.assessmentId,
+        linkType: raLink.linkType,
+        reviewRequestId: raLink.reviewRequestId,
+        note: raLink.note,
+        createdById: user?.id ?? null,
+      },
+      update: { reviewRequestId: raLink.reviewRequestId, note: raLink.note },
+    });
+  }
+
   revalidateIncidents(d.incidentId);
   return { ok: true };
 }

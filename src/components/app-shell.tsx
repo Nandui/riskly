@@ -12,6 +12,7 @@ import {
   Gauge,
   Siren,
   ListChecks,
+  Hourglass,
   Home,
   Menu,
   X,
@@ -58,6 +59,7 @@ const NAV: { label?: string; items: NavItem[] }[] = [
     items: [
       { href: "/incidents", label: "Overview", icon: Gauge, exact: true, cap: "view" },
       { href: "/incidents/list", label: "All incidents", icon: Siren, cap: "view" },
+      { href: "/incidents/triage", label: "Triage queue", icon: Hourglass, cap: "investigateIncidents" },
       { href: "/incidents/actions", label: "Follow-up actions", icon: ListChecks, cap: "view" },
     ],
   },

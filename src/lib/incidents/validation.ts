@@ -22,16 +22,38 @@ const dateString = z
   .refine((v) => !Number.isNaN(new Date(v).getTime()), "Enter a valid date");
 
 const incidentTypeEnum = z.enum([
+  // Current taxonomy (selectable for new reports)
   "Accident",
   "NearMiss",
+  "DangerousOccurrence",
+  "Aquatic",
+  "Medical",
+  "Security",
+  "Facility",
+  "Other",
+  // Legacy values — tolerated when editing a historical incident, never offered
+  // for a new report (the form's picker only lists the current taxonomy).
   "PropertyDamage",
   "ViolenceAggression",
   "HazardousSubstance",
   "FireOrEvacuation",
-  "Other",
 ]);
 
-const severityEnum = z.enum(["Minor", "Significant", "Reportable", "Critical"]);
+const severityEnum = z.enum(["None", "Minor", "Significant", "Reportable", "Critical"]);
+
+// A 1-5 risk rating (likelihood or consequence), coerced from a form string.
+const ratingInt = z.coerce.number().int().min(1, "Pick 1-5").max(5, "Pick 1-5");
+
+const optionalDateTimeString = z
+  .union([
+    z
+      .string()
+      .trim()
+      .refine((v) => !v || !Number.isNaN(new Date(v).getTime()), "Enter a valid date & time"),
+    z.literal(""),
+  ])
+  .optional()
+  .transform((v) => (v ? v : undefined));
 
 const partyTypeEnum = z.enum([
   "Staff",
@@ -103,6 +125,7 @@ const incidentBase = {
 
 export const incidentFullSchema = z.object({
   ...incidentBase,
+  reportedAt: optionalDateTimeString,
   description: z.string().trim().min(10, "Add a fuller description (at least 10 characters)").max(5000),
   witnesses: z.array(witnessFields).default([]),
   injuredParties: z.array(injuredPartyFields).default([]),
@@ -112,6 +135,7 @@ export const incidentFullSchema = z.object({
 // Drafts only enforce the Section-1 essentials; the narrative can be short/empty.
 export const incidentDraftSchema = z.object({
   ...incidentBase,
+  reportedAt: optionalDateTimeString,
   description: optionalText(5000).transform((v) => v ?? ""),
   witnesses: z.array(witnessFields).default([]),
   injuredParties: z.array(injuredPartyFields).default([]),
@@ -156,10 +180,42 @@ export const setActionStatusSchema = z.object({
   status: actionStatusEnum,
 });
 
-export const closeIncidentSchema = z.object({
+// Triage: a manager confirms the type + actual-outcome severity and rates the
+// POTENTIAL risk on the 5×5 (likelihood × consequence), plus the module fields.
+export const triageIncidentSchema = z.object({
   incidentId: z.string().min(1),
-  closureNotes: z.string().trim().min(1, "Add a closing note").max(2000),
+  type: incidentTypeEnum,
+  severity: severityEnum,
+  potentialLikelihood: ratingInt,
+  potentialConsequence: ratingInt,
+  hazardCategory: optionalText(40),
+  definedDangerousOccurrence: z.coerce.boolean().optional(),
+  hsaReportable: z.coerce.boolean().optional(),
 });
+
+export type TriageIncidentInput = z.infer<typeof triageIncidentSchema>;
+
+// Close-out — the existing dialog posts only incidentId + closureNotes, so the
+// risk-assessment outcome defaults to "NoAction" and the RA fields are optional
+// (backward compatible). Outcomes: link an existing failed-control assessment,
+// or seed a new Draft assessment.
+export const closeIncidentSchema = z
+  .object({
+    incidentId: z.string().min(1),
+    closureNotes: z.string().trim().min(1, "Add a closing note").max(2000),
+    closureOutcome: z.enum(["NoAction", "LinkExisting", "SpawnDraft"]).default("NoAction"),
+    riskAssessmentId: z.string().min(1).optional(),
+    reviewNotes: optionalText(2000),
+  })
+  .superRefine((v, ctx) => {
+    if (v.closureOutcome === "LinkExisting" && !v.riskAssessmentId) {
+      ctx.addIssue({
+        path: ["riskAssessmentId"],
+        code: z.ZodIssueCode.custom,
+        message: "Choose the assessment whose control failed.",
+      });
+    }
+  });
 
 // Sub-area admin (area uses the shared taxonomySchema in src/lib/validation.ts).
 export const subAreaSchema = z.object({

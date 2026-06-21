@@ -14,6 +14,7 @@ import type { DistributionItem } from "@/lib/incidents/types";
 // Colour each severity bar with the risk palette (semantic — same hues the rest
 // of Riskly uses for risk bands and incident severity pills).
 const SEVERITY_COLOR: Record<string, string> = {
+  None: "var(--color-faint)", // no harm — neutral, below the risk palette
   Minor: "var(--color-low)",
   Significant: "var(--color-medium)",
   Reportable: "var(--color-high)",

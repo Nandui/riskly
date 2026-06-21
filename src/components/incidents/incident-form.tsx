@@ -8,10 +8,14 @@ import { Field, Input, Textarea, Select, Label } from "@/components/ui/form";
 import { createIncident, updateIncident } from "@/lib/actions/incidents";
 import {
   INCIDENT_SEVERITIES,
+  INCIDENT_SEVERITY_META,
   INCIDENT_TYPES,
+  INCIDENT_TYPE_META,
   INJURED_PARTY_TYPES,
   TREATMENTS,
 } from "@/lib/incidents/constants";
+import { moduleFor } from "@/lib/incidents/type-modules";
+import { IncidentModuleFields } from "@/components/incidents/incident-module-fields";
 import type { FormState } from "@/lib/form";
 import type { AreaOption, UserOption } from "@/lib/incidents/types";
 import type { CenterSummary } from "@/lib/center-shared";
@@ -98,11 +102,37 @@ export function IncidentForm({
   const [centerId, setCenterId] = useState(defaultValues.centerId);
   const [areaId, setAreaId] = useState(defaultValues.areaId);
   const [subAreaId, setSubAreaId] = useState(defaultValues.subAreaId);
+  const [type, setType] = useState(defaultValues.type);
 
   const [witnesses, setWitnesses] = useState<WitnessItem[]>([]);
   const [injured, setInjured] = useState<InjuredItem[]>([]);
 
   const fieldErr = (key: string) => state?.fieldErrors?.[key];
+
+  // The selected type drives which capture sections show. Near-miss /
+  // Dangerous-occurrence reports don't ask for an injured party.
+  const sections = moduleFor(type).sections;
+  const showInjured = sections.includes("injured");
+  const showWitnesses = sections.includes("witnesses");
+
+  // Severity at intake is the *actual outcome*. Types with no inherent personal
+  // injury (near miss, dangerous occurrence, facility) don't ask the reporter
+  // for an outcome severity — the meaningful rating is potential risk, set by a
+  // manager at triage. Only in create mode; editing always shows the field.
+  const severityRatedAtTriage = mode === "create" && !moduleFor(type).outcomeAtIntake;
+
+  // New reports only offer the current taxonomy; when editing a historical
+  // incident whose type is a legacy value, keep it as an option so saving
+  // without touching it never silently reclassifies the record.
+  const typeOptions = INCIDENT_TYPES.some((t) => t.value === defaultValues.type)
+    ? [...INCIDENT_TYPES]
+    : [
+        {
+          value: defaultValues.type,
+          label: `${INCIDENT_TYPE_META[defaultValues.type]?.label ?? defaultValues.type} (legacy)`,
+        },
+        ...INCIDENT_TYPES,
+      ];
 
   const areasForCenter = useMemo(
     () => areaOptions.filter((a) => a.centerId === centerId),
@@ -168,9 +198,27 @@ export function IncidentForm({
             />
           </Field>
 
-          <Field label="Type" htmlFor="type" error={fieldErr("type")} required>
-            <Select id="type" name="type" defaultValue={defaultValues.type}>
-              {INCIDENT_TYPES.map((t) => (
+          <Field
+            label="Type"
+            htmlFor="type"
+            error={fieldErr("type")}
+            hint={moduleFor(type).examples || undefined}
+            required
+          >
+            <Select
+              id="type"
+              name="type"
+              value={type}
+              onChange={(e) => {
+                const next = e.target.value;
+                setType(next);
+                // Drop data a section no longer collects so it isn't posted.
+                const nextSections = moduleFor(next).sections;
+                if (!nextSections.includes("injured")) setInjured([]);
+                if (!nextSections.includes("witnesses")) setWitnesses([]);
+              }}
+            >
+              {typeOptions.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>
@@ -178,15 +226,33 @@ export function IncidentForm({
             </Select>
           </Field>
 
-          <Field label="Severity" htmlFor="severity" error={fieldErr("severity")} required>
-            <Select id="severity" name="severity" defaultValue={defaultValues.severity}>
-              {INCIDENT_SEVERITIES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label} — {s.label === "Minor" ? "first aid only" : s.label === "Significant" ? "medical treatment" : s.label === "Reportable" ? "external review" : "life-threatening"}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          {severityRatedAtTriage ? (
+            <Field
+              label="Severity (actual outcome)"
+              hint="No personal injury is expected for this type — a manager confirms the outcome and rates the potential risk at triage."
+            >
+              <input type="hidden" name="severity" value="None" />
+              <div className="flex h-10 items-center rounded-lg border border-dashed border-line bg-surface-2/40 px-3 text-sm text-muted-foreground">
+                Assessed at triage
+              </div>
+            </Field>
+          ) : (
+            <Field
+              label="Severity (actual outcome)"
+              htmlFor="severity"
+              error={fieldErr("severity")}
+              hint="What actually happened to anyone involved — a manager confirms it at triage."
+              required
+            >
+              <Select id="severity" name="severity" defaultValue={defaultValues.severity}>
+                {INCIDENT_SEVERITIES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label} — {INCIDENT_SEVERITY_META[s.value]?.description ?? s.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
 
           <Field label="Area" htmlFor="areaId" error={fieldErr("areaId")} required>
             <Select
@@ -284,9 +350,13 @@ export function IncidentForm({
         </div>
       </Card>
 
+      {/* ── Type-specific module fields (create only) ── */}
+      {mode === "create" && <IncidentModuleFields type={type} />}
+
       {/* ── People & follow-up (create only) ── */}
       {mode === "create" && (
         <>
+          {showInjured && (
           <Repeater
             title="Injured parties"
             description="Anyone hurt in the incident."
@@ -370,7 +440,9 @@ export function IncidentForm({
               </div>
             )}
           />
+          )}
 
+          {showWitnesses && (
           <Repeater
             title="Witnesses"
             description="People who saw what happened and their statements."
@@ -416,12 +488,14 @@ export function IncidentForm({
               </div>
             )}
           />
+          )}
 
           <p className="text-xs text-muted-foreground">
             Follow-up actions are added during the investigation, from the
             incident page.
           </p>
 
+          {/* Hidden inputs stay mounted so an emptied section still posts []. */}
           <input type="hidden" name="witnesses" value={witnessesJson} />
           <input type="hidden" name="injuredParties" value={injuredJson} />
         </>

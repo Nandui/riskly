@@ -7,8 +7,10 @@ import type {
   AreaOption,
   IncidentDetail,
   IncidentListItem,
+  TriageQueueItem,
   UserOption,
 } from "@/lib/incidents/types";
+import { AWAITING_TRIAGE_STATUS } from "@/lib/incidents/constants";
 
 // ─── Overdue sweep ──────────────────────────────────────────────────────────
 // Storing an "Overdue" status lets us query/aggregate efficiently; we refresh it
@@ -78,6 +80,56 @@ export async function listIncidents(options?: {
   });
 
   return incidents.map(toListItem);
+}
+
+// ─── Triage queue (awaiting-triage reports, oldest-waiting first) ───────────
+
+function hoursBetween(from: Date, to: Date): number {
+  return Math.max(0, (to.getTime() - from.getTime()) / 36e5);
+}
+
+export async function listAwaitingTriage(
+  centerId?: string | null,
+): Promise<TriageQueueItem[]> {
+  const incidents = await db.incident.findMany({
+    where: {
+      status: AWAITING_TRIAGE_STATUS,
+      ...(centerId ? { centerId } : {}),
+    },
+    select: {
+      id: true,
+      reference: true,
+      type: true,
+      severity: true,
+      location: true,
+      locationDetail: true,
+      occurredAt: true,
+      reportedAt: true,
+      createdAt: true,
+      reportedBy: true,
+      center: { select: { name: true, siteCode: true } },
+    },
+    orderBy: [{ reportedAt: "asc" }, { createdAt: "asc" }],
+  });
+
+  return incidents.map((inc) => {
+    const waitingSince = inc.reportedAt ?? inc.createdAt;
+    return {
+      id: inc.id,
+      reference: inc.reference,
+      type: inc.type,
+      severity: inc.severity,
+      location: inc.location,
+      locationDetail: inc.locationDetail,
+      occurredAt: inc.occurredAt,
+      reportedAt: inc.reportedAt,
+      waitingSince,
+      reportGapHours: inc.reportedAt ? hoursBetween(inc.occurredAt, inc.reportedAt) : null,
+      reportedBy: inc.reportedBy,
+      centerName: inc.center.name,
+      centerSiteCode: inc.center.siteCode,
+    };
+  });
 }
 
 // ─── Detail ─────────────────────────────────────────────────────────────────

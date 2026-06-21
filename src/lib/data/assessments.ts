@@ -327,6 +327,32 @@ export async function findSubjectAssessment(
   });
 }
 
+// Assessments in a centre, labelled for a picker — used by the incident
+// close-out "link the failed control's assessment" outcome.
+export async function listLinkableAssessments(centerId: string) {
+  const rows = await db.riskAssessment.findMany({
+    where: { centerId },
+    orderBy: [{ reference: "asc" }],
+    select: {
+      id: true,
+      reference: true,
+      subjectType: true,
+      area: { select: { name: true } },
+      role: { select: { name: true } },
+      activity: { select: { name: true } },
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    reference: r.reference,
+    title: assessmentTitle(r),
+  }));
+}
+
+export type LinkableAssessment = Awaited<
+  ReturnType<typeof listLinkableAssessments>
+>[number];
+
 // Lightweight list of assessments that hazards can be copied into — every
 // assessment except the source, labelled for the picker (grouped by centre by
 // the caller).

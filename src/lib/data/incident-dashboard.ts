@@ -12,6 +12,7 @@ import type {
   DistributionItem,
   IncidentDashboardData,
   IncidentListItem,
+  TriageQueueItem,
 } from "@/lib/incidents/types";
 
 const REPORTABLE_SEVERITIES = ["Reportable", "Critical"];
@@ -37,6 +38,8 @@ export async function getIncidentDashboard(
       location: true,
       locationDetail: true,
       occurredAt: true,
+      reportedAt: true,
+      createdAt: true,
       reportedBy: true,
       centerId: true,
       injuredCount: true,
@@ -49,6 +52,7 @@ export async function getIncidentDashboard(
 
   // Status / severity tallies (seeded so every band shows, even at zero).
   const statusCounts: Record<string, number> = {
+    AwaitingTriage: 0,
     Open: 0,
     UnderInvestigation: 0,
     Closed: 0,
@@ -61,7 +65,10 @@ export async function getIncidentDashboard(
 
   let injured = 0;
   let open = 0;
+  let awaitingTriage = 0;
   let reportableOpenCount = 0;
+  let gapHoursSum = 0;
+  let gapHoursCount = 0;
 
   for (const inc of incidents) {
     statusCounts[inc.status] = (statusCounts[inc.status] ?? 0) + 1;
@@ -69,11 +76,44 @@ export async function getIncidentDashboard(
     typeTally[inc.type] = (typeTally[inc.type] ?? 0) + 1;
     locationTally[inc.location] = (locationTally[inc.location] ?? 0) + 1;
     injured += inc.injuredCount;
+    // AwaitingTriage is pre-investigation — deliberately NOT counted as "open".
     if (inc.status === "Open" || inc.status === "UnderInvestigation") open += 1;
+    if (inc.status === "AwaitingTriage") awaitingTriage += 1;
     if (REPORTABLE_SEVERITIES.includes(inc.severity) && inc.status !== "Closed") {
       reportableOpenCount += 1;
     }
+    if (inc.reportedAt) {
+      gapHoursSum += Math.max(0, (inc.reportedAt.getTime() - inc.occurredAt.getTime()) / 36e5);
+      gapHoursCount += 1;
+    }
   }
+
+  const avgReportGapHours = gapHoursCount > 0 ? gapHoursSum / gapHoursCount : null;
+
+  // Awaiting-triage queue — oldest-waiting first, top 6 for the dashboard panel.
+  const awaitingTriageQueue: TriageQueueItem[] = incidents
+    .filter((inc) => inc.status === "AwaitingTriage")
+    .map((inc) => {
+      const waitingSince = inc.reportedAt ?? inc.createdAt;
+      return {
+        id: inc.id,
+        reference: inc.reference,
+        type: inc.type,
+        severity: inc.severity,
+        location: inc.location,
+        locationDetail: inc.locationDetail,
+        occurredAt: inc.occurredAt,
+        reportedAt: inc.reportedAt,
+        waitingSince,
+        reportGapHours: inc.reportedAt
+          ? Math.max(0, (inc.reportedAt.getTime() - inc.occurredAt.getTime()) / 36e5)
+          : null,
+        reportedBy: inc.reportedBy,
+        centerName: inc.center.name,
+        centerSiteCode: inc.center.siteCode,
+      };
+    })
+    .sort((a, b) => a.waitingSince.getTime() - b.waitingSince.getTime());
 
   const typeCounts: DistributionItem[] = INCIDENT_TYPES.map((t) => ({
     label: INCIDENT_TYPE_META[t.value]?.label ?? t.value,
@@ -162,6 +202,8 @@ export async function getIncidentDashboard(
       overdueActions: overdueRows.length,
       reportableOpen: reportableOpenCount,
       injured,
+      awaitingTriage,
+      avgReportGapHours,
     },
     statusCounts,
     severityCounts,
@@ -172,6 +214,8 @@ export async function getIncidentDashboard(
     overdueActionsTotal: overdueRows.length,
     reportableOpen,
     reportableOpenTotal: reportableOpenCount,
+    awaitingTriageQueue: awaitingTriageQueue.slice(0, 6),
+    awaitingTriageTotal: awaitingTriage,
     recent,
   };
 }

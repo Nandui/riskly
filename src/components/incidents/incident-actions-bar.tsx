@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Trash2, ClipboardCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -14,7 +14,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Field, Textarea } from "@/components/ui/form";
+import { Field, Select, Textarea } from "@/components/ui/form";
 import {
   closeIncident,
   deleteIncident,
@@ -23,17 +23,29 @@ import {
   submitDraft,
 } from "@/lib/actions/incidents";
 import type { FormState } from "@/lib/form";
+import type { LinkableAssessment } from "@/lib/data/assessments";
+
+export type CloseContext = {
+  assessments: LinkableAssessment[];
+  canLinkExisting: boolean;
+  canSpawnDraft: boolean;
+  hasArea: boolean;
+};
 
 export function IncidentActionsBar({
   incident,
   canReport,
+  canTriage,
   canInvestigate,
   canAdmin,
+  closeContext,
 }: {
   incident: { id: string; status: string };
   canReport: boolean;
+  canTriage: boolean;
   canInvestigate: boolean;
   canAdmin: boolean;
+  closeContext: CloseContext;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -74,6 +86,15 @@ export function IncidentActionsBar({
           onClick={() => run(() => submitDraft(incident.id), "Report submitted.")}
         >
           Submit report
+        </Button>
+      )}
+
+      {status === "AwaitingTriage" && canTriage && (
+        <Button
+          variant="primary"
+          onClick={() => router.push(`/incidents/${incident.id}/triage`)}
+        >
+          <ClipboardCheck className="size-4" /> Triage incident
         </Button>
       )}
 
@@ -124,10 +145,11 @@ export function IncidentActionsBar({
       )}
 
       <Dialog open={closeOpen} onOpenChange={setCloseOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           {closeOpen && (
             <CloseIncidentForm
               incidentId={incident.id}
+              context={closeContext}
               onDone={() => setCloseOpen(false)}
             />
           )}
@@ -149,11 +171,15 @@ export function IncidentActionsBar({
   );
 }
 
+type Outcome = "NoAction" | "LinkExisting" | "SpawnDraft";
+
 function CloseIncidentForm({
   incidentId,
+  context,
   onDone,
 }: {
   incidentId: string;
+  context: CloseContext;
   onDone: () => void;
 }) {
   const router = useRouter();
@@ -162,6 +188,7 @@ function CloseIncidentForm({
     null,
   );
   const fe = state?.fieldErrors ?? {};
+  const [outcome, setOutcome] = useState<Outcome>("NoAction");
 
   useEffect(() => {
     if (state?.ok) {
@@ -170,6 +197,9 @@ function CloseIncidentForm({
       router.refresh();
     }
   }, [state, onDone, router]);
+
+  const canLink = context.canLinkExisting && context.assessments.length > 0;
+  const canSpawn = context.canSpawnDraft && context.hasArea;
 
   return (
     <>
@@ -183,6 +213,7 @@ function CloseIncidentForm({
 
       <form action={formAction} className="space-y-3.5">
         <input type="hidden" name="incidentId" value={incidentId} />
+        <input type="hidden" name="closureOutcome" value={outcome} />
 
         {state && !state.ok && state.error && (
           <p className="rounded-lg border border-critical-line bg-critical-bg px-3 py-2 text-sm font-medium text-critical">
@@ -194,6 +225,59 @@ function CloseIncidentForm({
           <Textarea name="closureNotes" rows={4} autoFocus required />
         </Field>
 
+        <fieldset className="space-y-2">
+          <legend className="eyebrow mb-1">Risk-assessment follow-up</legend>
+
+          <OutcomeRadio
+            checked={outcome === "NoAction"}
+            onChange={() => setOutcome("NoAction")}
+            title="No action needed"
+            hint="No control failed and no new hazard surfaced."
+          />
+          <OutcomeRadio
+            checked={outcome === "LinkExisting"}
+            onChange={() => setOutcome("LinkExisting")}
+            title="A control failed — flag an assessment for review"
+            hint={
+              canLink
+                ? "Links this incident and raises a review request."
+                : "No assessments available to link in this centre."
+            }
+            disabled={!canLink}
+          />
+          <OutcomeRadio
+            checked={outcome === "SpawnDraft"}
+            onChange={() => setOutcome("SpawnDraft")}
+            title="New hazard — create a draft assessment"
+            hint={
+              canSpawn
+                ? "Seeds a draft assessment for this incident's area."
+                : !context.hasArea
+                  ? "This incident has no area, so a draft can't be seeded."
+                  : "You don't have permission to create assessments."
+            }
+            disabled={!canSpawn}
+          />
+        </fieldset>
+
+        {outcome === "LinkExisting" && (
+          <div className="space-y-3.5 rounded-[var(--radius-card)] border border-line bg-surface-2/40 p-4">
+            <Field label="Assessment whose control failed" required error={fe.riskAssessmentId}>
+              <Select name="riskAssessmentId" defaultValue="">
+                <option value="">Select an assessment…</option>
+                {context.assessments.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.reference} · {a.title}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Review note" hint="Optional — what should the reviewer look at?">
+              <Textarea name="reviewNotes" rows={2} />
+            </Field>
+          </div>
+        )}
+
         <DialogFooter>
           <Button type="button" variant="ghost" onClick={onDone} disabled={pending}>
             Cancel
@@ -204,5 +288,40 @@ function CloseIncidentForm({
         </DialogFooter>
       </form>
     </>
+  );
+}
+
+function OutcomeRadio({
+  checked,
+  onChange,
+  title,
+  hint,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  title: string;
+  hint: string;
+  disabled?: boolean;
+}) {
+  return (
+    <label
+      className={`flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-card)] border p-3 text-sm ${
+        checked ? "border-primary bg-primary/5" : "border-line"
+      } ${disabled ? "cursor-not-allowed opacity-50" : "hover:border-line-strong"}`}
+    >
+      <input
+        type="radio"
+        name="closureOutcomeRadio"
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+        className="mt-0.5 size-4"
+      />
+      <span>
+        <span className="font-medium text-ink">{title}</span>
+        <span className="mt-0.5 block text-xs text-muted-foreground">{hint}</span>
+      </span>
+    </label>
   );
 }

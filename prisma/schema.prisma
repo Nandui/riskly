@@ -130,6 +130,7 @@ model RiskAssessment {
   reviewLogs     ReviewLog[]
   reviewRequests ReviewRequest[]
   auditLogs      AuditLog[]
+  incidentLinks  IncidentRiskAssessmentLink[]
 
   @@index([centerId])
   @@index([areaId])
@@ -218,6 +219,7 @@ model ReviewRequest {
   resolvedById  String?
   resolvedBy    User?          @relation("ResolvedBy", fields: [resolvedById], references: [id])
   resolutionNote String?       // why it was actioned/dismissed, captured on resolve
+  sourceIncidentId String?     // back-link to the incident whose close-out raised this (no FK)
 
   @@index([assessmentId])
   @@index([status])
@@ -293,12 +295,65 @@ model Incident {
   closedAt        DateTime?
   closedBy        String?
   closureNotes    String?
+
+  // ── Phase 1: shared-core report timestamp (set at submit) ──
+  reportedAt           DateTime? // when the report was filed; gap = reportedAt - occurredAt
+
+  // ── Phase 1: dual severity — potential axis, set at TRIAGE only ──
+  // Nullable (no default): null = "not yet rated", distinct from a genuine 1×1.
+  potentialLikelihood  Int? // 1-5
+  potentialConsequence Int? // 1-5 (passed as the `severity` arg to the risk engine)
+
+  // ── Phase 1: triage tracking ──
+  triagedAt    DateTime?
+  triagedBy    String? // loose name, no FK (mirrors closedBy)
+  triageStatus String? // Unreviewed | Triaged | ReferredToRA (null => Unreviewed)
+
+  // ── Phase 1: Near-miss / Dangerous-occurrence module ──
+  hazardCategory String?  // value from HAZARD_CATEGORIES
+  definedDoType  Boolean? // defined Dangerous Occurrence? null = N/A
+
+  // ── Phase 2: per-type modules (all nullable; only the selected type's are set) ──
+  // Emergency response (Accident / Aquatic / Medical)
+  ambulanceCalled Boolean?
+  aedUsed         Boolean?
+  cprGiven        Boolean?
+  // Accident
+  mechanism       String? // how the injury happened
+  hsaReportable   Boolean? // advisory HSA-reportable indicator, set at triage
+  // Aquatic / water rescue
+  aquaticRescueType     String?
+  eapLevel              String? // Emergency Action Plan level activated
+  lifeguardsOnDuty      Int?
+  timeInDifficulty      String? // estimate of time in difficulty / submerged
+  spinalManagement      Boolean?
+  secondaryDrowningAdvice String? // Given | Refused | NotApplicable
+  // Medical
+  presentingCondition String?
+  conscious           String? // Yes | No | Unknown
+  breathing           String? // Yes | No | Unknown
+  casualtyHandover    String? // who the casualty was handed over to
+  // Facility / environmental / water quality
+  afr              Boolean? // accidental faecal / vomit release
+  freeChlorine     Float?
+  combinedChlorine Float?
+  ph               Float?
+  correctiveDosing String?
+  closureStart     DateTime?
+  closureEnd       DateTime?
+  samplesSent      Boolean?
+  // Security / antisocial
+  crimeReference  String?
+  gardaiNotified  Boolean?
+  ejection        Boolean?
+
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  witnesses       Witness[]
-  injuredParties  InjuredParty[]
-  followUpActions FollowUpAction[]
+  witnesses          Witness[]
+  injuredParties     InjuredParty[]
+  followUpActions    FollowUpAction[]
+  riskAssessmentLinks IncidentRiskAssessmentLink[]
 
   @@index([centerId])
   @@index([status])
@@ -306,6 +361,28 @@ model Incident {
   @@index([occurredAt])
   @@index([areaId])
   @@index([subAreaId])
+  @@index([triageStatus])
+  @@index([reportedAt])
+}
+
+// Close-out link between an incident and a risk assessment (the 3-outcome flow).
+// A first-class join (not a scalar FK) so it survives reopen, distinguishes
+// outcome (b) ControlFailureReview from (c) SeededDraft, and can hold > 1 link.
+model IncidentRiskAssessmentLink {
+  id              String         @id @default(cuid())
+  incidentId      String
+  incident        Incident       @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  assessmentId    String
+  assessment      RiskAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  linkType        String // ControlFailureReview | SeededDraft
+  reviewRequestId String? // soft pointer to the ReviewRequest raised (outcome b); no FK
+  note            String?
+  createdById     String? // loose link to User.id, no FK
+  createdAt       DateTime       @default(now())
+
+  @@unique([incidentId, assessmentId, linkType])
+  @@index([incidentId])
+  @@index([assessmentId])
 }
 
 // A witness to an incident and their statement.

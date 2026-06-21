@@ -17,4 +17,6 @@ export const canViewIncidents = (u: U) => can(u, "view");
 export const canReportIncidents = (u: U) => can(u, "reportIncidents");
 export const canManageIncidents = (u: U) => can(u, "manageIncidents");
 export const canInvestigateIncidents = (u: U) => can(u, "investigateIncidents");
+// Triage reuses the existing investigate capability (no new role in Phase 1).
+export const canTriageIncidents = (u: U) => can(u, "investigateIncidents");
 export const canAdminIncidents = (u: U) => can(u, "admin");
