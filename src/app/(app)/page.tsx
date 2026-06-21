@@ -23,7 +23,7 @@ import { getCurrentUser, can } from "@/lib/auth";
 import { RISK_BANDS, BAND_META } from "@/lib/risk";
 import { cn, pluralize } from "@/lib/utils";
 
-export const metadata = { title: "Dashboard" };
+export const metadata = { title: "Overview" };
 
 function Kpi({
   icon: Icon,
@@ -74,7 +74,7 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow={selected ? selected.name : "All centres"}
-        title="Dashboard"
+        title="Overview"
         description="Risk at a glance across your assessments — what's overdue, what needs action, and where risk sits."
         actions={
           canEdit ? (
@@ -89,7 +89,7 @@ export default async function DashboardPage() {
         <EmptyState
           icon={LayoutDashboard}
           title="Nothing to report yet"
-          description="Add a centre and create your first risk assessment to see your dashboard come to life."
+          description="Add a centre and create your first risk assessment to see your overview come to life."
           action={
             <div className="flex gap-2">
               <Link href="/centers/new" className={buttonClasses({ variant: "secondary" })}>

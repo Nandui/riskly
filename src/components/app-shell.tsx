@@ -44,7 +44,7 @@ const NAV: { label?: string; items: NavItem[] }[] = [
   {
     label: "Risk assessments",
     items: [
-      { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, cap: "view" },
+      { href: "/", label: "Overview", icon: LayoutDashboard, exact: true, cap: "view" },
       { href: "/assessments", label: "Assessments", icon: ClipboardList, cap: "view" },
       { href: "/monitoring", label: "Monitoring", icon: CalendarClock, cap: "view" },
     ],
