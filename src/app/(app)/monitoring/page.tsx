@@ -99,8 +99,6 @@ export default async function MonitoringPage() {
   }));
 
   const todayInput = toDateInputValue(new Date());
-  const overdueReviews = items.filter((i) => i.reviewKey === "overdue").length;
-  const dueReviews = items.filter((i) => i.reviewKey === "due").length;
 
   return (
     <div className="space-y-6">
@@ -110,16 +108,11 @@ export default async function MonitoringPage() {
         description="Awareness of what's happening to your assessments and hazards — reviews coming due, what's under review, where risk is high, and open requests."
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat
-          label="Overdue reviews"
-          value={overdueReviews}
-          tone={overdueReviews > 0 ? "critical" : "default"}
-        />
+      <div className="grid gap-3 sm:grid-cols-3">
         <Stat
           label="Reviews due soon"
-          value={dueReviews}
-          tone={dueReviews > 0 ? "medium" : "default"}
+          value={items.length}
+          tone={items.length > 0 ? "medium" : "default"}
         />
         <Stat
           label="Under review"

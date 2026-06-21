@@ -22,6 +22,11 @@ via the two sign-offs; withdrawing either sign-off (or editing the content)
 returns it to Under review, and logging a review re-validates a fully-signed
 assessment back to Approved.
 
+Only an Approved assessment carries a next-review date — Draft, Under review and
+Archived read as "Not scheduled" (the review schedule only applies once it's in
+force). Monitoring drops the now-redundant "Overdue reviews" stat (overdue
+assessments simply become Under review).
+
 ### Home & navigation
 
 - New **For you** home (`/`) — the first thing you see on login. A personal,

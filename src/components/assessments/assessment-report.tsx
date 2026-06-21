@@ -92,7 +92,10 @@ export function AssessmentReport({
           <Row
             cells={[
               ["Review frequency", reviewFreq],
-              ["Next review due", formatDate(a.nextReviewDate)],
+              [
+                "Next review due",
+                a.status === "Approved" ? formatDate(a.nextReviewDate) : "Not scheduled",
+              ],
             ]}
           />
         </tbody>

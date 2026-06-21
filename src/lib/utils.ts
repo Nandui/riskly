@@ -65,14 +65,16 @@ export function getReviewStatus(
   return { key: "ok", label: `Due in ${days}d`, days };
 }
 
-// Status-aware review status. A Draft isn't in force yet, so it has no review
-// schedule — it reads as "Not scheduled" and drops out of the due/overdue
-// counts and the review queue. Everything else uses the date.
+// Status-aware review status. Only an Approved (in-force) assessment is on a
+// review schedule — Draft, Under review and Archived aren't approved, so the
+// next review date doesn't apply: they read as "Not scheduled" and drop out of
+// the due counts and the review queue. (An Approved assessment that passes its
+// date is swept to Under review.)
 export function reviewStatusFor(
   a: { status: string; nextReviewDate: Date | string | null | undefined },
   dueSoonDays = 30,
 ): ReviewStatus {
-  if (a.status === "Draft")
+  if (a.status !== "Approved")
     return { key: "none", label: "Not scheduled", days: Infinity };
   return getReviewStatus(a.nextReviewDate, dueSoonDays);
 }
