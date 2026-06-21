@@ -173,6 +173,19 @@ export async function getOwnedByMe(
   return rows.filter((a) => a.status !== "Archived");
 }
 
+// Assessments awaiting the CEO sign-off — in force (Active) or under review but
+// without a CEO approval yet. Shown on Monitoring to users who can grant it.
+export async function getAwaitingCeoApproval(
+  centerId: string | null,
+): Promise<AssessmentRow[]> {
+  const rows = await listAssessments({ centerId });
+  return rows.filter(
+    (a) =>
+      (a.status === "UnderReview" || a.status === "Active") &&
+      !a.ceoApprovedByName,
+  );
+}
+
 // Assessments the user owns that are back Under review (e.g. a hazard was
 // added) — they need the owner to re-check and get them re-approved.
 export async function getNeedsAction(

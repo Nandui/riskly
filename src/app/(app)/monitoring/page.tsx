@@ -19,6 +19,7 @@ import {
   getHighRiskHazards,
   getOpenReviewRequests,
   getOwnedByMe,
+  getAwaitingCeoApproval,
 } from "@/lib/data/monitoring";
 import { assessmentTitle } from "@/lib/data/assessments";
 import { getCurrentUser, can } from "@/lib/auth";
@@ -53,12 +54,15 @@ function Stat({
 export default async function MonitoringPage() {
   const { selected, selectedId } = await getCenterContext();
   const user = await getCurrentUser();
-  const [queue, highRisk, openRequests, ownedByMe] = await Promise.all([
-    getReviewQueue(selectedId),
-    getHighRiskHazards(selectedId),
-    getOpenReviewRequests(selectedId),
-    user ? getOwnedByMe(user.id, selectedId) : Promise.resolve([]),
-  ]);
+  const canApprove = can(user, "approveAssessments");
+  const [queue, highRisk, openRequests, ownedByMe, awaitingCeo] =
+    await Promise.all([
+      getReviewQueue(selectedId),
+      getHighRiskHazards(selectedId),
+      getOpenReviewRequests(selectedId),
+      user ? getOwnedByMe(user.id, selectedId) : Promise.resolve([]),
+      canApprove ? getAwaitingCeoApproval(selectedId) : Promise.resolve([]),
+    ]);
 
   const canReview = can(user, "review");
   const needsAction = ownedByMe.filter((a) => a.status === "UnderReview");
@@ -130,6 +134,32 @@ export default async function MonitoringPage() {
           tone={requestItems.length > 0 ? "medium" : "default"}
         />
       </div>
+
+      {canApprove && (
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <ShieldCheck className="size-4 text-medium" /> Awaiting CEO approval
+            <span className="font-normal tnum text-muted-foreground">
+              {awaitingCeo.length}
+            </span>
+          </h2>
+          {awaitingCeo.length === 0 ? (
+            <EmptyState
+              icon={CircleCheckBig}
+              title="Nothing awaiting your approval"
+              description="Every in-force or under-review assessment has the CEO sign-off."
+            />
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Assessments still without the CEO sign-off. Open one to review it
+                and grant your approval.
+              </p>
+              <AssessmentTable rows={awaitingCeo} showCenter={!selected} />
+            </>
+          )}
+        </section>
+      )}
 
       {needsAction.length > 0 && (
         <section className="space-y-3">
