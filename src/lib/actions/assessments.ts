@@ -17,7 +17,7 @@ import {
 } from "@/lib/data/assessments";
 import { denyUnless, getCurrentUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
-import { CLEARED_APPROVAL, APPROVAL_FLAGS_SELECT, isApproved } from "@/lib/approval";
+import { CLEARED_APPROVAL, APPROVAL_FLAGS_SELECT, hasAnyApproval } from "@/lib/approval";
 
 function revalidateAssessments(id?: string) {
   revalidatePath("/assessments");
@@ -331,7 +331,7 @@ export async function updateAssessment(
   const base = existing?.lastReviewedDate ?? assessmentDate;
   const nextReviewDate = computeNextReviewDate(base, d.reviewFrequencyMonths);
   // Editing the content invalidates any prior sign-off.
-  const wasApproved = existing ? isApproved(existing) : false;
+  const wasApproved = existing ? hasAnyApproval(existing) : false;
   const changeSummary = existing ? summariseEdit(existing, d, subject) : null;
 
   // Preserve each existing hazard's permanent seq (matched by id) and allocate
@@ -450,9 +450,11 @@ export async function addHazard(
   });
   // Never reuse a hazard number: allocate above the assessment's high-water mark.
   const nextSeq = Math.max(existing.hazardSeq, max._max.seq ?? 0) + 1;
-  const wasApproved = isApproved(existing);
-  // Archived assessments keep their status; everything else goes Under review.
-  const toReview = existing.status !== "Archived";
+  const wasApproved = hasAnyApproval(existing);
+  // Drafts stay drafts and archived stays archived; an in-force or under-review
+  // assessment goes (back) to Under review.
+  const toReview =
+    existing.status !== "Archived" && existing.status !== "Draft";
 
   await db.hazard.create({
     data: {
@@ -532,8 +534,10 @@ export async function updateHazard(
   if (!existing) return { ok: false, error: "Hazard not found." };
 
   const assessmentId = existing.assessmentId;
-  const wasApproved = isApproved(existing.assessment);
-  const toReview = existing.assessment.status !== "Archived";
+  const wasApproved = hasAnyApproval(existing.assessment);
+  const toReview =
+    existing.assessment.status !== "Archived" &&
+    existing.assessment.status !== "Draft";
 
   await db.hazard.update({
     where: { id: hazardId },
@@ -594,8 +598,10 @@ export async function deleteHazard(hazardId: string): Promise<FormState> {
   if (!existing) return { ok: false, error: "Hazard not found." };
 
   const assessmentId = existing.assessmentId;
-  const wasApproved = isApproved(existing.assessment);
-  const toReview = existing.assessment.status !== "Archived";
+  const wasApproved = hasAnyApproval(existing.assessment);
+  const toReview =
+    existing.assessment.status !== "Archived" &&
+    existing.assessment.status !== "Draft";
 
   await db.hazard.delete({ where: { id: hazardId } });
 
@@ -705,8 +711,8 @@ export async function copyHazards(
     riskCategory: h.riskCategory,
   }));
 
-  const wasApproved = isApproved(target);
-  const toReview = target.status !== "Archived";
+  const wasApproved = hasAnyApproval(target);
+  const toReview = target.status !== "Archived" && target.status !== "Draft";
 
   await db.$transaction([
     db.hazard.createMany({ data }),

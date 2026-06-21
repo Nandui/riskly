@@ -1,6 +1,23 @@
+import { startOfDay } from "date-fns";
 import { db } from "@/lib/db";
 import { riskBand, riskScore, isHighRisk, type RiskBand } from "@/lib/risk";
 import { reviewStatusFor, type ReviewStatus } from "@/lib/utils";
+
+// Move Approved assessments past their next review date into Under review. The
+// status is stored so lists/dashboards can query it; we refresh it on read,
+// the same pattern incident follow-up actions use for "Overdue".
+export async function sweepOverdueAssessments(
+  centerId?: string | null,
+): Promise<void> {
+  await db.riskAssessment.updateMany({
+    where: {
+      status: "Approved",
+      nextReviewDate: { lt: startOfDay(new Date()) },
+      ...(centerId ? { centerId } : {}),
+    },
+    data: { status: "UnderReview" },
+  });
+}
 
 // An assessment is named after its subject (the area/role/activity it covers).
 export function assessmentTitle(a: {
@@ -84,6 +101,7 @@ const listSelect = {
 } as const;
 
 export async function listAssessments(filters: AssessmentFilters = {}) {
+  await sweepOverdueAssessments(filters.centerId);
   const where: Record<string, unknown> = {};
   if (filters.centerId) where.centerId = filters.centerId;
   if (filters.areaId) where.areaId = filters.areaId;
@@ -187,6 +205,11 @@ export async function searchAssessments(
 }
 
 export async function getAssessmentDetail(id: string) {
+  // Refresh this assessment's status if its review date has passed.
+  await db.riskAssessment.updateMany({
+    where: { id, status: "Approved", nextReviewDate: { lt: startOfDay(new Date()) } },
+    data: { status: "UnderReview" },
+  });
   return db.riskAssessment.findUnique({
     where: { id },
     include: {

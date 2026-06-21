@@ -4,8 +4,8 @@
 
 export const ASSESSMENT_STATUSES = [
   { value: "Draft", label: "Draft" },
-  { value: "Active", label: "Active" },
   { value: "UnderReview", label: "Under review" },
+  { value: "Approved", label: "Approved" },
   { value: "Archived", label: "Archived" },
 ] as const;
 
@@ -75,8 +75,8 @@ export const STATUS_META: Record<
     pill: "bg-slate-100 text-slate-600 border border-slate-200",
     dot: "bg-slate-400",
   },
-  Active: {
-    label: "Active",
+  Approved: {
+    label: "Approved",
     pill: "bg-brand-soft text-brand-strong border border-brand/25",
     dot: "bg-brand",
   },

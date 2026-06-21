@@ -326,13 +326,23 @@ export function AssessmentForm({
           subtitle="Ownership, dates and review cadence"
         />
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="Status">
-            <Select name="status" defaultValue={defaults.status}>
-              {ASSESSMENT_STATUSES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
+          <Field
+            label="Status"
+            hint="Approved is granted via the Owner + CEO sign-off, not set here."
+          >
+            <Select
+              name="status"
+              defaultValue={
+                defaults.status === "Approved" ? "UnderReview" : defaults.status
+              }
+            >
+              {ASSESSMENT_STATUSES.filter((s) => s.value !== "Approved").map(
+                (s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ),
+              )}
             </Select>
           </Field>
           <Field label="Assessment date" required error={fe.assessmentDate}>

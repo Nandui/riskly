@@ -5,6 +5,23 @@ tagged `vX.Y.Z-alpha`.
 
 ## [Unreleased]
 
+### Assessment lifecycle
+
+Assessment status is now derived from approval + review date rather than set by
+hand:
+
+- **Draft** — being written; no review schedule/due date.
+- **Under review** — submitted but not fully signed off, or past its next review
+  date (an overdue Approved assessment flips back automatically on read).
+- **Approved** — signed off by **both** the Owner and the CEO and in date
+  (replaces the old "Active"; either sign-off alone is no longer enough).
+- **Archived** — retired.
+
+The assessment form and importer no longer let you pick "Approved" — it's earned
+via the two sign-offs; withdrawing either sign-off (or editing the content)
+returns it to Under review, and logging a review re-validates a fully-signed
+assessment back to Approved.
+
 ### Home & navigation
 
 - New **For you** home (`/`) — the first thing you see on login. A personal,

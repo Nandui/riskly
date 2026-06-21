@@ -213,15 +213,15 @@ export async function getOwnedByMe(
   return rows.filter((a) => a.status !== "Archived");
 }
 
-// Assessments awaiting the CEO sign-off — in force (Active) or under review but
-// without a CEO approval yet. Shown on Monitoring to users who can grant it.
+// Assessments awaiting the CEO sign-off — in the active lifecycle but without a
+// CEO approval yet. Shown on Monitoring/For you to users who can grant it.
 export async function getAwaitingCeoApproval(
   centerId: string | null,
 ): Promise<AssessmentRow[]> {
   const rows = await listAssessments({ centerId });
   return rows.filter(
     (a) =>
-      (a.status === "UnderReview" || a.status === "Active") &&
+      (a.status === "UnderReview" || a.status === "Approved") &&
       !a.ceoApprovedByName,
   );
 }

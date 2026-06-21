@@ -67,9 +67,9 @@ export const assessmentSchema = z.object({
   centerId: z.string().min(1, "Select a centre"),
   subjectType: z.enum(["Area", "Role", "Activity"]).default("Area"),
   subjectId: z.string().min(1, "Select the subject"),
-  status: z
-    .enum(["Draft", "Active", "UnderReview", "Archived"])
-    .default("Draft"),
+  // "Approved" is never set by hand — it's earned once both sign-offs are in
+  // place. The form can only mark a draft, submit it for review, or archive it.
+  status: z.enum(["Draft", "UnderReview", "Archived"]).default("Draft"),
   assessorName: optionalText(120),
   assessmentDate: z.string().min(1, "Set an assessment date"),
   reviewFrequencyMonths: z.coerce.number().int().min(1).max(60),
@@ -95,12 +95,6 @@ export const reviewLogSchema = z.object({
   reviewerName: optionalText(120),
   outcome: z.enum(["NoChanges", "Updated", "Escalated"]).default("NoChanges"),
   notes: optionalText(2000),
-  newStatus: z
-    .union([
-      z.enum(["Draft", "Active", "UnderReview", "Archived"]),
-      z.literal(""),
-    ])
-    .optional(),
 });
 export type ReviewLogInput = z.infer<typeof reviewLogSchema>;
 

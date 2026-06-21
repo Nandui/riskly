@@ -4,7 +4,7 @@ import { useActionState, useEffect } from "react";
 import { logReview } from "@/lib/actions/reviews";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { REVIEW_OUTCOMES, ASSESSMENT_STATUSES } from "@/lib/constants";
+import { REVIEW_OUTCOMES } from "@/lib/constants";
 import type { FormState } from "@/lib/form";
 
 export function LogReviewForm({
@@ -30,7 +30,7 @@ export function LogReviewForm({
       {state?.error && (
         <p className="text-xs font-medium text-critical">{state.error}</p>
       )}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Review date">
           <Input type="date" name="reviewedDate" defaultValue={todayInput} />
         </Field>
@@ -42,16 +42,6 @@ export function LogReviewForm({
             {REVIEW_OUTCOMES.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Set status">
-          <Select name="newStatus" defaultValue="">
-            <option value="">No change</option>
-            {ASSESSMENT_STATUSES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
               </option>
             ))}
           </Select>

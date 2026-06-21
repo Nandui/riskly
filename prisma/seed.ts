@@ -34,8 +34,9 @@ async function makeAssessment(opts: {
   areaId?: string;
   roleId?: string;
   activityId?: string;
-  status: "Draft" | "Active" | "UnderReview" | "Archived";
+  status: "Draft" | "Approved" | "UnderReview" | "Archived";
   assessorName?: string;
+  ownerApprovedByName?: string;
   ceoApprovedByName?: string;
   monthsAgo: number;
   extraDaysAgo?: number;
@@ -62,7 +63,10 @@ async function makeAssessment(opts: {
       activityId: opts.activityId,
       status: opts.status,
       assessorName: opts.assessorName,
+      ownerApprovedByName: opts.ownerApprovedByName,
+      ownerApprovedAt: opts.ownerApprovedByName ? baseForReview : undefined,
       ceoApprovedByName: opts.ceoApprovedByName,
+      ceoApprovedAt: opts.ceoApprovedByName ? baseForReview : undefined,
       assessmentDate,
       reviewFrequencyMonths: opts.reviewFrequencyMonths,
       lastReviewedDate: reviewedDate,
@@ -185,8 +189,9 @@ async function main() {
     centerId: bishopstown.id,
     subjectType: "Area",
     areaId: bPitches.id,
-    status: "Active",
+    status: "Approved",
     assessorName: "Fernando Serina",
+    ownerApprovedByName: "Fernando Serina",
     ceoApprovedByName: "Site Manager",
     monthsAgo: 11,
     extraDaysAgo: 9,
@@ -353,8 +358,9 @@ async function main() {
     centerId: bishopstown.id,
     subjectType: "Activity",
     activityId: acPoolSup.id,
-    status: "Active",
+    status: "Approved",
     assessorName: "Sarah Whitcombe",
+    ownerApprovedByName: "Sarah Whitcombe",
     ceoApprovedByName: "Site Manager",
     monthsAgo: 13,
     reviewFrequencyMonths: 12,
@@ -401,8 +407,10 @@ async function main() {
     centerId: bishopstown.id,
     subjectType: "Activity",
     activityId: acCleaning.id,
-    status: "Active",
+    status: "Approved",
     assessorName: "Elaine Foster",
+    ownerApprovedByName: "Elaine Foster",
+    ceoApprovedByName: "Site Manager",
     monthsAgo: 11,
     extraDaysAgo: 16,
     reviewFrequencyMonths: 12,
@@ -470,8 +478,10 @@ async function main() {
     centerId: hilltop.id,
     subjectType: "Role",
     roleId: rlReceptionist.id,
-    status: "Active",
+    status: "Approved",
     assessorName: "Marcus Yeo",
+    ownerApprovedByName: "Marcus Yeo",
+    ceoApprovedByName: "Site Manager",
     monthsAgo: 5,
     extraDaysAgo: 18,
     reviewFrequencyMonths: 6,
@@ -505,8 +515,9 @@ async function main() {
     centerId: hilltop.id,
     subjectType: "Activity",
     activityId: acChemical.id,
-    status: "Active",
+    status: "UnderReview",
     assessorName: "James Okafor",
+    ownerApprovedByName: "James Okafor",
     monthsAgo: 4,
     reviewFrequencyMonths: 12,
     hazards: [
