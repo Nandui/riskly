@@ -19,7 +19,7 @@ export type TypeModule = {
   sections: IncidentSection[]; // people sections
   modules: ModuleKey[]; // type-specific field modules (intake)
   // Ask the reporter for an actual-outcome severity at intake? False for types
-  // with no inherent personal injury (the manager rates potential at triage).
+  // with no inherent personal injury (the reporter still taps a harm outcome).
   outcomeAtIntake: boolean;
   // Per-type framing of the shared narrative fields. When a type captures the
   // response in structured form, the generic "Immediate action taken" box is

@@ -9,17 +9,12 @@ import {
   ArrowRight,
   CircleAlert,
   FolderOpen,
-  Hourglass,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  IncidentTypeBadge,
-  SeverityBadge,
-} from "@/components/incidents/incident-badges";
-import { TriageAgeBadge } from "@/components/incidents/triage-age-badge";
+import { SeverityBadge } from "@/components/incidents/incident-badges";
 import {
   IncidentActivityChart,
   IncidentSeverityChart,
@@ -30,7 +25,7 @@ import { getCenterContext } from "@/lib/center-context";
 import { getCurrentUser } from "@/lib/auth";
 import { canReportIncidents } from "@/lib/incidents/permissions";
 import { getIncidentDashboard } from "@/lib/data/incident-dashboard";
-import { INCIDENT_SEVERITIES, humaniseHours } from "@/lib/incidents/constants";
+import { INCIDENT_SEVERITIES } from "@/lib/incidents/constants";
 import { cn, formatDate, pluralize } from "@/lib/utils";
 
 export const metadata = { title: "Incidents overview" };
@@ -153,59 +148,6 @@ export default async function IncidentsOverviewPage() {
               href="/incidents/list"
             />
           </div>
-
-          {/* Awaiting triage */}
-          {d.awaitingTriageTotal > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Hourglass className="size-4 text-medium" /> Awaiting triage
-                  <span className="font-normal text-muted-foreground tnum">
-                    {d.awaitingTriageTotal}
-                  </span>
-                </CardTitle>
-                <div className="flex items-center gap-4">
-                  {d.stats.avgReportGapHours != null && (
-                    <span className="text-xs text-muted-foreground">
-                      Avg report gap{" "}
-                      <span className="font-medium text-ink tnum">
-                        {humaniseHours(d.stats.avgReportGapHours)}
-                      </span>
-                    </span>
-                  )}
-                  <Link
-                    href="/incidents/triage"
-                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                  >
-                    Triage queue <ArrowRight className="size-3.5" />
-                  </Link>
-                </div>
-              </CardHeader>
-              <ul className="divide-y divide-line">
-                {d.awaitingTriageQueue.map((inc) => (
-                  <li key={inc.id}>
-                    <Link
-                      href={`/incidents/${inc.id}/triage`}
-                      className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-surface-2/60"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm text-ink">
-                          <span className="font-mono text-xs">{inc.reference}</span> · {inc.location}
-                        </p>
-                        <div className="mt-0.5 flex items-center gap-2">
-                          <IncidentTypeBadge type={inc.type} />
-                          <span className="text-xs text-muted-foreground">
-                            {formatDate(inc.occurredAt)}
-                          </span>
-                        </div>
-                      </div>
-                      <TriageAgeBadge since={inc.waitingSince} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
 
           {/* Needs attention */}
           {(d.overdueActions.length > 0 || d.reportableOpen.length > 0) && (

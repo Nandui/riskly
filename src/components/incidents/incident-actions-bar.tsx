@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, ClipboardCheck } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -35,14 +35,12 @@ export type CloseContext = {
 export function IncidentActionsBar({
   incident,
   canReport,
-  canTriage,
   canInvestigate,
   canAdmin,
   closeContext,
 }: {
   incident: { id: string; status: string };
   canReport: boolean;
-  canTriage: boolean;
   canInvestigate: boolean;
   canAdmin: boolean;
   closeContext: CloseContext;
@@ -86,15 +84,6 @@ export function IncidentActionsBar({
           onClick={() => run(() => submitDraft(incident.id), "Report submitted.")}
         >
           Submit report
-        </Button>
-      )}
-
-      {status === "AwaitingTriage" && canTriage && (
-        <Button
-          variant="primary"
-          onClick={() => router.push(`/incidents/${incident.id}/triage`)}
-        >
-          <ClipboardCheck className="size-4" /> Triage incident
         </Button>
       )}
 

@@ -42,24 +42,6 @@ export type IncidentDetail = Incident & {
   followUpActions: FollowUpAction[];
 };
 
-// ─── Triage queue (awaiting-triage reports, oldest-waiting first) ────────────
-
-export type TriageQueueItem = {
-  id: string;
-  reference: string;
-  type: string;
-  severity: string;
-  location: string;
-  locationDetail: string | null;
-  occurredAt: Date;
-  reportedAt: Date | null;
-  waitingSince: Date; // reportedAt ?? createdAt
-  reportGapHours: number | null; // occurredAt → reportedAt, null when not reported
-  reportedBy: string;
-  centerName: string;
-  centerSiteCode: string | null;
-};
-
 // ─── Location options for the cascading area / sub-area pickers ──────────────
 
 export type AreaOption = {
@@ -98,8 +80,6 @@ export type IncidentDashboardStats = {
   overdueActions: number;
   reportableOpen: number; // Reportable/Critical and not closed
   injured: number; // injured people across in-scope incidents
-  awaitingTriage: number; // reports waiting for a manager to triage
-  avgReportGapHours: number | null; // mean occurredAt → reportedAt, null if none
 };
 
 export type AttentionAction = {
@@ -134,7 +114,5 @@ export type IncidentDashboardData = {
   overdueActionsTotal: number;
   reportableOpen: AttentionIncident[];
   reportableOpenTotal: number;
-  awaitingTriageQueue: TriageQueueItem[];
-  awaitingTriageTotal: number;
   recent: IncidentListItem[];
 };

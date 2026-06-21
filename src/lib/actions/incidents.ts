@@ -7,7 +7,6 @@ import { db } from "@/lib/db";
 import { getCurrentUser, can, denyUnless, type CurrentUser } from "@/lib/auth";
 import { fieldErrorsFromZod, emptyToNull, type FormState } from "@/lib/form";
 import { generateIncidentReference } from "@/lib/incidents/reference";
-import { clampRating } from "@/lib/risk";
 import { recordAudit } from "@/lib/audit";
 import { findSubjectAssessment, nextReference } from "@/lib/data/assessments";
 import { computeNextReviewDate } from "@/lib/utils";
@@ -20,7 +19,6 @@ import {
   incidentFullSchema,
   incidentUpdateSchema,
   setActionStatusSchema,
-  triageIncidentSchema,
   updateFollowUpActionSchema,
   updateInjuredPartySchema,
   updateWitnessSchema,
@@ -119,9 +117,9 @@ function incidentModuleData(formData: FormData) {
     crimeReference: mStr(formData, "crimeReference"),
     gardaiNotified: mBool(formData, "gardaiNotified"),
     ejection: mBool(formData, "ejection"),
-    // Missing Child (Code Amber) — operational facts only (supervisionCause is
-    // set at triage, not here)
+    // Missing Child (Code Amber) — operational facts only
     locatedAt: mDate(formData, "locatedAt"),
+    timeToLocateMins: mInt(formData, "timeToLocateMins"),
     missingChildSetting: mStr(formData, "missingChildSetting"),
     childAgeBand: mStr(formData, "childAgeBand"),
     lastSeenLocation: mStr(formData, "lastSeenLocation"),
@@ -210,6 +208,7 @@ type WitnessCreate = {
 type InjuredCreate = {
   partyType: string;
   name: string;
+  memberId: string | null;
   contactPhone: string | null;
   contactEmail: string | null;
   injuryNature: string;
@@ -233,26 +232,27 @@ function mapWitness(w: {
   roleOrRelation: string;
   contactPhone?: string;
   contactEmail?: string;
-  statement: string;
-  statementDate: string;
+  statement?: string;
+  statementDate?: string;
 }): WitnessCreate {
   return {
     name: w.name,
     roleOrRelation: w.roleOrRelation,
     contactPhone: w.contactPhone || null,
     contactEmail: w.contactEmail || null,
-    statement: w.statement,
-    statementDate: new Date(w.statementDate),
+    statement: w.statement ?? "",
+    statementDate: w.statementDate ? new Date(w.statementDate) : new Date(),
   };
 }
 
 function mapInjured(p: {
   partyType: string;
   name: string;
+  memberId?: string;
   contactPhone?: string;
   contactEmail?: string;
-  injuryNature: string;
-  bodyPartAffected: string;
+  injuryNature?: string;
+  bodyPartAffected?: string;
   treatment: string;
   hospitalName?: string;
   lostTime: boolean;
@@ -262,10 +262,12 @@ function mapInjured(p: {
   return {
     partyType: p.partyType,
     name: p.name,
+    // Member number only applies to members.
+    memberId: p.partyType === "Member" ? (p.memberId || null) : null,
     contactPhone: p.contactPhone || null,
     contactEmail: p.contactEmail || null,
-    injuryNature: p.injuryNature,
-    bodyPartAffected: p.bodyPartAffected,
+    injuryNature: p.injuryNature ?? "",
+    bodyPartAffected: p.bodyPartAffected ?? "",
     treatment: p.treatment,
     hospitalName: p.hospitalName || null,
     gpReferral: p.treatment === "GpReferral",
@@ -300,6 +302,11 @@ export async function createIncident(
   }
 
   const isDraft = String(formData.get("intent") ?? "submit") === "draft";
+  // An admin can enter a historical record from a previous system — it is
+  // marked "Imported" (kept out of the open / overdue metrics, but still feeds
+  // the trend charts).
+  const isImported =
+    !isDraft && can(user, "admin") && String(formData.get("imported") ?? "") === "true";
   const payload = {
     centerId: formData.get("centerId"),
     type: formData.get("type"),
@@ -335,22 +342,24 @@ export async function createIncident(
     try {
       const incident = await db.$transaction(async (tx) => {
         const reference = await generateIncidentReference(d.centerId, tx);
-        // Submitted reports land in the triage queue; a manager confirms the
-        // classification and dual severity before investigation. reportedAt is
-        // stamped at submit (drafts have none until submitted).
+        // Submitted reports open immediately. reportedAt is stamped at submit
+        // (drafts have none until submitted).
         return tx.incident.create({
           data: {
             centerId: d.centerId,
             reference,
             type: d.type,
-            status: isDraft ? "Draft" : "AwaitingTriage",
+            status: isImported ? "Imported" : isDraft ? "Draft" : "Open",
             severity: d.severity,
             occurredAt: new Date(d.occurredAt),
-            reportedAt: isDraft
-              ? null
-              : d.reportedAt
-                ? new Date(d.reportedAt)
-                : new Date(),
+            // Imported records carry no report-gap (we don't know the original
+            // report time); drafts have none until submitted.
+            reportedAt:
+              isImported || isDraft
+                ? null
+                : d.reportedAt
+                  ? new Date(d.reportedAt)
+                  : new Date(),
             ...incidentModuleData(formData),
             areaId: d.areaId,
             subAreaId: loc.subAreaId,
@@ -495,72 +504,9 @@ export async function submitDraft(incidentId: string): Promise<FormState> {
 
   await db.incident.update({
     where: { id: incidentId },
-    data: { status: "AwaitingTriage", reportedAt: new Date() },
+    data: { status: "Open", reportedAt: new Date() },
   });
   revalidateIncidents(incidentId);
-  return { ok: true };
-}
-
-// Triage (admin / investigateIncidents): confirm the type + actual-outcome
-// severity, rate the POTENTIAL risk on the 5×5, capture the module fields, and
-// move the report out of the awaiting-triage queue into Open.
-export async function triageIncident(
-  _prev: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  const denied = await denyUnless("investigateIncidents");
-  if (denied) return denied;
-
-  const parsed = triageIncidentSchema.safeParse({
-    incidentId: formData.get("incidentId"),
-    type: formData.get("type"),
-    severity: formData.get("severity"),
-    potentialLikelihood: formData.get("potentialLikelihood"),
-    potentialConsequence: formData.get("potentialConsequence"),
-    hazardCategory: formData.get("hazardCategory") ?? undefined,
-    definedDangerousOccurrence: formData.get("definedDangerousOccurrence") ?? undefined,
-    hsaReportable: formData.get("hsaReportable") ?? undefined,
-    supervisionCause: formData.get("supervisionCause") ?? undefined,
-  });
-  if (!parsed.success) {
-    return invalidForm(parsed.error);
-  }
-  const d = parsed.data;
-
-  const user = await getCurrentUser();
-  const incident = await db.incident.findUnique({
-    where: { id: d.incidentId },
-    select: { status: true },
-  });
-  if (!incident) return { ok: false, error: "Incident not found." };
-  if (incident.status !== "AwaitingTriage") {
-    return { ok: false, error: "Only reports awaiting triage can be triaged." };
-  }
-
-  await db.incident.update({
-    where: { id: d.incidentId },
-    data: {
-      status: "Open",
-      type: d.type,
-      severity: d.severity,
-      potentialLikelihood: clampRating(d.potentialLikelihood),
-      potentialConsequence: clampRating(d.potentialConsequence),
-      hazardCategory: d.hazardCategory || null,
-      definedDoType:
-        d.type === "DangerousOccurrence"
-          ? (d.definedDangerousOccurrence ?? false)
-          : null,
-      // Advisory HSA-reportable indicator — a recorded human decision, never an
-      // automatic legal determination.
-      hsaReportable: d.hsaReportable ?? false,
-      // Missing Child root cause (only set when the manager picked one).
-      supervisionCause: d.supervisionCause || null,
-      triageStatus: "Triaged",
-      triagedAt: new Date(),
-      triagedBy: user?.name ?? user?.email ?? null,
-    },
-  });
-  revalidateIncidents(d.incidentId);
   return { ok: true };
 }
 
@@ -889,6 +835,7 @@ function injuredFormPayload(formData: FormData) {
   return {
     partyType: formData.get("partyType"),
     name: formData.get("name"),
+    memberId: formData.get("memberId") ?? undefined,
     contactPhone: formData.get("contactPhone") ?? undefined,
     contactEmail: formData.get("contactEmail") ?? undefined,
     injuryNature: formData.get("injuryNature"),

@@ -116,12 +116,6 @@ export function IncidentForm({
   const showInjured = sections.includes("injured");
   const showWitnesses = sections.includes("witnesses");
 
-  // Severity at intake is the *actual outcome*. Types with no inherent personal
-  // injury (near miss, dangerous occurrence, facility) don't ask the reporter
-  // for an outcome severity — the meaningful rating is potential risk, set by a
-  // manager at triage. Only in create mode; editing always shows the field.
-  const severityRatedAtTriage = mode === "create" && !moduleFor(type).outcomeAtIntake;
-
   // New reports only offer the current taxonomy; when editing a historical
   // incident whose type is a legacy value, keep it as an option so saving
   // without touching it never silently reclassifies the record.
@@ -227,33 +221,21 @@ export function IncidentForm({
             </Select>
           </Field>
 
-          {severityRatedAtTriage ? (
-            <Field
-              label="Severity (actual outcome)"
-              hint="No personal injury is expected for this type — a manager confirms the outcome and rates the potential risk at triage."
-            >
-              <input type="hidden" name="severity" value="None" />
-              <div className="flex h-10 items-center rounded-lg border border-dashed border-line bg-surface-2/40 px-3 text-sm text-muted-foreground">
-                Assessed at triage
-              </div>
-            </Field>
-          ) : (
-            <Field
-              label="Severity (actual outcome)"
-              htmlFor="severity"
-              error={fieldErr("severity")}
-              hint="What actually happened to anyone involved — a manager confirms it at triage."
-              required
-            >
-              <Select id="severity" name="severity" defaultValue={defaultValues.severity}>
-                {INCIDENT_SEVERITIES.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label} — {INCIDENT_SEVERITY_META[s.value]?.description ?? s.label}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          )}
+          <Field
+            label="Severity (actual outcome)"
+            htmlFor="severity"
+            error={fieldErr("severity")}
+            hint="What actually happened to anyone involved."
+            required
+          >
+            <Select id="severity" name="severity" defaultValue={defaultValues.severity}>
+              {INCIDENT_SEVERITIES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label} — {INCIDENT_SEVERITY_META[s.value]?.description ?? s.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
 
           <Field label="Area" htmlFor="areaId" error={fieldErr("areaId")} required>
             <Select

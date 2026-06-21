@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, Select } from "@/components/ui/form";
 import {
@@ -7,10 +8,8 @@ import {
   AQUATIC_RESCUE_TYPES,
   CHILD_AGE_BANDS,
   EAP_LEVELS,
-  FOUND_LOCATION_CLASSES,
   MC_RESPONSE_ACTIONS,
   MISSING_CHILD_RESOLUTIONS,
-  MISSING_CHILD_SETTINGS,
   SECONDARY_DROWNING_ADVICE,
   WATER_PROXIMITY,
   YES_NO_UNKNOWN,
@@ -52,6 +51,10 @@ export function IncidentModuleFields({
 }) {
   const { modules } = moduleFor(type);
   const showResponse = typeHasResponseBlock(type);
+  // Missing-child: a child handed to the Gardaí was never found by us, so the
+  // "time to find" doesn't apply.
+  const [mcResolution, setMcResolution] = useState("");
+  const notFound = mcResolution === "PoliceHandover";
 
   if (modules.length === 0 && !showResponse) return null;
 
@@ -235,14 +238,6 @@ export function IncidentModuleFields({
             </p>
           </div>
           <div className="grid gap-4 p-5 sm:grid-cols-2">
-            <Field label="Setting">
-              <Select name="missingChildSetting" defaultValue="">
-                <option value="">Not set</option>
-                {MISSING_CHILD_SETTINGS.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </Select>
-            </Field>
             <Field label="Child age band" hint="Band only — never a name or date of birth.">
               <Select name="childAgeBand" defaultValue="">
                 <option value="">Not set</option>
@@ -251,22 +246,16 @@ export function IncidentModuleFields({
                 ))}
               </Select>
             </Field>
-            <Field label="Located at" hint="When the child was found (gives time unaccounted).">
-              <Input name="locatedAt" type="datetime-local" />
-            </Field>
-            <Field label="Last seen (area)">
-              <Select name="lastSeenLocation" defaultValue="">
+            {!notFound && (
+              <Field label="Time to locate (minutes)" hint="Roughly how long it took to find the child.">
+                <Input name="timeToLocateMins" type="number" min={0} max={1440} placeholder="e.g. 8" />
+              </Field>
+            )}
+            <Field label="Found (area)" hint="Where the child was located. Found in or under the water? Log it as an Aquatic rescue instead.">
+              <Select name="foundLocationClass" defaultValue="">
                 <option value="">{areas.length ? "Not set" : "No areas"}</option>
                 {areas.map((a) => (
                   <option key={a.id} value={a.name}>{a.name}</option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Found — location class" hint="Found in or under the water? Log it as an Aquatic rescue instead.">
-              <Select name="foundLocationClass" defaultValue="">
-                <option value="">Not set</option>
-                {FOUND_LOCATION_CLASSES.map((f) => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
                 ))}
               </Select>
             </Field>
@@ -279,7 +268,11 @@ export function IncidentModuleFields({
               </Select>
             </Field>
             <Field label="Resolution">
-              <Select name="missingChildResolution" defaultValue="">
+              <Select
+                name="missingChildResolution"
+                value={mcResolution}
+                onChange={(e) => setMcResolution(e.target.value)}
+              >
                 <option value="">Not set</option>
                 {MISSING_CHILD_RESOLUTIONS.map((r) => (
                   <option key={r.value} value={r.value}>{r.label}</option>
@@ -295,20 +288,11 @@ export function IncidentModuleFields({
                 {MC_RESPONSE_ACTIONS.map((r) => (
                   <Check key={r.value} name="responseActions" label={r.label} value={r.value} />
                 ))}
+                <Check name="waterSearchInitiated" label="Water treated as a live search zone" />
+                <Check name="lockdownInitiated" label="Site lockdown / EAP initiated" />
+                <Check name="emergencyServicesCalled" label="Gardaí / emergency services called" />
               </div>
             </div>
-            <Field label="Water search">
-              <Check name="waterSearchInitiated" label="Water treated as a live search zone" />
-            </Field>
-            <Field label="Lockdown">
-              <Check name="lockdownInitiated" label="Site lockdown / EAP initiated" />
-            </Field>
-            <Field label="Emergency services">
-              <Check name="emergencyServicesCalled" label="Gardaí / emergency services called" />
-            </Field>
-            <Field label="Policy reinforced">
-              <Check name="policyReinforced" label="Bring/collect policy reinforced at the time" />
-            </Field>
           </div>
         </Card>
       )}
