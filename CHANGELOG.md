@@ -3,7 +3,7 @@
 All notable changes to Riskly. The project uses alpha versioning; releases are
 tagged `vX.Y.Z-alpha`.
 
-## [Unreleased]
+## [0.6.0] — 2026-06-21 (Alpha)
 
 ### Assessment lifecycle
 
@@ -172,6 +172,7 @@ Earlier alpha release (tag `v0.2.0-alpha`).
 
 Initial alpha release (tag `v0.1.0-alpha`).
 
+[0.6.0]: https://github.com/nandui/riskly/releases/tag/v0.6.0-alpha
 [0.5.0]: https://github.com/nandui/riskly/releases/tag/v0.5.0-alpha
 [0.3.5]: https://github.com/nandui/riskly/releases/tag/v0.3.5-alpha
 [0.3.0]: https://github.com/nandui/riskly/releases/tag/v0.3.0-alpha
