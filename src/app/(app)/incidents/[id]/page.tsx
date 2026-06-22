@@ -13,6 +13,7 @@ import { IncidentDetailsEditor } from "@/components/incidents/incident-details-e
 import { IncidentModuleEditor } from "@/components/incidents/incident-module-editor";
 import { EvidenceRequestsManager } from "@/components/incidents/evidence-requests-manager";
 import { IncidentInvestigationCard } from "@/components/incidents/incident-investigation-card";
+import { IncidentHazardsManager } from "@/components/incidents/incident-hazards-manager";
 import { InjuredPartiesManager } from "@/components/incidents/injured-parties-manager";
 import { WitnessesManager } from "@/components/incidents/witnesses-manager";
 import { FollowUpActionsManager } from "@/components/incidents/follow-up-actions-manager";
@@ -28,7 +29,9 @@ import {
   getAreaOptions,
   getIncidentDetail,
   getReporterOptions,
+  listLinkableHazards,
 } from "@/lib/data/incidents";
+import { describeIncidentHazardLink } from "@/lib/incidents/hazards";
 import { getCenterContext } from "@/lib/center-context";
 import { listLinkableAssessments } from "@/lib/data/assessments";
 import { INCIDENT_TYPE_META, humaniseHours } from "@/lib/incidents/constants";
@@ -171,15 +174,18 @@ export default async function IncidentDetailPage({
 
   // The inline editors (details + module + follow-up assignees) only load their
   // option data when the viewer can actually edit.
-  const [users, areaOptions, centerCtx, linkableAssessments] = await Promise.all([
-    canManage ? getReporterOptions() : Promise.resolve([]),
-    canManage ? getAreaOptions(null) : Promise.resolve([]),
-    canManage ? getCenterContext() : Promise.resolve({ centers: [] }),
-    canInvestigate
-      ? listLinkableAssessments(incident.centerId)
-      : Promise.resolve([]),
-  ]);
+  const [users, areaOptions, centerCtx, linkableAssessments, linkableHazards] =
+    await Promise.all([
+      canManage ? getReporterOptions() : Promise.resolve([]),
+      canManage ? getAreaOptions(null) : Promise.resolve([]),
+      canManage ? getCenterContext() : Promise.resolve({ centers: [] }),
+      canInvestigate
+        ? listLinkableAssessments(incident.centerId)
+        : Promise.resolve([]),
+      canManage ? listLinkableHazards(incident.centerId) : Promise.resolve([]),
+    ]);
   const centers = centerCtx.centers;
+  const linkedHazards = incident.hazardLinks.map(describeIncidentHazardLink);
   const areasForCenter = areaOptions
     .filter((a) => a.centerId === incident.centerId)
     .map((a) => ({ id: a.id, name: a.name }));
@@ -361,6 +367,15 @@ export default async function IncidentDetailPage({
             incidentId={incident.id}
             photoUrl={incident.photoUrl}
             notes={incident.investigationNotes}
+            canManage={canManage}
+          />
+
+          {/* Related hazards (from the centre's assessments, by area) */}
+          <IncidentHazardsManager
+            incidentId={incident.id}
+            linked={linkedHazards}
+            selectable={linkableHazards}
+            defaultAreaId={incident.areaId}
             canManage={canManage}
           />
 

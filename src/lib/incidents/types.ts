@@ -3,15 +3,69 @@
 // this file is safe to import from client components.
 
 import type {
+  Activity,
+  Area,
   Center,
   EvidenceRequest,
   FollowUpAction,
+  Hazard,
   Incident,
+  IncidentHazardLink,
   InjuredParty,
+  RiskAssessment,
+  Role,
   Witness,
 } from "@prisma/client";
 
 export type { EvidenceRequest, FollowUpAction, InjuredParty, Witness };
+
+// ─── Linked hazards (investigation: hazards related to the incident) ─────────
+
+// A hazard link with the hazard and its parent assessment fully loaded — what
+// getIncidentDetail returns for the "related hazards" card.
+export type IncidentHazardLinkDetail = IncidentHazardLink & {
+  hazard: Hazard & {
+    assessment: RiskAssessment & {
+      area: Area | null;
+      role: Role | null;
+      activity: Activity | null;
+    };
+  };
+};
+
+// Flattened, display-ready shape for the linked-hazard list, the picker's
+// "already selected" set, and the PDF export.
+export type IncidentHazardLinkItem = {
+  id: string; // the link id (for removal)
+  hazardId: string;
+  hazardRef: string; // RA-XX-0001-HZ-001
+  title: string; // the hazard text
+  riskCategory: string;
+  likelihood: number;
+  severity: number;
+  areaId: string | null; // the assessment's area (null for role/activity scope)
+  areaName: string | null;
+  assessmentId: string;
+  assessmentReference: string;
+  assessmentTitle: string;
+  note: string | null;
+};
+
+// A hazard offered in the "link hazards" picker, scoped to the incident's
+// centre and tagged with its area so the dialog can filter by area.
+export type LinkableHazard = {
+  id: string;
+  hazardRef: string;
+  title: string;
+  riskCategory: string;
+  likelihood: number;
+  severity: number;
+  areaId: string | null;
+  areaName: string | null;
+  assessmentId: string;
+  assessmentReference: string;
+  assessmentTitle: string;
+};
 
 // ─── Incident list (table rows, dashboard panels) ───────────────────────────
 
@@ -42,6 +96,7 @@ export type IncidentDetail = Incident & {
   injuredParties: InjuredParty[];
   followUpActions: FollowUpAction[];
   evidenceRequests: EvidenceRequest[];
+  hazardLinks: IncidentHazardLinkDetail[];
 };
 
 // ─── Location options for the cascading area / sub-area pickers ──────────────

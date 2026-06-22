@@ -161,6 +161,8 @@ model Hazard {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  incidentLinks IncidentHazardLink[]
+
   @@unique([assessmentId, seq])
   @@index([assessmentId])
   @@index([riskCategory])
@@ -377,6 +379,7 @@ model Incident {
   injuredParties     InjuredParty[]
   followUpActions    FollowUpAction[]
   riskAssessmentLinks IncidentRiskAssessmentLink[]
+  hazardLinks        IncidentHazardLink[]
   evidenceRequests   EvidenceRequest[]
 
   @@index([centerId])
@@ -407,6 +410,26 @@ model IncidentRiskAssessmentLink {
   @@unique([incidentId, assessmentId, linkType])
   @@index([incidentId])
   @@index([assessmentId])
+}
+
+// A hazard (from a risk assessment) that an investigator has flagged as
+// relevant to an incident. First-class join so it survives reopen and can carry
+// a note. Hazards are offered to the investigator filtered by the incident's
+// area — assessments are area-scoped, so "the hazards for this area" is the
+// natural, guided way to pick them.
+model IncidentHazardLink {
+  id          String   @id @default(cuid())
+  incidentId  String
+  incident    Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  hazardId    String
+  hazard      Hazard   @relation(fields: [hazardId], references: [id], onDelete: Cascade)
+  note        String? // optional context on why this hazard is relevant
+  createdById String? // loose link to User.id, no FK
+  createdAt   DateTime @default(now())
+
+  @@unique([incidentId, hazardId])
+  @@index([incidentId])
+  @@index([hazardId])
 }
 
 // A witness to an incident and their statement.

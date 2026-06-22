@@ -11,6 +11,8 @@ import {
   INJURED_PARTY_TYPE_LABELS,
   TREATMENT_LABELS,
 } from "@/lib/incidents/constants";
+import { describeIncidentHazardLink } from "@/lib/incidents/hazards";
+import { bandMeta, riskScore } from "@/lib/risk";
 import { formatDate, formatDateTime } from "@/lib/utils";
 
 export async function exportIncidentReportToPdf(incident: IncidentDetail) {
@@ -170,6 +172,24 @@ export async function exportIncidentReportToPdf(incident: IncidentDetail) {
       text(
         `Assigned to: ${a.assignedTo} · Due: ${formatDate(a.dueDate)} · Status: ${ACTION_STATUS_META[a.status]?.label ?? a.status}` +
           (a.completedAt ? ` · Completed: ${formatDate(a.completedAt)}` : ""),
+        { size: 9, color: [71, 85, 105], gap: 6 },
+      );
+    });
+  }
+
+  // ── Related hazards ──
+  const hazards = incident.hazardLinks.map(describeIncidentHazardLink);
+  heading(`Related hazards (${hazards.length})`);
+  if (hazards.length === 0) {
+    text("None linked.", { size: 10, color: [100, 116, 139] });
+  } else {
+    hazards.forEach((h, i) => {
+      const score = riskScore(h.likelihood, h.severity);
+      text(`${i + 1}. ${h.title}`, { size: 10, bold: true });
+      text(
+        `${h.hazardRef} · ${h.assessmentTitle}` +
+          (h.areaName ? ` · ${h.areaName}` : "") +
+          ` · Risk: ${score} (${bandMeta(score).label})`,
         { size: 9, color: [71, 85, 105], gap: 6 },
       );
     });

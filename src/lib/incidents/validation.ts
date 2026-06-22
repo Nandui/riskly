@@ -228,6 +228,14 @@ export const investigationNotesSchema = z.object({
   investigationNotes: optionalText(5000).transform((v) => v ?? ""),
 });
 
+// Related hazards — the investigator selects the hazards (from the centre's
+// assessments) relevant to this incident. The full set is posted each save, so
+// it both adds and removes links.
+export const setIncidentHazardsSchema = z.object({
+  incidentId: z.string().min(1),
+  hazardIds: z.array(z.string().min(1)).max(200).default([]),
+});
+
 // Close-out — the existing dialog posts only incidentId + closureNotes, so the
 // risk-assessment outcome defaults to "NoAction" and the RA fields are optional
 // (backward compatible). Outcomes: link an existing failed-control assessment,

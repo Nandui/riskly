@@ -22,6 +22,7 @@ import {
   incidentUpdateSchema,
   investigationNotesSchema,
   setActionStatusSchema,
+  setIncidentHazardsSchema,
   updateEvidenceRequestSchema,
   updateFollowUpActionSchema,
   updateInjuredPartySchema,
@@ -603,6 +604,97 @@ export async function updateInvestigationNotes(
     data: { investigationNotes: investigationNotes || null },
   });
   revalidateIncidents(incidentId);
+  return { ok: true };
+}
+
+// ─── Related hazards (investigation) ────────────────────────────────────────
+
+// Sync the hazards flagged as related to this incident. The picker posts the
+// full selected set; we diff it against the existing links so one save both
+// adds and removes. Hazards are validated to belong to the incident's centre.
+export async function setIncidentHazards(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const denied = await denyUnless("manageIncidents");
+  if (denied) return denied;
+
+  const parsed = setIncidentHazardsSchema.safeParse({
+    incidentId: formData.get("incidentId"),
+    hazardIds: parseJsonArray(formData, "hazardIds"),
+  });
+  if (!parsed.success) return invalidForm(parsed.error);
+  const { incidentId, hazardIds } = parsed.data;
+
+  const incident = await db.incident.findUnique({
+    where: { id: incidentId },
+    select: { id: true, centerId: true },
+  });
+  if (!incident) return { ok: false, error: "Incident not found." };
+
+  const user = await getCurrentUser();
+
+  // De-dupe, then keep only hazards that actually belong to this centre's
+  // assessments (guards against tampered/stale ids).
+  const requested = [...new Set(hazardIds)];
+  const valid = requested.length
+    ? await db.hazard.findMany({
+        where: { id: { in: requested }, assessment: { centerId: incident.centerId } },
+        select: { id: true },
+      })
+    : [];
+  const finalIds = new Set(valid.map((h) => h.id));
+
+  const existing = await db.incidentHazardLink.findMany({
+    where: { incidentId },
+    select: { hazardId: true },
+  });
+  const existingIds = new Set(existing.map((l) => l.hazardId));
+
+  const toAdd = [...finalIds].filter((id) => !existingIds.has(id));
+  const toRemove = [...existingIds].filter((id) => !finalIds.has(id));
+
+  if (toAdd.length === 0 && toRemove.length === 0) {
+    return { ok: true }; // nothing changed
+  }
+
+  try {
+    await db.$transaction([
+      ...(toRemove.length
+        ? [
+            db.incidentHazardLink.deleteMany({
+              where: { incidentId, hazardId: { in: toRemove } },
+            }),
+          ]
+        : []),
+      ...toAdd.map((hazardId) =>
+        db.incidentHazardLink.create({
+          data: { incidentId, hazardId, createdById: user?.id ?? null },
+        }),
+      ),
+    ]);
+  } catch (error) {
+    console.error("setIncidentHazards failed", error);
+    return { ok: false, error: "Could not update the related hazards." };
+  }
+
+  revalidateIncidents(incidentId);
+  return { ok: true };
+}
+
+// Quick "remove" of a single hazard link from the related-hazards card.
+export async function unlinkIncidentHazard(linkId: string): Promise<FormState> {
+  const denied = await denyUnless("manageIncidents");
+  if (denied) return denied;
+
+  const existing = await db.incidentHazardLink.findUnique({
+    where: { id: linkId },
+    select: { incidentId: true },
+  });
+  if (!existing) return { ok: false, error: "Hazard link not found." };
+
+  await db.incidentHazardLink.delete({ where: { id: linkId } });
+  revalidateIncidents(existing.incidentId);
   return { ok: true };
 }
 

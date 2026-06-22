@@ -7,8 +7,13 @@ import type {
   AreaOption,
   IncidentDetail,
   IncidentListItem,
+  LinkableHazard,
   UserOption,
 } from "@/lib/incidents/types";
+import {
+  assessmentSubjectTitle,
+  hazardReference,
+} from "@/lib/incidents/hazards";
 
 // ─── Overdue sweep ──────────────────────────────────────────────────────────
 // Storing an "Overdue" status lets us query/aggregate efficiently; we refresh it
@@ -103,6 +108,18 @@ export const getIncidentDetail = cache(
         injuredParties: { orderBy: { createdAt: "asc" } },
         followUpActions: { orderBy: { dueDate: "asc" } },
         evidenceRequests: { orderBy: { createdAt: "asc" } },
+        hazardLinks: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            hazard: {
+              include: {
+                assessment: {
+                  include: { area: true, role: true, activity: true },
+                },
+              },
+            },
+          },
+        },
       },
     });
   },
@@ -258,6 +275,54 @@ export async function listAreasWithSubAreas(
       description: s.description,
       incidentCount: s._count.incidents,
     })),
+  }));
+}
+
+// ─── Linkable hazards (investigation "related hazards" picker) ──────────────
+// Every hazard belonging to a risk assessment in the incident's centre, tagged
+// with the assessment's area so the picker can filter by area (the guided
+// "hazards for this area" selection). Area-scoped assessments carry an areaId;
+// role / activity assessments come back with a null area.
+
+export async function listLinkableHazards(
+  centerId: string,
+): Promise<LinkableHazard[]> {
+  const hazards = await db.hazard.findMany({
+    where: { assessment: { centerId } },
+    orderBy: [{ assessment: { reference: "asc" } }, { seq: "asc" }],
+    select: {
+      id: true,
+      seq: true,
+      hazard: true,
+      riskCategory: true,
+      likelihood: true,
+      severity: true,
+      assessment: {
+        select: {
+          id: true,
+          reference: true,
+          subjectType: true,
+          areaId: true,
+          area: { select: { name: true } },
+          role: { select: { name: true } },
+          activity: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  return hazards.map((h) => ({
+    id: h.id,
+    hazardRef: hazardReference(h.assessment.reference, h.seq),
+    title: h.hazard,
+    riskCategory: h.riskCategory,
+    likelihood: h.likelihood,
+    severity: h.severity,
+    areaId: h.assessment.areaId,
+    areaName: h.assessment.area?.name ?? null,
+    assessmentId: h.assessment.id,
+    assessmentReference: h.assessment.reference,
+    assessmentTitle: assessmentSubjectTitle(h.assessment),
   }));
 }
 

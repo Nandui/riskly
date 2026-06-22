@@ -3,6 +3,21 @@
 All notable changes to Riskly. The project uses alpha versioning; releases are
 tagged `vX.Y.Z-alpha`.
 
+## [Unreleased]
+
+### Incidents — related hazards
+
+- **Link hazards to an incident during investigation.** The incident workspace
+  has a new **Related hazards** card. Investigators pick the hazards (from the
+  centre's risk assessments) that relate to the incident, choosing from a
+  picker that **filters by area** and defaults to the area where the incident
+  happened — so "the hazards for this area" are one click away. Selecting saves
+  the whole set (adding and removing links in one go); individual hazards can be
+  unlinked from the card.
+- Each linked hazard shows its risk score/band, category and reference, and
+  links straight through to its assessment. Linked hazards are included in the
+  incident **PDF export**.
+
 ## [0.6.0] — 2026-06-21 (Alpha)
 
 ### Assessment lifecycle
