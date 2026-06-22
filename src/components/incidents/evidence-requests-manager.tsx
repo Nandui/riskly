@@ -36,7 +36,7 @@ import {
 } from "@/lib/incidents/constants";
 import { cn, formatDate, toDateInputValue } from "@/lib/utils";
 import type { FormState } from "@/lib/form";
-import type { EvidenceRequest } from "@/lib/incidents/types";
+import type { EvidenceRequest, UserOption } from "@/lib/incidents/types";
 
 function StatusBadge({ status }: { status: string }) {
   const m =
@@ -80,10 +80,12 @@ function RetentionCountdown({ deadline }: { deadline: Date }) {
 export function EvidenceRequestsManager({
   incidentId,
   requests,
+  users,
   canManage,
 }: {
   incidentId: string;
   requests: EvidenceRequest[];
+  users: UserOption[];
   canManage: boolean;
 }) {
   const router = useRouter();
@@ -218,6 +220,7 @@ export function EvidenceRequestsManager({
               mode="add"
               incidentId={incidentId}
               defaultKind={adding}
+              users={users}
               onDone={() => setAdding(null)}
             />
           )}
@@ -230,6 +233,7 @@ export function EvidenceRequestsManager({
             <EvidenceForm
               mode="edit"
               request={editing}
+              users={users}
               onDone={() => setEditing(null)}
             />
           )}
@@ -251,12 +255,13 @@ export function EvidenceRequestsManager({
   );
 }
 
-type EvidenceFormProps =
+type EvidenceFormProps = (
   | { mode: "add"; incidentId: string; defaultKind: "CCTV" | "Information"; request?: undefined; onDone: () => void }
-  | { mode: "edit"; request: EvidenceRequest; incidentId?: undefined; defaultKind?: undefined; onDone: () => void };
+  | { mode: "edit"; request: EvidenceRequest; incidentId?: undefined; defaultKind?: undefined; onDone: () => void }
+) & { users: UserOption[] };
 
 function EvidenceForm(props: EvidenceFormProps) {
-  const { mode, onDone } = props;
+  const { mode, onDone, users } = props;
   const router = useRouter();
   const [state, formAction, pending] = useActionState<FormState, FormData>(
     mode === "add" ? addEvidenceRequest : updateEvidenceRequest,
@@ -357,12 +362,21 @@ function EvidenceForm(props: EvidenceFormProps) {
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Who's actioning it" error={fe.assignedTo}>
-            <Input
-              name="assignedTo"
-              defaultValue={r?.assignedTo ?? ""}
-              placeholder="Name or role"
-            />
+          <Field label="Assigned to" required error={fe.assignedToId}>
+            <Select name="assignedToId" defaultValue={r?.assignedToId ?? ""} required>
+              <option value="" disabled>
+                Select a user…
+              </option>
+              {/* Preserve an assignee who is no longer in the active list. */}
+              {r?.assignedToId && !users.some((u) => u.id === r.assignedToId) && (
+                <option value={r.assignedToId}>{r.assignedTo ?? "Former user"}</option>
+              )}
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </Select>
           </Field>
           <Field
             label={isCctv ? "Pull footage by" : "Needed by"}

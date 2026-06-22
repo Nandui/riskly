@@ -175,16 +175,16 @@ export async function listFollowUpActions(options?: {
   return actions.map(toActionListItem);
 }
 
-// Open follow-up actions assigned to a person (by name) — the For You inbox.
-export async function getActionsAssignedTo(
-  assignee: string,
+// Open follow-up actions assigned to a user — the For You inbox.
+export async function getActionsAssignedToUser(
+  userId: string,
   centerId?: string | null,
 ): Promise<ActionListItem[]> {
   await sweepOverdueActions(centerId);
 
   const actions = await db.followUpAction.findMany({
     where: {
-      assignedTo: assignee,
+      assignedToId: userId,
       status: { not: "Complete" },
       ...(centerId ? { incident: { centerId } } : {}),
     },

@@ -359,6 +359,7 @@ export default async function IncidentDetailPage({
           <EvidenceRequestsManager
             incidentId={incident.id}
             requests={incident.evidenceRequests}
+            users={users}
             canManage={canManage}
           />
 

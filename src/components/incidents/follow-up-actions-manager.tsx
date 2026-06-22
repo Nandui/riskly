@@ -255,17 +255,17 @@ function ActionForm(props: ActionFormProps) {
           />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Assigned to" required error={fe.assignedTo}>
-            <Select name="assignedTo" defaultValue={a?.assignedTo ?? ""} required>
+          <Field label="Assigned to" required error={fe.assignedToId}>
+            <Select name="assignedToId" defaultValue={a?.assignedToId ?? ""} required>
               <option value="" disabled>
                 Select a user…
               </option>
-              {/* Preserve a legacy/non-user assignee when editing. */}
-              {a?.assignedTo && !users.some((u) => u.name === a.assignedTo) && (
-                <option value={a.assignedTo}>{a.assignedTo}</option>
+              {/* Preserve an assignee who is no longer in the active list. */}
+              {a?.assignedToId && !users.some((u) => u.id === a.assignedToId) && (
+                <option value={a.assignedToId}>{a.assignedTo ?? "Former user"}</option>
               )}
               {users.map((u) => (
-                <option key={u.id} value={u.name}>
+                <option key={u.id} value={u.id}>
                   {u.name}
                 </option>
               ))}

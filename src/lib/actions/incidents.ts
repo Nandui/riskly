@@ -202,6 +202,20 @@ async function resolveReporter(
   };
 }
 
+// Investigation work (actions + evidence/info requests) is assigned to a real,
+// active app user. Resolves the posted id to the FK + a denormalised display
+// name (stored so lists, the PDF and old rows render without a join).
+async function resolveAssignee(
+  userId: string,
+): Promise<{ ok: true; id: string; name: string } | { ok: false; error: string }> {
+  const u = await db.user.findFirst({
+    where: { id: userId, isActive: true },
+    select: { id: true, name: true, email: true },
+  });
+  if (!u) return { ok: false, error: "Assign this to a current user." };
+  return { ok: true, id: u.id, name: u.name ?? u.email };
+}
+
 type WitnessCreate = {
   name: string;
   roleOrRelation: string;
@@ -748,19 +762,24 @@ export async function addEvidenceRequest(
     source: formData.get("source") ?? undefined,
     timeWindow: formData.get("timeWindow") ?? undefined,
     detail: formData.get("detail") ?? undefined,
-    assignedTo: formData.get("assignedTo") ?? undefined,
+    assignedToId: formData.get("assignedToId") ?? undefined,
     retentionDeadline: formData.get("retentionDeadline") ?? undefined,
     status: formData.get("status") ?? undefined,
     outcomeRef: formData.get("outcomeRef") ?? undefined,
   });
   if (!parsed.success) return invalidForm(parsed.error);
-  const { incidentId, retentionDeadline, status, ...rest } = parsed.data;
+  const { incidentId, retentionDeadline, status, assignedToId, ...rest } = parsed.data;
+
+  const assignee = await resolveAssignee(assignedToId);
+  if (!assignee.ok) return { ok: false, error: assignee.error };
 
   const user = await getCurrentUser();
   await db.evidenceRequest.create({
     data: {
       incidentId,
       ...rest,
+      assignedToId: assignee.id,
+      assignedTo: assignee.name,
       status,
       // An outcome only makes sense once it's left the "Requested" state.
       outcomeRef: status === "Requested" ? null : (rest.outcomeRef ?? null),
@@ -787,13 +806,16 @@ export async function updateEvidenceRequest(
     source: formData.get("source") ?? undefined,
     timeWindow: formData.get("timeWindow") ?? undefined,
     detail: formData.get("detail") ?? undefined,
-    assignedTo: formData.get("assignedTo") ?? undefined,
+    assignedToId: formData.get("assignedToId") ?? undefined,
     retentionDeadline: formData.get("retentionDeadline") ?? undefined,
     status: formData.get("status") ?? undefined,
     outcomeRef: formData.get("outcomeRef") ?? undefined,
   });
   if (!parsed.success) return invalidForm(parsed.error);
-  const { id, retentionDeadline, status, ...rest } = parsed.data;
+  const { id, retentionDeadline, status, assignedToId, ...rest } = parsed.data;
+
+  const assignee = await resolveAssignee(assignedToId);
+  if (!assignee.ok) return { ok: false, error: assignee.error };
 
   const existing = await db.evidenceRequest.findUnique({
     where: { id },
@@ -805,6 +827,8 @@ export async function updateEvidenceRequest(
     where: { id },
     data: {
       ...rest,
+      assignedToId: assignee.id,
+      assignedTo: assignee.name,
       status,
       // An outcome only makes sense once it's left the "Requested" state.
       outcomeRef: status === "Requested" ? null : (rest.outcomeRef ?? null),
@@ -1272,16 +1296,28 @@ export async function addFollowUpAction(
   const parsed = addFollowUpActionSchema.safeParse({
     incidentId: formData.get("incidentId"),
     description: formData.get("description"),
-    assignedTo: formData.get("assignedTo"),
+    assignedToId: formData.get("assignedToId"),
     dueDate: formData.get("dueDate"),
   });
   if (!parsed.success) {
     return invalidForm(parsed.error);
   }
-  const { incidentId, ...a } = parsed.data;
+  const d = parsed.data;
 
-  await db.followUpAction.create({ data: { incidentId, ...mapFollowUp(a) } });
-  revalidateIncidents(incidentId);
+  const assignee = await resolveAssignee(d.assignedToId);
+  if (!assignee.ok) return { ok: false, error: assignee.error };
+
+  await db.followUpAction.create({
+    data: {
+      incidentId: d.incidentId,
+      description: d.description,
+      assignedToId: assignee.id,
+      assignedTo: assignee.name,
+      dueDate: new Date(d.dueDate),
+      status: "Open",
+    },
+  });
+  revalidateIncidents(d.incidentId);
   return { ok: true };
 }
 
@@ -1295,7 +1331,7 @@ export async function updateFollowUpAction(
   const parsed = updateFollowUpActionSchema.safeParse({
     id: formData.get("id"),
     description: formData.get("description"),
-    assignedTo: formData.get("assignedTo"),
+    assignedToId: formData.get("assignedToId"),
     dueDate: formData.get("dueDate"),
     status: formData.get("status"),
     notes: formData.get("notes") ?? undefined,
@@ -1311,12 +1347,16 @@ export async function updateFollowUpAction(
   });
   if (!existing) return { ok: false, error: "Action not found." };
 
+  const assignee = await resolveAssignee(d.assignedToId);
+  if (!assignee.ok) return { ok: false, error: assignee.error };
+
   const completed = d.status === "Complete";
   await db.followUpAction.update({
     where: { id: d.id },
     data: {
       description: d.description,
-      assignedTo: d.assignedTo,
+      assignedToId: assignee.id,
+      assignedTo: assignee.name,
       dueDate: new Date(d.dueDate),
       status: d.status,
       notes: d.notes,

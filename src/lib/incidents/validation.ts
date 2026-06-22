@@ -71,6 +71,10 @@ const treatmentEnum = z.enum([
 
 const actionStatusEnum = z.enum(["Open", "InProgress", "Complete", "Overdue"]);
 
+// Investigation work (follow-up actions, evidence/info requests) is assigned to
+// a real app user — the picker posts the user's id.
+const assigneeId = z.string().min(1, "Assign this to a user");
+
 // ─── Nested item shapes (also reused for standalone add/update) ──────────────
 
 export const witnessFields = z.object({
@@ -171,14 +175,20 @@ export const updateInjuredPartySchema = injuredPartyFields.extend({
   id: z.string().min(1),
 });
 
-export const addFollowUpActionSchema = followUpFields.extend({
-  incidentId: z.string().min(1),
-});
-export const updateFollowUpActionSchema = followUpFields.extend({
-  id: z.string().min(1),
-  status: actionStatusEnum,
-  notes: optionalText(2000).transform((v) => v ?? ""),
-});
+export const addFollowUpActionSchema = followUpFields
+  .omit({ assignedTo: true })
+  .extend({
+    incidentId: z.string().min(1),
+    assignedToId: assigneeId,
+  });
+export const updateFollowUpActionSchema = followUpFields
+  .omit({ assignedTo: true })
+  .extend({
+    id: z.string().min(1),
+    assignedToId: assigneeId,
+    status: actionStatusEnum,
+    notes: optionalText(2000).transform((v) => v ?? ""),
+  });
 
 export const setActionStatusSchema = z.object({
   id: z.string().min(1),
@@ -207,7 +217,8 @@ export const evidenceRequestFields = z.object({
   source: optionalText(200),
   timeWindow: optionalText(120),
   detail: optionalText(1000),
-  assignedTo: optionalText(200),
+  // Every request has an owner — the app user who pulls / answers it.
+  assignedToId: assigneeId,
   retentionDeadline: optionalDateOnly,
   status: evidenceStatusEnum.default("Requested"),
   outcomeRef: optionalText(500),

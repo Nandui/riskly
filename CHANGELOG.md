@@ -5,6 +5,17 @@ tagged `vX.Y.Z-alpha`.
 
 ## [Unreleased]
 
+### Incidents — investigation redesign (in progress)
+
+A ground-up rework of the incident reporting + investigation experience. First
+slice:
+
+- **Work is assigned to real users.** Follow-up actions and evidence/info
+  requests are now assigned to an app user (a proper user link, not a typed
+  name), so the **For You** inbox surfaces them reliably by who you are rather
+  than by name matching. The assignee's display name is still stored for lists,
+  exports and historical rows.
+
 ### Incidents — related hazards
 
 - **Link hazards to an incident during investigation.** The incident workspace

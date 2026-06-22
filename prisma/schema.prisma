@@ -203,6 +203,8 @@ model User {
   reviewRequestsMade     ReviewRequest[]  @relation("RequestedBy")
   reviewRequestsResolved ReviewRequest[]  @relation("ResolvedBy")
   auditLogs              AuditLog[]       @relation("AuditActor")
+  assignedFollowUps      FollowUpAction[]  @relation("AssignedFollowUp")
+  assignedEvidence       EvidenceRequest[] @relation("AssignedEvidence")
 
   @@index([role])
 }
@@ -488,7 +490,9 @@ model EvidenceRequest {
   source            String? // camera / area (CCTV), or who/where the info is requested from
   timeWindow        String? // CCTV time window, free text e.g. "12:40–12:50"
   detail            String? // what is being asked for
-  assignedTo        String? // who is pulling / answering it (free-text name)
+  assignedToId      String? // app user the request is assigned to (the owner who pulls / answers it)
+  assignedToUser    User?     @relation("AssignedEvidence", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedTo        String? // denormalised assignee display name (set from the user; legacy free-text on old rows)
   retentionDeadline DateTime? // CCTV: pull before this date (footage overwrite); also a generic due date
   status            String    @default("Requested") // Requested | Received | Unavailable | Reviewed
   outcomeRef        String? // clip reference / where stored, or the answer to an info request
@@ -500,6 +504,7 @@ model EvidenceRequest {
 
   @@index([incidentId])
   @@index([status])
+  @@index([assignedToId])
 }
 
 // A corrective / preventive action raised during an incident investigation.
@@ -508,7 +513,9 @@ model FollowUpAction {
   incidentId  String
   incident    Incident  @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   description String
-  assignedTo  String // free-text name in v1
+  assignedToId String? // app user the action is assigned to
+  assignedToUser User?  @relation("AssignedFollowUp", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedTo  String // denormalised assignee display name (set from the user; legacy free-text on old rows)
   dueDate     DateTime
   status      String    @default("Open") // Open | InProgress | Complete | Overdue
   completedAt DateTime?
@@ -520,4 +527,5 @@ model FollowUpAction {
   @@index([incidentId])
   @@index([status])
   @@index([dueDate])
+  @@index([assignedToId])
 }

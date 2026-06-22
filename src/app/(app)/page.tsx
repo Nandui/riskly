@@ -21,7 +21,7 @@ import {
   getNeedsAction,
   getMyReviewRequests,
 } from "@/lib/data/monitoring";
-import { getActionsAssignedTo, getMyIncidentDrafts } from "@/lib/data/incidents";
+import { getActionsAssignedToUser, getMyIncidentDrafts } from "@/lib/data/incidents";
 import { canReportIncidents, canManageIncidents } from "@/lib/incidents/permissions";
 import { assessmentTitle } from "@/lib/data/assessments";
 import { cn, formatDate } from "@/lib/utils";
@@ -62,7 +62,6 @@ export default async function ForYouPage() {
   const me = await requireUser();
   const { selected, selectedId } = await getCenterContext();
 
-  const assignee = me.name ?? me.email ?? "";
   const canApprove = can(me, "approveAssessments");
   const canRequest = can(me, "requestReview");
   const canReport = canReportIncidents(me);
@@ -73,7 +72,7 @@ export default async function ForYouPage() {
     await Promise.all([
       canApprove ? getAwaitingCeoApproval(selectedId) : Promise.resolve([]),
       getNeedsAction(me.id, selectedId),
-      assignee ? getActionsAssignedTo(assignee, selectedId) : Promise.resolve([]),
+      getActionsAssignedToUser(me.id, selectedId),
       getMyIncidentDrafts(me.id, selectedId),
       canRequest ? getMyReviewRequests(me.id, selectedId) : Promise.resolve([]),
     ]);
