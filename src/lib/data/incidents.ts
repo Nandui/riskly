@@ -195,6 +195,53 @@ export async function getActionsAssignedToUser(
   return actions.map(toActionListItem);
 }
 
+// Outstanding evidence/info requests assigned to a user — the For You inbox.
+// "Requested" is the only open state (Received/Reviewed/Unavailable are done).
+export type AssignedRequestItem = {
+  id: string;
+  incidentId: string;
+  incidentRef: string;
+  centerName: string;
+  kind: string;
+  source: string | null;
+  detail: string | null;
+  retentionDeadline: Date | null;
+};
+
+export async function getRequestsAssignedToUser(
+  userId: string,
+  centerId?: string | null,
+): Promise<AssignedRequestItem[]> {
+  const rows = await db.evidenceRequest.findMany({
+    where: {
+      assignedToId: userId,
+      status: "Requested",
+      ...(centerId ? { incident: { centerId } } : {}),
+    },
+    orderBy: [{ retentionDeadline: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      kind: true,
+      source: true,
+      detail: true,
+      retentionDeadline: true,
+      incident: {
+        select: { id: true, reference: true, center: { select: { name: true } } },
+      },
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    incidentId: r.incident.id,
+    incidentRef: r.incident.reference,
+    centerName: r.incident.center.name,
+    kind: r.kind,
+    source: r.source,
+    detail: r.detail,
+    retentionDeadline: r.retentionDeadline,
+  }));
+}
+
 // Draft incidents a user reported but hasn't submitted yet — the For You inbox.
 export async function getMyIncidentDrafts(
   userId: string,

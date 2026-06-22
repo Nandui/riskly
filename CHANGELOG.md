@@ -15,6 +15,9 @@ slice:
   name), so the **For You** inbox surfaces them reliably by who you are rather
   than by name matching. The assignee's display name is still stored for lists,
   exports and historical rows.
+- **Requests assigned to you** now appear on the **For You** home alongside your
+  follow-up actions, with a "pull the footage before it's gone" deadline cue for
+  outstanding CCTV.
 
 ### Incidents — related hazards
 

@@ -6,6 +6,10 @@ import {
   ListChecks,
   Siren,
   Send,
+  Inbox,
+  Video,
+  MessageSquareText,
+  Clock,
   CheckCircle2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -21,7 +25,11 @@ import {
   getNeedsAction,
   getMyReviewRequests,
 } from "@/lib/data/monitoring";
-import { getActionsAssignedToUser, getMyIncidentDrafts } from "@/lib/data/incidents";
+import {
+  getActionsAssignedToUser,
+  getRequestsAssignedToUser,
+  getMyIncidentDrafts,
+} from "@/lib/data/incidents";
 import { canReportIncidents, canManageIncidents } from "@/lib/incidents/permissions";
 import { assessmentTitle } from "@/lib/data/assessments";
 import { cn, formatDate } from "@/lib/utils";
@@ -68,14 +76,21 @@ export default async function ForYouPage() {
   const canEdit = can(me, "editContent");
   const canManageInc = canManageIncidents(me);
 
-  const [awaitingApprovalRaw, needsAction, myActions, myDrafts, myRequests] =
-    await Promise.all([
-      canApprove ? getAwaitingCeoApproval(selectedId) : Promise.resolve([]),
-      getNeedsAction(me.id, selectedId),
-      getActionsAssignedToUser(me.id, selectedId),
-      getMyIncidentDrafts(me.id, selectedId),
-      canRequest ? getMyReviewRequests(me.id, selectedId) : Promise.resolve([]),
-    ]);
+  const [
+    awaitingApprovalRaw,
+    needsAction,
+    myActions,
+    myAssignedRequests,
+    myDrafts,
+    myRequests,
+  ] = await Promise.all([
+    canApprove ? getAwaitingCeoApproval(selectedId) : Promise.resolve([]),
+    getNeedsAction(me.id, selectedId),
+    getActionsAssignedToUser(me.id, selectedId),
+    getRequestsAssignedToUser(me.id, selectedId),
+    getMyIncidentDrafts(me.id, selectedId),
+    canRequest ? getMyReviewRequests(me.id, selectedId) : Promise.resolve([]),
+  ]);
 
   // You can't grant the CEO sign-off on your own assessment (separation of duties).
   const awaitingApproval = awaitingApprovalRaw.filter((a) => a.ownerId !== me.id);
@@ -85,6 +100,7 @@ export default async function ForYouPage() {
     awaitingApproval.length +
     needsAction.length +
     myActions.length +
+    myAssignedRequests.length +
     myDrafts.length;
   const hasAnything = pending > 0 || (canRequest && myRequests.length > 0);
 
@@ -194,6 +210,64 @@ export default async function ForYouPage() {
             showCenter={!selected}
             canManage={canManageInc}
           />
+        </section>
+      )}
+
+      {myAssignedRequests.length > 0 && (
+        <section className="space-y-3">
+          <SectionHeading
+            icon={Inbox}
+            title="Requests assigned to you"
+            count={myAssignedRequests.length}
+          />
+          <p className="text-sm text-muted-foreground">
+            Evidence &amp; information requests you&apos;re the owner of — pull the
+            footage or get the detail before it&apos;s gone.
+          </p>
+          <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-xs">
+            {myAssignedRequests.map((r) => {
+              const Icon = r.kind === "CCTV" ? Video : MessageSquareText;
+              const overdue =
+                r.retentionDeadline != null &&
+                new Date(r.retentionDeadline).getTime() < Date.now();
+              return (
+                <li key={r.id}>
+                  <Link
+                    href={`/incidents/${r.incidentId}`}
+                    className="flex items-start justify-between gap-4 px-4 py-3.5 transition-colors hover:bg-surface-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <span className="font-mono text-xs text-faint">
+                        {r.incidentRef}
+                        {!selected ? ` · ${r.centerName}` : ""}
+                      </span>
+                      <p className="mt-0.5 flex items-center gap-1.5 font-medium text-ink">
+                        <Icon className="size-3.5 text-muted-foreground" />
+                        {r.kind === "CCTV" ? "CCTV" : "Information"}
+                        {r.source ? ` · ${r.source}` : ""}
+                      </p>
+                      {r.detail && (
+                        <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                          {r.detail}
+                        </p>
+                      )}
+                    </div>
+                    {r.retentionDeadline && (
+                      <span
+                        className={cn(
+                          "inline-flex shrink-0 items-center gap-1 text-xs font-medium",
+                          overdue ? "text-critical" : "text-muted-foreground",
+                        )}
+                      >
+                        <Clock className="size-3.5" />
+                        {overdue ? "Footage may be gone" : `By ${formatDate(r.retentionDeadline)}`}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </section>
       )}
 
