@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Circle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, FileText, Search } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActivityTimeline, type ActivityItem } from "@/components/ui/activity-timeline";
 import {
@@ -58,6 +58,79 @@ function GlanceRow({ label, value }: { label: string; value: React.ReactNode }) 
       <dd className="text-sm text-ink">{value || "—"}</dd>
     </div>
   );
+}
+
+// A divider between the two halves of the workspace — the Record (the facts as
+// reported) and the Investigation (the work done on it).
+function SectionTitle({
+  icon: Icon,
+  title,
+  hint,
+}: {
+  icon: typeof FileText;
+  title: string;
+  hint?: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 pt-1">
+      <div className="flex items-center gap-2">
+        <Icon className="size-4 text-muted-foreground" />
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-soft">
+          {title}
+        </h2>
+      </div>
+      <div className="h-px flex-1 bg-line" />
+      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+    </div>
+  );
+}
+
+// A compact number tile for the investigation summary.
+function Stat({
+  label,
+  value,
+  sub,
+  tone,
+}: {
+  label: string;
+  value: number;
+  sub?: string;
+  tone?: "critical";
+}) {
+  return (
+    <div className="rounded-[var(--radius-card)] border border-line bg-surface-2/40 p-3">
+      <div
+        className={cn(
+          "font-mono text-2xl font-semibold leading-none tnum",
+          tone === "critical" && value > 0 ? "text-critical" : "text-ink",
+        )}
+      >
+        {value}
+      </div>
+      <div className="mt-1 text-xs font-medium text-ink-soft">{label}</div>
+      {sub && (
+        <div
+          className={cn(
+            "text-xs",
+            tone === "critical" && value > 0 ? "text-critical" : "text-muted-foreground",
+          )}
+        >
+          {sub}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Two-letter initials for an owner chip.
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 }
 
 // A lightweight lifecycle timeline derived from the incident's own timestamps —
@@ -224,6 +297,26 @@ export default async function IncidentDetailPage({
   const activity = buildActivity(incident);
   const checklist = buildChecklist(incident);
 
+  // Investigation summary (rail) — the live state of the investigative work.
+  const openRequests = incident.evidenceRequests.filter(
+    (r) => r.status === "Requested",
+  );
+  const openActionsList = incident.followUpActions.filter(
+    (a) => a.status !== "Complete",
+  );
+  const overdueActionsCount = incident.followUpActions.filter(
+    (a) => a.status === "Overdue",
+  ).length;
+  // Who currently owns outstanding investigation work (open requests + actions).
+  const owners = Array.from(
+    new Set(
+      [
+        ...openRequests.map((r) => r.assignedTo),
+        ...openActionsList.map((a) => a.assignedTo),
+      ].filter((n): n is string => !!n),
+    ),
+  );
+
   const potentialScore =
     incident.potentialLikelihood && incident.potentialConsequence
       ? riskScore(incident.potentialLikelihood, incident.potentialConsequence)
@@ -286,6 +379,9 @@ export default async function IncidentDetailPage({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* MAIN */}
         <div className="order-2 space-y-6 lg:order-1">
+          {/* ════ RECORD — the facts as reported ════ */}
+          <SectionTitle icon={FileText} title="Record" />
+
           {/* Narrative */}
           <Card>
             <CardHeader>
@@ -355,32 +451,7 @@ export default async function IncidentDetailPage({
             </Card>
           )}
 
-          {/* Evidence & requests */}
-          <EvidenceRequestsManager
-            incidentId={incident.id}
-            requests={incident.evidenceRequests}
-            users={users}
-            canManage={canManage}
-          />
-
-          {/* Investigation: photo + notes */}
-          <IncidentInvestigationCard
-            incidentId={incident.id}
-            photoUrl={incident.photoUrl}
-            notes={incident.investigationNotes}
-            canManage={canManage}
-          />
-
-          {/* Related hazards (from the centre's assessments, by area) */}
-          <IncidentHazardsManager
-            incidentId={incident.id}
-            linked={linkedHazards}
-            selectable={linkableHazards}
-            defaultAreaId={incident.areaId}
-            canManage={canManage}
-          />
-
-          {/* People */}
+          {/* People involved */}
           {showInjured && (
             <InjuredPartiesManager
               incidentId={incident.id}
@@ -396,11 +467,47 @@ export default async function IncidentDetailPage({
             />
           )}
 
-          {/* Follow-up actions */}
+          {/* ════ INVESTIGATION — the work done on it ════ */}
+          <SectionTitle
+            icon={Search}
+            title="Investigation"
+            hint={
+              openRequests.length + openActionsList.length > 0
+                ? `${openRequests.length + openActionsList.length} open`
+                : undefined
+            }
+          />
+
+          {/* Evidence & information requests (assigned, tracked) */}
+          <EvidenceRequestsManager
+            incidentId={incident.id}
+            requests={incident.evidenceRequests}
+            users={users}
+            canManage={canManage}
+          />
+
+          {/* Follow-up actions (assigned, due) */}
           <FollowUpActionsManager
             incidentId={incident.id}
             actions={incident.followUpActions}
             users={users}
+            canManage={canManage}
+          />
+
+          {/* Related hazards (from the centre's assessments, by area) */}
+          <IncidentHazardsManager
+            incidentId={incident.id}
+            linked={linkedHazards}
+            selectable={linkableHazards}
+            defaultAreaId={incident.areaId}
+            canManage={canManage}
+          />
+
+          {/* Working log: scene photo + investigation notes */}
+          <IncidentInvestigationCard
+            incidentId={incident.id}
+            photoUrl={incident.photoUrl}
+            notes={incident.investigationNotes}
             canManage={canManage}
           />
         </div>
@@ -462,10 +569,61 @@ export default async function IncidentDetailPage({
             </dl>
           </Card>
 
-          {/* Investigation checklist */}
+          {/* Investigation summary — live state of the investigative work */}
           <Card>
             <CardHeader>
-              <CardTitle>Investigation checklist</CardTitle>
+              <CardTitle>Investigation</CardTitle>
+            </CardHeader>
+            <div className="space-y-3.5 p-5">
+              <dl className="grid grid-cols-2 gap-2.5">
+                <Stat
+                  label="Open requests"
+                  value={openRequests.length}
+                  sub={
+                    incident.evidenceRequests.length > 0
+                      ? `of ${incident.evidenceRequests.length}`
+                      : undefined
+                  }
+                />
+                <Stat
+                  label="Open actions"
+                  value={openActionsList.length}
+                  tone="critical"
+                  sub={
+                    overdueActionsCount > 0 ? `${overdueActionsCount} overdue` : undefined
+                  }
+                />
+                <Stat label="Related hazards" value={linkedHazards.length} />
+                <Stat
+                  label="People"
+                  value={incident.injuredParties.length + incident.witnesses.length}
+                />
+              </dl>
+              {owners.length > 0 && (
+                <div>
+                  <p className="eyebrow mb-1.5">On it</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {owners.map((o) => (
+                      <span
+                        key={o}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 py-0.5 pl-0.5 pr-2 text-xs text-ink-soft"
+                      >
+                        <span className="flex size-4 items-center justify-center rounded-full bg-primary/15 text-[0.6rem] font-semibold text-primary">
+                          {initials(o)}
+                        </span>
+                        {o}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Readiness checklist — advisory "is this ready to close?" */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Readiness to close</CardTitle>
             </CardHeader>
             <ul className="space-y-2.5 p-5">
               {checklist.map((c) => (

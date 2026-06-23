@@ -18,6 +18,11 @@ slice:
 - **Requests assigned to you** now appear on the **For You** home alongside your
   follow-up actions, with a "pull the footage before it's gone" deadline cue for
   outstanding CCTV.
+- **Reworked investigation workspace.** The incident page now splits cleanly into
+  a **Record** half (what happened, type detail, people) and an **Investigation**
+  half (evidence/info requests, follow-up actions, related hazards, working log),
+  with a new **Investigation summary** in the rail — open requests, open/overdue
+  actions, related hazards, and who currently owns the outstanding work.
 
 ### Incidents — related hazards
 
