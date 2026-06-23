@@ -12,6 +12,7 @@ import {
   TREATMENT_LABELS,
 } from "@/lib/incidents/constants";
 import { describeIncidentHazardLink } from "@/lib/incidents/hazards";
+import { ROOT_CAUSE_CATEGORY_META } from "@/lib/incidents/constants";
 import { bandMeta, riskScore } from "@/lib/risk";
 import { formatDate, formatDateTime } from "@/lib/utils";
 
@@ -193,6 +194,25 @@ export async function exportIncidentReportToPdf(incident: IncidentDetail) {
         { size: 9, color: [71, 85, 105], gap: 6 },
       );
     });
+  }
+
+  // ── Findings & root cause ──
+  if (
+    incident.rootCauseCategory ||
+    incident.rootCause?.trim() ||
+    incident.investigationConclusion?.trim()
+  ) {
+    heading("Findings & root cause");
+    if (incident.rootCauseCategory) {
+      field(
+        "Root cause category",
+        ROOT_CAUSE_CATEGORY_META[incident.rootCauseCategory]?.label ??
+          incident.rootCauseCategory,
+      );
+    }
+    if (incident.rootCause?.trim()) field("Root-cause analysis", incident.rootCause);
+    if (incident.investigationConclusion?.trim())
+      field("Conclusion", incident.investigationConclusion);
   }
 
   if (incident.status === "Closed") {

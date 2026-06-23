@@ -20,6 +20,7 @@ import {
   incidentDraftSchema,
   incidentFullSchema,
   incidentUpdateSchema,
+  investigationFindingsSchema,
   investigationNotesSchema,
   setActionStatusSchema,
   setIncidentHazardsSchema,
@@ -616,6 +617,43 @@ export async function updateInvestigationNotes(
   await db.incident.update({
     where: { id: incidentId },
     data: { investigationNotes: investigationNotes || null },
+  });
+  revalidateIncidents(incidentId);
+  return { ok: true };
+}
+
+// ─── Investigation findings (root cause + conclusion) ───────────────────────
+
+export async function updateInvestigationFindings(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const denied = await denyUnless("manageIncidents");
+  if (denied) return denied;
+
+  const parsed = investigationFindingsSchema.safeParse({
+    incidentId: formData.get("incidentId"),
+    rootCauseCategory: formData.get("rootCauseCategory") ?? "",
+    rootCause: formData.get("rootCause") ?? "",
+    investigationConclusion: formData.get("investigationConclusion") ?? "",
+  });
+  if (!parsed.success) return invalidForm(parsed.error);
+  const { incidentId, rootCauseCategory, rootCause, investigationConclusion } =
+    parsed.data;
+
+  const existing = await db.incident.findUnique({
+    where: { id: incidentId },
+    select: { id: true },
+  });
+  if (!existing) return { ok: false, error: "Incident not found." };
+
+  await db.incident.update({
+    where: { id: incidentId },
+    data: {
+      rootCauseCategory: rootCauseCategory ?? null,
+      rootCause: rootCause || null,
+      investigationConclusion: investigationConclusion || null,
+    },
   });
   revalidateIncidents(incidentId);
   return { ok: true };

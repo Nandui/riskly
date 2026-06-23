@@ -295,6 +295,10 @@ model Incident {
   evidenceRef     String? // CCTV reference, added during investigation (legacy single-ref; superseded by EvidenceRequest)
   photoUrl        String? // optional capture photo (private Vercel Blob URL)
   investigationNotes String? // free-text investigation working log, added during the investigation
+  // ── Investigation findings (set during the investigation) ──
+  rootCauseCategory       String? // dominant cause class (ROOT_CAUSE_CATEGORIES)
+  rootCause               String? // root-cause analysis — why it happened
+  investigationConclusion String? // the investigation's conclusion / findings
   reportedBy      String // name (or email) of the person the report is attributed to
   reportedById    String? // loose link to User.id (no FK; deleting a user keeps the name)
   witnessCount    Int       @default(0) // denormalised for display

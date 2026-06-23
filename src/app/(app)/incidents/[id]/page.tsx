@@ -13,6 +13,7 @@ import { IncidentDetailsEditor } from "@/components/incidents/incident-details-e
 import { IncidentModuleEditor } from "@/components/incidents/incident-module-editor";
 import { EvidenceRequestsManager } from "@/components/incidents/evidence-requests-manager";
 import { IncidentInvestigationCard } from "@/components/incidents/incident-investigation-card";
+import { IncidentFindingsCard } from "@/components/incidents/incident-findings-card";
 import { IncidentHazardsManager } from "@/components/incidents/incident-hazards-manager";
 import { InjuredPartiesManager } from "@/components/incidents/injured-parties-manager";
 import { WitnessesManager } from "@/components/incidents/witnesses-manager";
@@ -216,6 +217,10 @@ function buildChecklist(incident: IncidentDetail): { label: string; done: boolea
   items.push({
     label: "Investigation notes added",
     done: !!incident.investigationNotes?.trim(),
+  });
+  items.push({
+    label: "Root cause identified",
+    done: !!incident.rootCause?.trim() || !!incident.rootCauseCategory,
   });
   items.push({
     label:
@@ -508,6 +513,15 @@ export default async function IncidentDetailPage({
             incidentId={incident.id}
             photoUrl={incident.photoUrl}
             notes={incident.investigationNotes}
+            canManage={canManage}
+          />
+
+          {/* Findings & root cause — the investigation's conclusion */}
+          <IncidentFindingsCard
+            incidentId={incident.id}
+            rootCauseCategory={incident.rootCauseCategory}
+            rootCause={incident.rootCause}
+            investigationConclusion={incident.investigationConclusion}
             canManage={canManage}
           />
         </div>

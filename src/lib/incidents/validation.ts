@@ -247,6 +247,24 @@ export const setIncidentHazardsSchema = z.object({
   hazardIds: z.array(z.string().min(1)).max(200).default([]),
 });
 
+// Investigation findings — root-cause class + analysis, and the conclusion.
+const rootCauseCategoryEnum = z.enum([
+  "People",
+  "Procedure",
+  "Equipment",
+  "Environment",
+  "Other",
+]);
+export const investigationFindingsSchema = z.object({
+  incidentId: z.string().min(1),
+  rootCauseCategory: z
+    .union([rootCauseCategoryEnum, z.literal("")])
+    .optional()
+    .transform((v) => (v ? v : undefined)),
+  rootCause: optionalText(3000).transform((v) => v ?? ""),
+  investigationConclusion: optionalText(3000).transform((v) => v ?? ""),
+});
+
 // Close-out — the existing dialog posts only incidentId + closureNotes, so the
 // risk-assessment outcome defaults to "NoAction" and the RA fields are optional
 // (backward compatible). Outcomes: link an existing failed-control assessment,

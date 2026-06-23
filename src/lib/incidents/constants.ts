@@ -307,6 +307,29 @@ export const EVIDENCE_REQUEST_STATUS_META: Record<
 // Statuses where a request is still outstanding (footage not yet secured).
 export const OPEN_EVIDENCE_REQUEST_STATUSES = ["Requested"] as const;
 
+// ─── Investigation: root-cause class ────────────────────────────────────────
+
+// A simple, trendable cause taxonomy for the investigation's root-cause finding.
+// The free-text analysis carries the specifics; this is the dominant class.
+export const ROOT_CAUSE_CATEGORIES = [
+  { value: "People", label: "People / behaviour", sub: "training, supervision, human error" },
+  { value: "Procedure", label: "Procedure / process", sub: "missing or not-followed policy" },
+  { value: "Equipment", label: "Equipment / asset", sub: "failure, maintenance, design" },
+  { value: "Environment", label: "Environment / facility", sub: "surfaces, layout, weather, water" },
+  { value: "Other", label: "Other", sub: "none of the above" },
+] as const;
+
+export type RootCauseCategory = (typeof ROOT_CAUSE_CATEGORIES)[number]["value"];
+
+// Cool/neutral hues — the risk palette stays reserved for severity.
+export const ROOT_CAUSE_CATEGORY_META: Record<string, { label: string; pill: string }> = {
+  People: { label: "People / behaviour", pill: "bg-violet-50 text-violet-700 border border-violet-200" },
+  Procedure: { label: "Procedure / process", pill: "bg-sky-50 text-sky-700 border border-sky-200" },
+  Equipment: { label: "Equipment / asset", pill: "bg-amber-50 text-amber-700 border border-amber-200" },
+  Environment: { label: "Environment / facility", pill: "bg-teal-50 text-teal-700 border border-teal-200" },
+  Other: { label: "Other", pill: "bg-slate-100 text-slate-600 border border-slate-200" },
+};
+
 // ─── Close-out risk-assessment link ─────────────────────────────────────────
 
 // How a closed incident relates to a risk assessment (see the 3 outcomes).

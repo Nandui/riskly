@@ -23,6 +23,10 @@ slice:
   half (evidence/info requests, follow-up actions, related hazards, working log),
   with a new **Investigation summary** in the rail — open requests, open/overdue
   actions, related hazards, and who currently owns the outstanding work.
+- **Findings & root cause.** Investigations now capture a structured conclusion —
+  a root-cause category, the root-cause analysis (the *why*), and the overall
+  finding — surfaced on the workspace, tracked in the readiness checklist, and
+  included in the PDF export.
 
 ### Incidents — related hazards
 
